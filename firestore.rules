@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /profiles/{userId} {
+      allow read, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+    }
+
+    match /invites/{inviteCode} {
+      allow read, create, update: if signedIn();
+    }
+
+    match /couples/{coupleId} {
+      allow read, write: if signedIn();
+
+      match /furniture/{furnitureId} {
+        allow read, write: if signedIn();
+      }
+    }
+  }
+}
