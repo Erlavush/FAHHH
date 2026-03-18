@@ -7,8 +7,13 @@ import {
   savePersistedPlayerPosition,
   savePersistedSkin
 } from "./lib/devLocalState";
+import { FURNITURE_REGISTRY, type FurnitureType } from "./lib/furnitureRegistry";
 
 type Vector3Tuple = [number, number, number];
+type FurnitureSpawnRequest = {
+  requestId: number;
+  type: FurnitureType;
+};
 
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
@@ -21,6 +26,7 @@ const DEFAULT_PLAYER_POSITION: Vector3Tuple = [0, 0, 0];
 function App() {
   const [cameraEditEnabled, setCameraEditEnabled] = useState(false);
   const [buildModeEnabled, setBuildModeEnabled] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
   const [skinSrc, setSkinSrc] = useState<string | null>(() => loadPersistedSkin());
   const [skinError, setSkinError] = useState<string | null>(null);
@@ -37,7 +43,9 @@ function App() {
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(() =>
     loadPersistedPlayerPosition(DEFAULT_PLAYER_POSITION)
   );
+  const [spawnRequest, setSpawnRequest] = useState<FurnitureSpawnRequest | null>(null);
   const skinInputRef = useRef<HTMLInputElement | null>(null);
+  const nextSpawnRequestIdRef = useRef(1);
 
   useEffect(() => {
     savePersistedSkin(skinSrc);
@@ -101,6 +109,16 @@ function App() {
     event.target.value = "";
   }
 
+  function handleSpawnFurniture(type: FurnitureType): void {
+    setBuildModeEnabled(true);
+    setCatalogOpen(true);
+    setSpawnRequest({
+      requestId: nextSpawnRequestIdRef.current,
+      type
+    });
+    nextSpawnRequestIdRef.current += 1;
+  }
+
   return (
     <div className="scene-shell">
       <div className="scene-toolbar">
@@ -113,10 +131,30 @@ function App() {
         </button>
         <button
           className={`camera-toggle${buildModeEnabled ? " camera-toggle--active" : ""}`}
-          onClick={() => setBuildModeEnabled((current) => !current)}
+          onClick={() =>
+            setBuildModeEnabled((current) => {
+              const nextValue = !current;
+
+              if (!nextValue) {
+                setCatalogOpen(false);
+              }
+
+              return nextValue;
+            })
+          }
           type="button"
         >
           {buildModeEnabled ? "Build Mode: On" : "Build Mode: Off"}
+        </button>
+        <button
+          className={`camera-toggle${catalogOpen ? " camera-toggle--active" : ""}`}
+          onClick={() => {
+            setBuildModeEnabled(true);
+            setCatalogOpen((current) => !current);
+          }}
+          type="button"
+        >
+          {catalogOpen ? "Catalog: On" : "Catalog: Off"}
         </button>
         <button
           className={`camera-toggle${gridSnapEnabled ? " camera-toggle--active" : ""}`}
@@ -136,6 +174,25 @@ function App() {
           {debugOpen ? "Dev Panel: On" : "Dev Panel: Off"}
         </button>
       </div>
+
+      {catalogOpen ? (
+        <aside className="spawn-panel">
+          <span className="spawn-panel__title">Furniture Catalog</span>
+          <div className="spawn-grid">
+            {Object.values(FURNITURE_REGISTRY).map((entry) => (
+              <button
+                key={entry.type}
+                className="spawn-card"
+                onClick={() => handleSpawnFurniture(entry.type)}
+                type="button"
+              >
+                <strong>{entry.label}</strong>
+                <span>{entry.type.replace("_", " ")}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+      ) : null}
 
       {skinError ? <div className="scene-note">{skinError}</div> : null}
 
@@ -229,6 +286,7 @@ function App() {
           cameraEditEnabled={cameraEditEnabled}
           buildModeEnabled={buildModeEnabled}
           gridSnapEnabled={gridSnapEnabled}
+          spawnRequest={spawnRequest}
           initialCameraPosition={cameraPosition}
           initialPlayerPosition={playerPosition}
           skinSrc={skinSrc}

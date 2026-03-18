@@ -1,12 +1,12 @@
-export type PersistedChairPlacement = {
-  position: [number, number, number];
-  rotationY: number;
-};
+import { FURNITURE_REGISTRY, type FurnitureType } from "./furnitureRegistry";
+import type { RoomFurniturePlacement, Vector3Tuple } from "./roomState";
 
-export type PersistedVector3 = [number, number, number];
+export type PersistedFurniturePlacement = RoomFurniturePlacement;
+export type PersistedFurnitureType = FurnitureType;
+export type PersistedVector3 = Vector3Tuple;
 
 const DEV_SKIN_KEY = "cozy-room-dev-skin";
-const DEV_CHAIR_KEY = "cozy-room-dev-chair";
+const DEV_FURNITURE_KEY = "cozy-room-dev-furniture";
 const DEV_CAMERA_KEY = "cozy-room-dev-camera";
 const DEV_PLAYER_KEY = "cozy-room-dev-player";
 
@@ -43,51 +43,64 @@ export function savePersistedSkin(skinSrc: string | null): void {
   }
 }
 
-export function loadPersistedChairPlacement(
-  fallback: PersistedChairPlacement
-): PersistedChairPlacement {
+function isValidFurniturePlacement(value: unknown): value is PersistedFurniturePlacement {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "type" in value &&
+    "position" in value &&
+    "rotationY" in value &&
+    typeof value.id === "string" &&
+    typeof value.type === "string" &&
+    value.type in FURNITURE_REGISTRY &&
+    Array.isArray(value.position) &&
+    value.position.length === 3 &&
+    value.position.every((entry) => typeof entry === "number") &&
+    typeof value.rotationY === "number"
+  );
+}
+
+export function loadPersistedFurniturePlacements(
+  fallback: PersistedFurniturePlacement[]
+): PersistedFurniturePlacement[] {
   if (!canUseLocalStorage()) {
     return fallback;
   }
 
   try {
-    const storedValue = window.localStorage.getItem(DEV_CHAIR_KEY);
+    const storedValue = window.localStorage.getItem(DEV_FURNITURE_KEY);
 
     if (!storedValue) {
       return fallback;
     }
 
-    const parsedValue = JSON.parse(storedValue) as Partial<PersistedChairPlacement>;
+    const parsedValue = JSON.parse(storedValue) as unknown;
 
-    if (
-      !Array.isArray(parsedValue.position) ||
-      parsedValue.position.length !== 3 ||
-      parsedValue.position.some((value) => typeof value !== "number") ||
-      typeof parsedValue.rotationY !== "number"
-    ) {
+    if (!Array.isArray(parsedValue) || !parsedValue.every(isValidFurniturePlacement)) {
       return fallback;
     }
 
-    return {
-      position: [
-        parsedValue.position[0],
-        parsedValue.position[1],
-        parsedValue.position[2]
-      ],
-      rotationY: parsedValue.rotationY
-    };
+    return parsedValue.map((placement) => ({
+      id: placement.id,
+      type: placement.type,
+      position: [placement.position[0], placement.position[1], placement.position[2]],
+      rotationY: placement.rotationY
+    }));
   } catch {
     return fallback;
   }
 }
 
-export function savePersistedChairPlacement(placement: PersistedChairPlacement): void {
+export function savePersistedFurniturePlacements(
+  placements: PersistedFurniturePlacement[]
+): void {
   if (!canUseLocalStorage()) {
     return;
   }
 
   try {
-    window.localStorage.setItem(DEV_CHAIR_KEY, JSON.stringify(placement));
+    window.localStorage.setItem(DEV_FURNITURE_KEY, JSON.stringify(placements));
   } catch {
     // Ignore local browser storage failures in dev mode.
   }
