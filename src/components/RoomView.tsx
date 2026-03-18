@@ -14,13 +14,14 @@ import {
   Vector3
 } from "three";
 import { ChairModel } from "./ChairModel";
+import { PosterModel } from "./PosterModel";
 import { SmallTableModel } from "./SmallTableModel";
 import {
   loadPersistedFurniturePlacements,
   savePersistedFurniturePlacements,
   type PersistedFurniturePlacement
 } from "../lib/devLocalState";
-import { getFurnitureDefinition } from "../lib/furnitureRegistry";
+import { getFurnitureDefinition, type FurnitureType } from "../lib/furnitureRegistry";
 import { getFurnitureCollisionReason, type CollisionReason } from "../lib/furnitureCollision";
 import {
   createFurniturePlacement,
@@ -37,14 +38,20 @@ import { MinecraftPlayer } from "./MinecraftPlayer";
 const TILE_SIZE = 1;
 const GRID_SIZE = 16;
 const HALF_FLOOR_SIZE = (GRID_SIZE * TILE_SIZE) / 2;
+const BACK_WALL_SURFACE_Z = -7.83;
+const BACK_WALL_MIN_Y = 1;
+const BACK_WALL_MAX_Y = 2.7;
 const CHAIR_GIZMO_SCREEN_SIZE = 90;
+const POSTER_GIZMO_SCREEN_SIZE = 78;
 const CHAIR_GIZMO_LINE_WIDTH = 3;
 const chairDragPosition = new Vector3();
 const chairDragQuaternion = new Quaternion();
 const chairDragScale = new Vector3();
 const chairDragEuler = new Euler(0, 0, 0, "YXZ");
 const floorPlane = new Plane(new Vector3(0, 1, 0), 0);
+const backWallPlane = new Plane(new Vector3(0, 0, 1), -BACK_WALL_SURFACE_Z);
 const floorHitPoint = new Vector3();
+const backWallHitPoint = new Vector3();
 const spawnCandidateOffsets: Array<[number, number]> = [
   [0, 0],
   [1.5, 0],
@@ -60,6 +67,8 @@ const spawnCandidateOffsets: Array<[number, number]> = [
 ];
 const CHAIR_GIZMO_OFFSET: [number, number, number] = [0, 0.68, 0];
 const CHAIR_ACTIONS_OFFSET: [number, number, number] = [0, 1.95, 0];
+const POSTER_GIZMO_OFFSET: [number, number, number] = [0, 0, 0.12];
+const POSTER_ACTIONS_OFFSET: [number, number, number] = [0, 1.12, 0.16];
 
 function createConcreteTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -109,6 +118,14 @@ function clampToFloor(value: number): number {
 
 function clampChairToFloor(value: number): number {
   return Math.min(HALF_FLOOR_SIZE - 0.5, Math.max(-HALF_FLOOR_SIZE + 0.5, value));
+}
+
+function clampToBackWallX(value: number, halfWidth: number): number {
+  return Math.min(HALF_FLOOR_SIZE - halfWidth - 0.18, Math.max(-HALF_FLOOR_SIZE + halfWidth + 0.18, value));
+}
+
+function clampToBackWallY(value: number, halfHeight: number): number {
+  return Math.min(BACK_WALL_MAX_Y - halfHeight, Math.max(BACK_WALL_MIN_Y + halfHeight, value));
 }
 
 function snapToBlockCenter(value: number): number {
@@ -190,10 +207,14 @@ function FloorStage({
 
 function RoomShell({
   isDay,
-  shadowsEnabled
+  shadowsEnabled,
+  onBackWallPointerMove,
+  onBackWallPointerUp
 }: {
   isDay: boolean;
   shadowsEnabled: boolean;
+  onBackWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
+  onBackWallPointerUp: () => void;
 }) {
   const wallColor = isDay ? "#f6efe5" : "#20242f";
   const wallShade = isDay ? "#eadfce" : "#181c25";
@@ -214,6 +235,8 @@ function RoomShell({
         position={[0, 2.2, -8.06]}
         castShadow={shadowsEnabled}
         receiveShadow={shadowsEnabled}
+        onPointerMove={onBackWallPointerMove}
+        onPointerUp={onBackWallPointerUp}
       >
         <boxGeometry args={[16.2, 4.4, 0.22]} />
         <meshStandardMaterial color={wallColor} />
@@ -255,7 +278,7 @@ interface RoomViewProps {
   gridSnapEnabled: boolean;
   spawnRequest: {
     requestId: number;
-    type: "chair" | "table";
+    type: FurnitureType;
   } | null;
   initialCameraPosition: Vector3Tuple;
   initialPlayerPosition: Vector3Tuple;
@@ -321,16 +344,18 @@ function CameraTracker({
 }
 
 function ChairPlacementActions({
+  position,
   onCancel,
   onConfirm,
   confirmDisabled
 }: {
+  position: [number, number, number];
   onCancel: () => void;
   onConfirm: () => void;
   confirmDisabled: boolean;
 }) {
   return (
-    <Html position={CHAIR_ACTIONS_OFFSET} center occlude={false}>
+    <Html position={position} center occlude={false}>
       <div className="placement-actions">
         <button
           className="placement-action placement-action--cancel"
@@ -422,6 +447,22 @@ export function RoomView({
     );
   }, [furniture, playerWorldPosition, selectedFurniture]);
   const isPlacementBlocked = placementBlockReason !== null;
+  const selectedFurnitureDefinition = selectedFurniture
+    ? getFurnitureDefinition(selectedFurniture.type)
+    : null;
+  const selectedFurnitureIsWall = selectedFurnitureDefinition?.surface === "wall_back";
+  const selectedGizmoOffset: [number, number, number] = selectedFurnitureIsWall
+    ? POSTER_GIZMO_OFFSET
+    : CHAIR_GIZMO_OFFSET;
+  const selectedActionsOffset: [number, number, number] = selectedFurnitureIsWall
+    ? POSTER_ACTIONS_OFFSET
+    : CHAIR_ACTIONS_OFFSET;
+  const selectedActiveAxes: [boolean, boolean, boolean] = selectedFurnitureIsWall
+    ? [true, true, false]
+    : [true, false, true];
+  const selectedGizmoScreenSize = selectedFurnitureIsWall
+    ? POSTER_GIZMO_SCREEN_SIZE
+    : CHAIR_GIZMO_SCREEN_SIZE;
   const selectedFurnitureMatrix = useMemo(() => {
     if (!selectedFurniture) {
       return null;
@@ -480,12 +521,16 @@ export function RoomView({
 
     lastProcessedSpawnRequestIdRef.current = spawnRequest.requestId;
 
+    const definition = getFurnitureDefinition(spawnRequest.type);
     const basePosition = targetPosition;
     let nextPosition: [number, number, number] = [0, 0, 0];
     let hasValidCandidate = false;
 
     for (const [offsetX, offsetZ] of spawnCandidateOffsets) {
-      const candidate = resolveChairPlacement(basePosition[0] + offsetX, basePosition[2] + offsetZ);
+      const candidate =
+        definition.surface === "wall_back"
+          ? resolveWallPlacement(basePosition[0] + offsetX, 1.85 + offsetZ * 0.45, spawnRequest.type)
+          : resolveFloorPlacement(basePosition[0] + offsetX, basePosition[2] + offsetZ);
       const candidateFurniture = createFurniturePlacement(spawnRequest.type, candidate);
       const collisionReason = getFurnitureCollisionReason(
         candidateFurniture,
@@ -501,7 +546,10 @@ export function RoomView({
     }
 
     if (!hasValidCandidate) {
-      nextPosition = resolveChairPlacement(basePosition[0], basePosition[2]);
+      nextPosition =
+        definition.surface === "wall_back"
+          ? resolveWallPlacement(basePosition[0], 1.85, spawnRequest.type)
+          : resolveFloorPlacement(basePosition[0], basePosition[2]);
     }
 
     const nextFurniture = createFurniturePlacement(spawnRequest.type, nextPosition);
@@ -513,11 +561,29 @@ export function RoomView({
     furnitureEditStartRef.current[nextFurniture.id] = null;
   }, [furniture, playerWorldPosition, spawnRequest, targetPosition]);
 
-  function resolveChairPlacement(x: number, z: number): [number, number, number] {
+  function resolveFloorPlacement(x: number, z: number): [number, number, number] {
     const nextX = gridSnapEnabled ? snapToBlockCenter(x) : x;
     const nextZ = gridSnapEnabled ? snapToBlockCenter(z) : z;
 
     return [clampChairToFloor(nextX), 0, clampChairToFloor(nextZ)];
+  }
+
+  function resolveWallPlacement(
+    x: number,
+    y: number,
+    furnitureType: FurnitureType
+  ): [number, number, number] {
+    const definition = getFurnitureDefinition(furnitureType);
+    const halfWidth = definition.footprintWidth / 2;
+    const halfHeight = definition.footprintDepth / 2;
+    const nextX = gridSnapEnabled ? snapToBlockCenter(x) : x;
+    const nextY = gridSnapEnabled ? snapToBlockCenter(y) : y;
+
+    return [
+      clampToBackWallX(nextX, halfWidth),
+      clampToBackWallY(nextY, halfHeight),
+      BACK_WALL_SURFACE_Z
+    ];
   }
 
   function resolveFurnitureRotation(angle: number): number {
@@ -572,7 +638,30 @@ export function RoomView({
       return null;
     }
 
-    return resolveChairPlacement(hitPoint.x, hitPoint.z);
+    return resolveFloorPlacement(hitPoint.x, hitPoint.z);
+  }
+
+  function resolveWallRayPoint(ray: Ray, furnitureType: FurnitureType): [number, number, number] | null {
+    const hitPoint = ray.intersectPlane(backWallPlane, backWallHitPoint);
+
+    if (!hitPoint) {
+      return null;
+    }
+
+    return resolveWallPlacement(hitPoint.x, hitPoint.y, furnitureType);
+  }
+
+  function resolveFurnitureRayPoint(
+    ray: Ray,
+    furnitureType: FurnitureType
+  ): [number, number, number] | null {
+    const definition = getFurnitureDefinition(furnitureType);
+
+    if (definition.surface === "wall_back") {
+      return resolveWallRayPoint(ray, furnitureType);
+    }
+
+    return resolveFloorRayPoint(ray);
   }
 
   function handleFloorClick(event: ThreeEvent<MouseEvent>): void {
@@ -612,12 +701,13 @@ export function RoomView({
       cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
-      !selectedFurnitureId
+      !selectedFurnitureId ||
+      !selectedFurniture
     ) {
       return;
     }
 
-    const nextPosition = resolveFloorRayPoint(event.ray);
+    const nextPosition = resolveFurnitureRayPoint(event.ray, selectedFurniture.type);
 
     if (!nextPosition) {
       return;
@@ -635,14 +725,30 @@ export function RoomView({
   }
 
   function handleFurniturePivotDrag(localMatrix: Matrix4): void {
-    if (!selectedFurnitureId) {
+    if (!selectedFurnitureId || !selectedFurniture) {
       return;
     }
 
     localMatrix.decompose(chairDragPosition, chairDragQuaternion, chairDragScale);
     chairDragEuler.setFromQuaternion(chairDragQuaternion);
 
-    const nextPosition = resolveChairPlacement(chairDragPosition.x, chairDragPosition.z);
+    const definition = getFurnitureDefinition(selectedFurniture.type);
+
+    if (definition.surface === "wall_back") {
+      const nextPosition = resolveWallPlacement(
+        chairDragPosition.x,
+        chairDragPosition.y,
+        selectedFurniture.type
+      );
+
+      updateFurnitureItem(selectedFurnitureId, (item) => ({
+        ...item,
+        position: nextPosition
+      }));
+      return;
+    }
+
+    const nextPosition = resolveFloorPlacement(chairDragPosition.x, chairDragPosition.z);
     const nextRotation = resolveFurnitureRotation(chairDragEuler.y);
 
     updateFurnitureItem(selectedFurnitureId, (item) => ({
@@ -658,12 +764,13 @@ export function RoomView({
       cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
-      !selectedFurnitureId
+      !selectedFurnitureId ||
+      !selectedFurniture
     ) {
       return;
     }
 
-    const nextPosition = resolveFloorRayPoint(event.ray);
+    const nextPosition = resolveFurnitureRayPoint(event.ray, selectedFurniture.type);
 
     if (!nextPosition) {
       return;
@@ -734,6 +841,10 @@ export function RoomView({
       return <ChairModel {...commonProps} />;
     }
 
+    if (definition.modelKey === "poster") {
+      return <PosterModel {...commonProps} />;
+    }
+
     return <SmallTableModel {...commonProps} />;
   }
 
@@ -781,7 +892,12 @@ export function RoomView({
           />
         ) : null}
         {!isDay ? <StarField /> : null}
-        <RoomShell isDay={isDay} shadowsEnabled={shadowsEnabled} />
+        <RoomShell
+          isDay={isDay}
+          shadowsEnabled={shadowsEnabled}
+          onBackWallPointerMove={handleFloorPointerMove}
+          onBackWallPointerUp={handleFloorPointerUp}
+        />
         <FloorStage
           targetPosition={targetPosition}
           onFloorClick={handleFloorClick}
@@ -820,14 +936,15 @@ export function RoomView({
           <PivotControls
             matrix={selectedFurnitureMatrix}
             autoTransform={false}
-            offset={CHAIR_GIZMO_OFFSET}
-            activeAxes={[true, false, true]}
+            offset={selectedGizmoOffset}
+            activeAxes={selectedActiveAxes}
+            disableRotations={selectedFurnitureIsWall}
             disableScaling
             rotationLimits={[[0, 0], undefined, [0, 0]]}
             lineWidth={CHAIR_GIZMO_LINE_WIDTH}
             depthTest={false}
             fixed={true}
-            scale={CHAIR_GIZMO_SCREEN_SIZE}
+            scale={selectedGizmoScreenSize}
             onDragStart={() => {
               setIsDraggingFurniture(false);
               setIsTransformingFurniture(true);
@@ -841,6 +958,7 @@ export function RoomView({
               onPointerUp={handleFurniturePointerUp}
             >
               <ChairPlacementActions
+                position={selectedActionsOffset}
                 onCancel={handleCancelFurniturePlacement}
                 onConfirm={handleConfirmFurniturePlacement}
                 confirmDisabled={isPlacementBlocked}

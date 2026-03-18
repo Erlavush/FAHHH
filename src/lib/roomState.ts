@@ -26,6 +26,12 @@ export const DEFAULT_ROOM_STATE: RoomState = {
       type: "table",
       position: [-2.5, 0, 1.5],
       rotationY: Math.PI / 2
+    },
+    {
+      id: "poster-1",
+      type: "poster",
+      position: [2, 1.85, -7.83],
+      rotationY: 0
     }
   ]
 };

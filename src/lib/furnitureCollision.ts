@@ -22,6 +22,13 @@ type Axis2D = {
   z: number;
 };
 
+type SurfaceRect = {
+  centerA: number;
+  centerB: number;
+  halfWidth: number;
+  halfHeight: number;
+};
+
 const PLAYER_OCCUPANCY_FOOTPRINT: FurnitureCollisionFootprint = {
   width: 0.72,
   depth: 0.72
@@ -132,10 +139,32 @@ export function getFurnitureCollisionReason(
   otherFurniture: RoomFurniturePlacement[],
   playerPosition: PersistedVector3
 ): CollisionReason | null {
+  const selectedDefinition = getFurnitureDefinition(selectedFurniture.type);
+
+  if (selectedDefinition.surface === "wall_back") {
+    const selectedRect = getWallSurfaceRect(selectedFurniture);
+
+    if (
+      otherFurniture.some((placement) => {
+        const otherDefinition = getFurnitureDefinition(placement.type);
+
+        return (
+          otherDefinition.surface === "wall_back" &&
+          surfaceRectanglesOverlap(selectedRect, getWallSurfaceRect(placement))
+        );
+      })
+    ) {
+      return "furniture_overlap";
+    }
+
+    return null;
+  }
+
   const selectedRect = getFurnitureFootprintRect(selectedFurniture);
 
   if (
     otherFurniture.some((placement) =>
+      getFurnitureDefinition(placement.type).surface === "floor" &&
       rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
     )
   ) {
@@ -147,4 +176,36 @@ export function getFurnitureCollisionReason(
   }
 
   return null;
+}
+
+function createSurfaceRect(
+  centerA: number,
+  centerB: number,
+  width: number,
+  height: number
+): SurfaceRect {
+  return {
+    centerA,
+    centerB,
+    halfWidth: width / 2,
+    halfHeight: height / 2
+  };
+}
+
+function getWallSurfaceRect(placement: RoomFurniturePlacement): SurfaceRect {
+  const definition = getFurnitureDefinition(placement.type);
+
+  return createSurfaceRect(
+    placement.position[0],
+    placement.position[1],
+    definition.footprintWidth,
+    definition.footprintDepth
+  );
+}
+
+function surfaceRectanglesOverlap(first: SurfaceRect, second: SurfaceRect): boolean {
+  return (
+    Math.abs(first.centerA - second.centerA) <= first.halfWidth + second.halfWidth &&
+    Math.abs(first.centerB - second.centerB) <= first.halfHeight + second.halfHeight
+  );
 }

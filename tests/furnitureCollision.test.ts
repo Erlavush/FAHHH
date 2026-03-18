@@ -32,6 +32,18 @@ function makeTable(
   };
 }
 
+function makePoster(
+  id: string,
+  position: [number, number, number]
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "poster",
+    position,
+    rotationY: 0
+  };
+}
+
 describe("furnitureCollision", () => {
   it("allows valid placement when no furniture or player overlap exists", () => {
     const selectedChair = makeChair("chair-1", [0, 0, 0], 0);
@@ -66,5 +78,21 @@ describe("furnitureCollision", () => {
       "furniture_overlap"
     );
     expect(getFurnitureCollisionReason(rotatedChair, otherFurniture, farAwayPlayer)).toBeNull();
+  });
+
+  it("blocks wall placement when poster footprints overlap on the same wall", () => {
+    const selectedPoster = makePoster("poster-1", [0, 1.8, -7.83]);
+    const otherFurniture = [makePoster("poster-2", [0.8, 1.85, -7.83])];
+
+    expect(getFurnitureCollisionReason(selectedPoster, otherFurniture, farAwayPlayer)).toBe(
+      "furniture_overlap"
+    );
+  });
+
+  it("does not block wall placement against floor furniture on another surface", () => {
+    const selectedPoster = makePoster("poster-1", [0, 1.8, -7.83]);
+    const otherFurniture = [makeTable("table-1", [0, 0, 0], 0)];
+
+    expect(getFurnitureCollisionReason(selectedPoster, otherFurniture, farAwayPlayer)).toBeNull();
   });
 });
