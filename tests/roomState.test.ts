@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ensureRoomStateOwnership,
   createFurniturePlacement,
   createDefaultRoomState,
   DEFAULT_ROOM_LAYOUT_VERSION
@@ -23,6 +24,14 @@ describe("roomState", () => {
         "starter-wall-frame"
       ])
     );
+    expect(roomState.ownedFurniture).toHaveLength(roomState.furniture.length);
+    expect(
+      roomState.furniture.every((item) =>
+        roomState.ownedFurniture.some(
+          (ownedFurniture) => ownedFurniture.id === item.ownedFurnitureId
+        )
+      )
+    ).toBe(true);
   });
 
   it("assigns sensible default surfaces when creating furniture instances", () => {
@@ -36,5 +45,42 @@ describe("roomState", () => {
     expect(poster.rotationY).toBe(0);
     expect(vase.surface).toBe("surface");
     expect(vase.rotationY).toBe(0);
+  });
+
+  it("uses an explicitly provided owned furniture id when creating placements", () => {
+    const placement = createFurniturePlacement("desk", [0, 0, 0], "floor", {
+      ownedFurnitureId: "owned-desk-test"
+    });
+
+    expect(placement.ownedFurnitureId).toBe("owned-desk-test");
+  });
+
+  it("backfills ownership records for legacy room placements", () => {
+    const normalizedRoomState = ensureRoomStateOwnership({
+      metadata: {
+        roomId: "legacy-room",
+        roomTheme: "starter-cozy",
+        layoutVersion: DEFAULT_ROOM_LAYOUT_VERSION,
+        unlockedFurniture: ["desk", "chair"]
+      },
+      furniture: [
+        {
+          id: "legacy-desk",
+          type: "desk",
+          surface: "floor",
+          position: [0, 0, 0],
+          rotationY: 0
+        } as any
+      ],
+      ownedFurniture: []
+    });
+
+    expect(normalizedRoomState.furniture[0]?.ownedFurnitureId).toBe("owned-legacy-desk");
+    expect(normalizedRoomState.ownedFurniture).toEqual([
+      expect.objectContaining({
+        id: "owned-legacy-desk",
+        type: "desk"
+      })
+    ]);
   });
 });

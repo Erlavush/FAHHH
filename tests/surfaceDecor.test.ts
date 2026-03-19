@@ -10,7 +10,8 @@ const deskHost: RoomFurniturePlacement = {
   type: "desk",
   surface: "floor",
   position: [0, 0, 0],
-  rotationY: 0
+  rotationY: 0,
+  ownedFurnitureId: "owned-desk-1"
 };
 
 describe("surface decor", () => {

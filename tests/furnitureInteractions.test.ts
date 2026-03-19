@@ -10,6 +10,10 @@ function shortestAngleDistance(from: number, to: number): number {
   return Math.atan2(Math.sin(from - to), Math.cos(from - to));
 }
 
+function createOwnedFurnitureId(id: string): string {
+  return `owned-${id}`;
+}
+
 describe("furniture interactions", () => {
   it("returns a sit target for chairs using the rotated local seat offset", () => {
     const chair: RoomFurniturePlacement = {
@@ -17,7 +21,8 @@ describe("furniture interactions", () => {
       type: "chair",
       surface: "floor",
       position: [1, 0, 2],
-      rotationY: Math.PI / 2
+      rotationY: Math.PI / 2,
+      ownedFurnitureId: createOwnedFurnitureId("chair-a")
     };
 
     const target = getFurnitureInteractionTarget(chair);
@@ -35,7 +40,8 @@ describe("furniture interactions", () => {
       type: "rug",
       surface: "floor",
       position: [0, 0, 0],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("rug-a")
     };
 
     expect(getFurnitureInteractionTarget(rug)).toBeNull();
@@ -47,7 +53,8 @@ describe("furniture interactions", () => {
       type: "bed",
       surface: "floor",
       position: [2, 0, -1],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("bed-a")
     };
 
     const target = getFurnitureInteractionTarget(bed);
@@ -63,14 +70,16 @@ describe("furniture interactions", () => {
       type: "desk",
       surface: "floor",
       position: [0, 0, 0],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("desk-a")
     };
     const chair: RoomFurniturePlacement = {
       id: "chair-a",
       type: "chair",
       surface: "floor",
       position: [0.12, 0, 1.3],
-      rotationY: Math.PI / 2
+      rotationY: Math.PI / 2,
+      ownedFurnitureId: createOwnedFurnitureId("chair-a")
     };
 
     const target = getFurnitureInteractionTarget(desk, [desk, chair]);
@@ -90,21 +99,24 @@ describe("furniture interactions", () => {
       type: "desk",
       surface: "floor",
       position: [0, 0, 0],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("desk-a")
     };
     const fartherChair: RoomFurniturePlacement = {
       id: "chair-a",
       type: "chair",
       surface: "floor",
       position: [0.48, 0, 1.4],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("chair-a")
     };
     const nearerOfficeChair: RoomFurniturePlacement = {
       id: "office-chair-a",
       type: "office_chair",
       surface: "floor",
       position: [0.04, 0, 1.12],
-      rotationY: -Math.PI / 2
+      rotationY: -Math.PI / 2,
+      ownedFurnitureId: createOwnedFurnitureId("office-chair-a")
     };
 
     const target = getFurnitureInteractionTarget(desk, [
@@ -123,14 +135,16 @@ describe("furniture interactions", () => {
       type: "desk",
       surface: "floor",
       position: [0, 0, 0],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("desk-a")
     };
     const chairBehindDesk: RoomFurniturePlacement = {
       id: "chair-a",
       type: "chair",
       surface: "floor",
       position: [0, 0, -1],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("chair-a")
     };
 
     expect(getFurnitureInteractionTarget(desk, [desk, chairBehindDesk])).toBeNull();
@@ -142,14 +156,16 @@ describe("furniture interactions", () => {
       type: "office_desk",
       surface: "floor",
       position: [0, 0, 0],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("office-desk-a")
     };
     const officeChair: RoomFurniturePlacement = {
       id: "office-chair-a",
       type: "office_chair",
       surface: "floor",
       position: [0.1, 0, -1.15],
-      rotationY: 0
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("office-chair-a")
     };
 
     const target = getFurnitureInteractionTarget(officeDesk, [officeDesk, officeChair]);

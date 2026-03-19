@@ -304,7 +304,7 @@ export function WallFrameModel({
         <meshStandardMaterial {...frame} />
       </mesh>
       {selected || blocked || hovered || interactionHovered ? (
-        <mesh position={[0, 0, 0.08]}>
+        <mesh position={[0, 0, 0.08]} raycast={() => null}>
           <boxGeometry args={[1.56, 1.2, 0.01]} />
           <meshBasicMaterial
             color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}

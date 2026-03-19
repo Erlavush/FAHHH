@@ -103,7 +103,7 @@ export function VaseModel({
       </mesh>
 
       {selected || blocked || hovered || interactionHovered ? (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
           <ringGeometry args={[0.22, 0.3, 24]} />
           <meshBasicMaterial
             color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}
@@ -185,7 +185,7 @@ export function BookStackModel({
       </mesh>
 
       {selected || blocked || hovered || interactionHovered ? (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
           <ringGeometry args={[0.24, 0.32, 24]} />
           <meshBasicMaterial
             color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}

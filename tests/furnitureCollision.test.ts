@@ -4,6 +4,10 @@ import type { PersistedFurniturePlacement } from "../src/lib/devLocalState";
 
 const farAwayPlayer: [number, number, number] = [6, 0, 6];
 
+function createOwnedFurnitureId(id: string): string {
+  return `owned-${id}`;
+}
+
 function makeChair(
   id: string,
   position: [number, number, number],
@@ -14,7 +18,8 @@ function makeChair(
     type: "chair",
     surface: "floor",
     position,
-    rotationY
+    rotationY,
+    ownedFurnitureId: createOwnedFurnitureId(id)
   };
 }
 
@@ -28,7 +33,8 @@ function makeTable(
     type: "table",
     surface: "floor",
     position,
-    rotationY
+    rotationY,
+    ownedFurnitureId: createOwnedFurnitureId(id)
   };
 }
 
@@ -42,7 +48,8 @@ function makeDesk(
     type: "desk",
     surface: "floor",
     position,
-    rotationY
+    rotationY,
+    ownedFurnitureId: createOwnedFurnitureId(id)
   };
 }
 
@@ -56,7 +63,8 @@ function makeRug(
     type: "rug",
     surface: "floor",
     position,
-    rotationY
+    rotationY,
+    ownedFurnitureId: createOwnedFurnitureId(id)
   };
 }
 
@@ -70,7 +78,8 @@ function makePoster(
     type: "poster",
     surface,
     position,
-    rotationY: surface === "wall_left" ? Math.PI / 2 : 0
+    rotationY: surface === "wall_left" ? Math.PI / 2 : 0,
+    ownedFurnitureId: createOwnedFurnitureId(id)
   };
 }
 
@@ -85,6 +94,7 @@ function makeVase(
     surface: "surface",
     position,
     rotationY: 0,
+    ownedFurnitureId: createOwnedFurnitureId(id),
     anchorFurnitureId,
     surfaceLocalOffset: [0, 0]
   };

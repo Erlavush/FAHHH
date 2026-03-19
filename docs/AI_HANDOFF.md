@@ -1,7 +1,9 @@
 # AI Handoff
 
 ## Project Snapshot
-This project is currently a `local solo sandbox` for a cozy couple-room game. The player can move around a single 10x10 room, customize a Minecraft-skin-compatible avatar, decorate the room with floor, wall, and surface items, and use furniture interactions like sitting, sleeping, and using a PC. The long-term product is a paired multiplayer shared room, but that is not the active runtime yet.
+This repo currently contains the `foundation layer` for a larger game jam concept. The active runtime is still a local solo sandbox: the player can move around a single 10x10 room, customize a Minecraft-skin-compatible avatar, decorate the room with floor, wall, and surface items, and use furniture interactions like sitting, sleeping, and using a PC.
+
+The intended final game is `Risk It All`, a shared couple-room game where two partners build one private room together, earn progress together, personalize it with photos and pets, and lose that shared room if they break up.
 
 ## What Exists Now
 - React + Vite + TypeScript frontend.
@@ -25,14 +27,32 @@ This project is currently a `local solo sandbox` for a cozy couple-room game. Th
 - Local browser persistence for skin, camera, player, and room state.
 - Imported 3D asset support through wrapped model components.
 
-## What Is Planned Later
-- Google auth
+## Intended Final Game Features
+- Google auth or equivalent sign-in
 - invite-code pairing
-- shared backend room
-- live partner presence
-- synchronized furniture editing
-- cosmetics/themes/progression
-- mobile and production polish
+- one shared room per couple
+- live partner presence in the room
+- coins and player levels
+- shared couple streak
+- furniture and decor buying
+- desk PC minigames that grant extra coins
+- daily quests
+- editable picture frames with couple photos
+- pets such as cats and dogs
+- breakup reset that wipes the shared room after confirmation
+
+## Near-Term Product Goal
+The immediate goal is a game jam MVP that proves the full fantasy in one room:
+
+- pair into the same room
+- earn coins
+- buy furniture
+- keep a streak
+- play one PC minigame
+- complete one daily quest
+- upload at least one custom frame image
+- have one pet
+- support breakup reset
 
 ## Source of Truth
 Use these files as the real current gameplay truth:
@@ -122,6 +142,8 @@ These are future-track or older-shape modules:
 - Do not break world scale or block-relative logic.
 - Do not reconnect multiplayer by using `types.ts` as the main current room format.
 - Preserve the distinction between committed room state and in-progress draft editing.
+- Future progression, economy, quests, pets, and breakup state should be added on top of the current room-builder foundation rather than by replacing it wholesale.
+- Shared-room sync must adopt the current registry + room-state model before feature expansion.
 
 ## AI-Ready Glossary
 - `floor item`: furniture placed directly on the room floor.
@@ -132,3 +154,5 @@ These are future-track or older-shape modules:
 - `committed furniture`: the confirmed room layout currently treated as saved state.
 - `interaction target`: the resolved position and facing used when the player performs `sit`, `lie`, or `use_pc`.
 - `host furniture`: the floor furniture item that owns a piece of surface decor.
+- `couple streak`: the shared relationship-progress counter for the paired room.
+- `breakup reset`: the explicit flow that wipes the shared room and relationship-bound progress.

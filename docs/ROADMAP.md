@@ -1,18 +1,17 @@
-# Full Development Roadmap
+# Game Vision, MVP, and Stretch Goals
 
-## Status Legend
-- `Done`: already implemented or completed by this documentation pass.
-- `In Progress`: actively represented by current sandbox systems but still needs polish or unification.
-- `Future`: planned, not yet fully implemented.
-
-## Current Baseline
+## Current Foundation
 ### Status: Done
-- Local solo sandbox is the active product.
-- Registry-driven furniture system exists.
-- Starter room exists.
-- Floor, wall, and surface decor placement exist.
-- Local persistence exists.
-- Current interactions exist:
+The current implementation is the foundation layer, not the final game.
+
+What already exists:
+
+- local solo sandbox room runtime
+- registry-driven furniture system
+- starter room layout
+- floor, wall, and surface decor placement
+- local persistence
+- current interactions:
   - sit
   - sleep
   - use PC
@@ -20,118 +19,87 @@
 Acceptance:
 - the user can open the app, decorate the room, interact with furniture, refresh, and keep progress locally.
 
-## Phase 0: Documentation Baseline
-### Status: Done
-- Create:
-  - `GAME_OVERVIEW.md`
-  - `CURRENT_SYSTEMS.md`
-  - `ARCHITECTURE.md`
-  - `DIAGRAMS.md`
-  - `AI_HANDOFF.md`
-  - `ROADMAP.md`
-- Mark systems as `implemented now`, `legacy / future skeleton`, or `planned next`.
-- Provide diagrams and glossary for teammate + AI handoff.
+## Final Game Vision
+The intended game jam concept is a `cozy couple room game with real emotional stakes`.
 
-Acceptance:
-- a new teammate can identify current runtime truth and future modules without hidden context.
+The final target experience is:
 
-## Phase 1: Core System Stabilization
-### Status: In Progress
-- Finish current interaction polish:
-  - sit
-  - sleep
-  - use_pc
-- Eliminate remaining drag, hover, selection, and camera-input edge cases.
-- Normalize imported asset pivots, offsets, and block-fit footprints.
-- Make editing behavior consistent across floor, wall, and surface decor.
-- Add undo/redo for builder actions.
+- two partners pair into one shared room
+- each partner has their own coins and level
+- the couple shares a streak together
+- furniture and lovely room details are earned and bought
+- the desk PC contains minigames that reward extra coins
+- daily quests reward consistent play
+- custom picture frames hold real couple photos
+- pets such as cats and dogs live in the room
+- if the couple breaks up, the shared room and shared progress are wiped
 
-Acceptance:
-- all current furniture can be edited reliably without interaction ambiguity.
-- imported assets match block scale and do not require per-object hacks for routine placement.
+This repo should treat the current sandbox as the implementation base for that larger experience.
 
-## Phase 2: Content + Interaction Completion
-### Status: Future
-- Complete the starter room into a polished cozy default room.
-- Add more wall decor, surface decor, floor variants, and appliances.
-- Finalize V1 interaction set:
-  - sit
-  - sleep
-  - use_pc
-  - fridge open/inspect
-  - lamp toggle
-- Add visual states and ambient object feedback.
+## Game Jam MVP
+### Status: Active Target
+The MVP should deliver one polished slice of the full fantasy.
 
-Acceptance:
-- the room feels like a full lived-in space, not only a placement sandbox.
+Must-have systems:
 
-## Phase 3: UX / Mobile / Builder Polish
-### Status: Future
-- Make building usable on touch devices.
-- Refine catalog, overlays, selection bubble, and bottom dock for smaller screens.
-- Add explicit blocked-placement hints and onboarding guidance.
-- Add duplicate, lock, and stronger delete/remove flows.
-- Make the builder feel consistent and production-like.
+- `Shared room access`
+  - Google auth or equivalent sign-in
+  - invite pairing
+  - one couple mapped to one room
+- `Shared room sync`
+  - both partners load the same room
+  - confirmed furniture changes sync reliably
+  - both players can see partner presence in the room
+- `Core progression`
+  - coins for each partner
+  - basic player level
+  - shared couple streak
+- `Room economy`
+  - simple furniture/decor shop
+  - buying uses coins instead of free infinite placement
+- `Activity loop`
+  - one desk PC minigame
+  - one daily quest loop for extra coins
+- `Personalization`
+  - editable wall or desk picture frames
+  - one pet implementation
+- `Emotional hook`
+  - breakup/reset flow that wipes the shared room after explicit confirmation
 
-Acceptance:
-- decorating is comfortable on both desktop and touch-focused devices.
+MVP acceptance:
+- two players can pair into the same room, earn coins, buy at least some furniture, maintain a streak, play one PC minigame, complete one daily quest, place a custom photo in a frame, have one pet in the room, and trigger the breakup reset flow.
 
-## Phase 4: Save Schema + Data Model Unification
-### Status: Future
-- Unify local sandbox room data with the eventual backend room data.
-- Replace legacy backend type drift with the current registry/room model.
-- Version the shared placement schema explicitly.
-- Keep migration behavior safe for older local states.
+## Stretch Goals
+These features strengthen the fantasy, but should not block the jam build.
 
-Acceptance:
-- local save and future backend save use one canonical room data model.
+- more furniture categories and decorative sets
+- more picture frame sizes and placements
+- more PC minigames
+- more daily quest types
+- more pet types and simple pet behaviors
+- room themes and visual variants
+- ambient interactions such as lamp toggle or fridge inspect
+- stronger onboarding, blocked-placement feedback, and mobile polish
+- richer partner presence such as emotes or status cues
 
-## Phase 5: Themes / Cosmetics / Progression
-### Status: Future
-- Add room themes and visual variants.
-- Keep Minecraft-skin-compatible avatar import as a first-class feature.
-- Add cosmetic progression only.
-- Track unlocked furniture, variants, and themes.
-- Keep economy, quests, and broad life-sim systems out of V1.
+## Build Order
+To keep scope realistic, development should move in this order:
 
-Acceptance:
-- users can personalize the room meaningfully without introducing an economy-heavy design.
+1. Stabilize the current builder foundation.
+2. Unify the room schema so local and shared room state can use the same model.
+3. Reconnect auth, pairing, and shared room sync to the current room model.
+4. Add coins, buying, level, and streak data.
+5. Add one minigame, one daily quest, and one pet.
+6. Add custom picture frames and breakup reset flow.
+7. Spend remaining time on content and polish, not on new core systems.
 
-## Phase 6: Auth + Pairing + Shared Room Backend
-### Status: Future
-- Re-enable Google auth.
-- Re-enable invite-code pairing.
-- Map one couple to one shared room.
-- Separate local dev sandbox mode from shared-room mode.
-- Reconnect Firebase to the current room model, not the old legacy shape.
+## Scope Boundaries
+To stay finishable and coherent, the project should avoid expanding into:
 
-Acceptance:
-- two users can pair and load one shared room based on the current canonical room schema.
+- a broad life sim
+- an open-world game
+- a complex market economy
+- a large quest system
+- many rooms before the main shared room is polished
 
-## Phase 7: Live Sync + Partner Presence Beta
-### Status: Future
-- Sync confirmed furniture placement changes, rotations, and deletions.
-- Add live partner avatar and presence state.
-- Use simple conflict handling:
-  - last confirmed placement wins
-- Restore reconnect behavior and room restoration.
-
-Acceptance:
-- both players can see the same room and each other's presence reliably.
-
-## Phase 8: V1 Polish + Release
-### Status: Future
-- Performance pass for desktop and lower-end web devices.
-- Accessibility and usability pass.
-- Better onboarding for both sandbox and shared-room flows.
-- Error handling, reconnect safety, save integrity, and deployment checklist.
-- Final QA on scale, collisions, input feel, and sync behavior.
-
-Acceptance:
-- the game is stable, understandable, responsive, and release-ready for a V1 scope centered on one polished shared room.
-
-## Roadmap Defaults
-- Final product remains a cozy couple room game.
-- One polished shared room is the V1 home scope.
-- Local solo sandbox remains the active development mode until the backend is reconnected cleanly.
-- Every future system must preserve world scale and block-relative placement rules.
+The game should remain focused on one memorable couple-room experience with a strong `Risk it all` identity.

@@ -10,7 +10,9 @@ import {
   type FurnitureType
 } from "./lib/furnitureRegistry";
 import {
+  createOwnedFurnitureItem,
   createDefaultRoomState,
+  getPlacedOwnedFurnitureIds,
   type RoomFurniturePlacement,
   type RoomState,
   type Vector3Tuple
@@ -20,6 +22,14 @@ import { useControls, folder, Leva } from "leva";
 type FurnitureSpawnRequest = {
   requestId: number;
   type: FurnitureType;
+  ownedFurnitureId: string;
+};
+
+type InventoryStats = {
+  storedIds: string[];
+  storedCount: number;
+  placedCount: number;
+  totalCount: number;
 };
 
 type PlayerInteractionStatus =
@@ -67,6 +77,9 @@ function App() {
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
   const [roomState, setRoomState] = useState<RoomState>(initialSandboxState.roomState);
+  const [liveFurniturePlacements, setLiveFurniturePlacements] = useState<RoomFurniturePlacement[]>(
+    initialSandboxState.roomState.furniture
+  );
   const [spawnRequest, setSpawnRequest] = useState<FurnitureSpawnRequest | null>(null);
   const [cameraResetToken, setCameraResetToken] = useState(0);
   const [standRequestToken, setStandRequestToken] = useState(0);
@@ -94,6 +107,7 @@ function App() {
             placement.id === other.id &&
             placement.type === other.type &&
             placement.surface === other.surface &&
+            placement.ownedFurnitureId === other.ownedFurnitureId &&
             placement.anchorFurnitureId === other.anchorFurnitureId &&
             Math.abs(placement.position[0] - other.position[0]) < 0.0001 &&
             Math.abs(placement.position[1] - other.position[1]) < 0.0001 &&
@@ -110,7 +124,7 @@ function App() {
 
   useEffect(() => {
     savePersistedSandboxState({
-      version: 1,
+      version: 2,
       skinSrc,
       cameraPosition,
       playerPosition,
@@ -131,6 +145,53 @@ function App() {
 
     return Array.from(grouped.entries());
   }, []);
+
+  const inventoryByType = useMemo(() => {
+    const placedOwnedFurnitureIds = getPlacedOwnedFurnitureIds(liveFurniturePlacements);
+    const nextInventory = new Map<FurnitureType, InventoryStats>();
+
+    roomState.ownedFurniture.forEach((ownedFurniture) => {
+      const currentStats = nextInventory.get(ownedFurniture.type) ?? {
+        storedIds: [],
+        storedCount: 0,
+        placedCount: 0,
+        totalCount: 0
+      };
+
+      currentStats.totalCount += 1;
+
+      if (placedOwnedFurnitureIds.has(ownedFurniture.id)) {
+        currentStats.placedCount += 1;
+      } else {
+        currentStats.storedCount += 1;
+        currentStats.storedIds.push(ownedFurniture.id);
+      }
+
+      nextInventory.set(ownedFurniture.type, currentStats);
+    });
+
+    return nextInventory;
+  }, [liveFurniturePlacements, roomState.ownedFurniture]);
+
+  const storedInventorySections = useMemo(
+    () =>
+      catalogSections
+        .map(([sectionName, entries]) => [
+          sectionName,
+          entries.filter((entry) => (inventoryByType.get(entry.type)?.storedCount ?? 0) > 0)
+        ] as const)
+        .filter(([, entries]) => entries.length > 0),
+    [catalogSections, inventoryByType]
+  );
+
+  const storedInventoryCount = useMemo(
+    () =>
+      Array.from(inventoryByType.values()).reduce(
+        (totalCount, currentEntry) => totalCount + currentEntry.storedCount,
+        0
+      ),
+    [inventoryByType]
+  );
 
   function handleSkinImport(): void {
     skinInputRef.current?.click();
@@ -182,14 +243,32 @@ function App() {
     event.target.value = "";
   }
 
-  function handleSpawnFurniture(type: FurnitureType): void {
+  function handleAddFurnitureToInventory(type: FurnitureType): void {
+    setRoomState((currentRoomState) => ({
+      ...currentRoomState,
+      ownedFurniture: [...currentRoomState.ownedFurniture, createOwnedFurnitureItem(type)]
+    }));
+  }
+
+  function handleSpawnFurniture(type: FurnitureType, ownedFurnitureId: string): void {
     setBuildModeEnabled(true);
     setCatalogOpen(true);
     setSpawnRequest({
       requestId: nextSpawnRequestIdRef.current,
-      type
+      type,
+      ownedFurnitureId
     });
     nextSpawnRequestIdRef.current += 1;
+  }
+
+  function handlePlaceStoredFurniture(type: FurnitureType): void {
+    const nextStoredOwnedFurnitureId = inventoryByType.get(type)?.storedIds[0];
+
+    if (!nextStoredOwnedFurnitureId) {
+      return;
+    }
+
+    handleSpawnFurniture(type, nextStoredOwnedFurnitureId);
   }
 
   function handleResetCamera(): void {
@@ -208,6 +287,12 @@ function App() {
         furniture: placements
       };
     });
+  }, [placementListsMatch]);
+
+  const handleFurnitureSnapshotChange = useCallback((placements: RoomFurniturePlacement[]): void => {
+    setLiveFurniturePlacements((currentPlacements) =>
+      placementListsMatch(currentPlacements, placements) ? currentPlacements : placements
+    );
   }, [placementListsMatch]);
 
   const handleCameraPositionChange = useCallback((position: Vector3Tuple): void => {
@@ -229,6 +314,7 @@ function App() {
     setPlayerPosition(nextSandbox.playerPosition);
     setSkinSrc(nextSandbox.skinSrc);
     setRoomState(nextSandbox.roomState);
+    setLiveFurniturePlacements(nextSandbox.roomState.furniture);
     setSpawnRequest(null);
     setBuildModeEnabled(false);
     setCatalogOpen(false);
@@ -253,7 +339,9 @@ function App() {
   const [, setRoomStateUI] = useControls("Room State", () => ({
     Theme: { value: roomState.metadata.roomTheme, editable: false },
     Layout: { value: `v${roomState.metadata.layoutVersion}`, editable: false },
-    Items: { value: `${roomState.furniture.length}`, editable: false }
+    Items: { value: `${roomState.furniture.length}`, editable: false },
+    Owned: { value: `${roomState.ownedFurniture.length}`, editable: false },
+    Stored: { value: `${storedInventoryCount}`, editable: false }
   }));
 
   useEffect(() => {
@@ -271,9 +359,11 @@ function App() {
     setRoomStateUI({
       Theme: roomState.metadata.roomTheme,
       Layout: `v${roomState.metadata.layoutVersion}`,
-      Items: `${roomState.furniture.length}`
+      Items: `${roomState.furniture.length}`,
+      Owned: `${roomState.ownedFurniture.length}`,
+      Stored: `${storedInventoryCount}`
     });
-  }, [roomState, setRoomStateUI]);
+  }, [roomState, setRoomStateUI, storedInventoryCount]);
 
   return (
     <>
@@ -355,22 +445,65 @@ function App() {
 
       {catalogOpen ? (
         <aside className="spawn-panel">
-          <span className="spawn-panel__title">Room Builder Catalog</span>
+          <span className="spawn-panel__title">Room Inventory</span>
+          <p className="spawn-panel__meta">
+            Add furniture to your inventory, then place stored items into the room.
+          </p>
+          <section className="spawn-section">
+            <span className="spawn-section__title">Stored Items</span>
+            {storedInventorySections.length > 0 ? (
+              <>
+                {storedInventorySections.map(([sectionName, entries]) => (
+                  <section key={`stored-${sectionName}`} className="spawn-subsection">
+                    <span className="spawn-subsection__title">{sectionName}</span>
+                    <div className="spawn-grid">
+                      {entries.map((entry) => {
+                        const inventoryStats = inventoryByType.get(entry.type);
+
+                        return (
+                          <button
+                            key={`stored-${entry.type}`}
+                            className="spawn-card"
+                            onClick={() => handlePlaceStoredFurniture(entry.type)}
+                            type="button"
+                          >
+                            <strong>{entry.label}</strong>
+                            <span>{`${inventoryStats?.storedCount ?? 0} stored / ${inventoryStats?.placedCount ?? 0} in room`}</span>
+                            <span className="spawn-card__hint">Click to place this owned item.</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </>
+            ) : (
+              <div className="spawn-empty">No stored items yet. Add something from the catalog below.</div>
+            )}
+          </section>
+
           {catalogSections.map(([sectionName, entries]) => (
             <section key={sectionName} className="spawn-section">
               <span className="spawn-section__title">{sectionName}</span>
               <div className="spawn-grid">
-                {entries.map((entry) => (
-                  <button
-                    key={entry.type}
-                    className="spawn-card"
-                    onClick={() => handleSpawnFurniture(entry.type)}
-                    type="button"
-                  >
-                    <strong>{entry.label}</strong>
-                    <span>{entry.surface === "wall" ? "Wall item" : entry.category}</span>
-                  </button>
-                ))}
+                {entries.map((entry) => {
+                  const inventoryStats = inventoryByType.get(entry.type);
+
+                  return (
+                    <button
+                      key={entry.type}
+                      className="spawn-card"
+                      onClick={() => handleAddFurnitureToInventory(entry.type)}
+                      type="button"
+                    >
+                      <strong>{entry.label}</strong>
+                      <span>{`${inventoryStats?.storedCount ?? 0} stored / ${inventoryStats?.placedCount ?? 0} in room`}</span>
+                      <span className="spawn-card__hint">
+                        Add 1 copy to inventory.
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           ))}
@@ -408,6 +541,7 @@ function App() {
           floorSecondaryColor={floorSecondaryColor}
           onCameraPositionChange={handleCameraPositionChange}
           onPlayerPositionChange={handlePlayerPositionChange}
+          onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
           onCommittedFurnitureChange={handleCommittedFurnitureChange}
           onInteractionStateChange={setPlayerInteractionStatus}
         />

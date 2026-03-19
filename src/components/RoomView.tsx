@@ -235,20 +235,22 @@ function rotateLocalOffset(
   ];
 }
 
-function getGizmoOffset(surface: FurniturePlacementSurface): [number, number, number] {
-  if (surface === "wall_back") {
-    return [0, 0, 0.12];
+function getGizmoOffset(item: RoomFurniturePlacement): [number, number, number] {
+  const actionOffset = getPlacementActionOffset(item);
+
+  if (item.surface === "wall_back") {
+    return [0, Math.max(0.42, actionOffset[1] - 0.72), 0.16];
   }
 
-  if (surface === "wall_left") {
-    return [0.12, 0, 0];
+  if (item.surface === "wall_left") {
+    return [0.16, Math.max(0.42, actionOffset[1] - 0.72), 0];
   }
 
-  if (surface === "surface") {
-    return [0, 0.42, 0];
+  if (item.surface === "surface") {
+    return [0, Math.max(0.42, actionOffset[1] - 0.34), 0];
   }
 
-  return [0, 0.68, 0];
+  return [0, Math.max(0.82, actionOffset[1] - 0.6), 0];
 }
 
 function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number, number] {
@@ -332,7 +334,10 @@ function placementsMatch(
   second: RoomFurniturePlacement
 ): boolean {
   return (
+    first.id === second.id &&
+    first.type === second.type &&
     first.surface === second.surface &&
+    first.ownedFurnitureId === second.ownedFurnitureId &&
     first.anchorFurnitureId === second.anchorFurnitureId &&
     Math.abs(first.position[0] - second.position[0]) < 0.0001 &&
     Math.abs(first.position[1] - second.position[1]) < 0.0001 &&
@@ -509,6 +514,7 @@ interface RoomViewProps {
   spawnRequest: {
     requestId: number;
     type: FurnitureType;
+    ownedFurnitureId: string;
   } | null;
   cameraResetToken: number;
   standRequestToken: number;
@@ -524,6 +530,7 @@ interface RoomViewProps {
   floorSecondaryColor: string;
   onCameraPositionChange: (position: Vector3Tuple) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
+  onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
 }
@@ -581,13 +588,13 @@ function CameraTracker({
 function PlacementActions({
   position,
   onCancel,
-  onDelete,
+  onStore,
   onConfirm,
   confirmDisabled
 }: {
   position: [number, number, number];
   onCancel: () => void;
-  onDelete: () => void;
+  onStore: () => void;
   onConfirm: () => void;
   confirmDisabled: boolean;
 }) {
@@ -595,14 +602,31 @@ function PlacementActions({
   const screenPositionRef = useRef({ left: -9999, top: -9999, visible: false });
   const [screenPosition, setScreenPosition] = useState(screenPositionRef.current);
   const projectedPosition = useMemo(() => new Vector3(), []);
+  const panelHalfWidth = 108;
+  const panelTopMargin = 88;
+  const panelSideMargin = 20;
+  const horizontalScreenOffset = 116;
+  const verticalScreenOffset = 54;
 
   useFrame(() => {
     projectedPosition.set(position[0], position[1], position[2]);
     projectedPosition.project(camera);
 
+    const baseLeft = (projectedPosition.x * 0.5 + 0.5) * size.width;
+    const baseTop = (-projectedPosition.y * 0.5 + 0.5) * size.height - 12;
+    const prefersLeftSide = baseLeft > size.width * 0.58;
+    const left = Math.min(
+      size.width - panelHalfWidth - panelSideMargin,
+      Math.max(
+        panelHalfWidth + panelSideMargin,
+        baseLeft + (prefersLeftSide ? -horizontalScreenOffset : horizontalScreenOffset)
+      )
+    );
+    const top = Math.max(panelTopMargin, baseTop - verticalScreenOffset);
+
     const nextPosition = {
-      left: (projectedPosition.x * 0.5 + 0.5) * size.width,
-      top: (-projectedPosition.y * 0.5 + 0.5) * size.height - 12,
+      left,
+      top,
       visible: projectedPosition.z > -1 && projectedPosition.z < 1
     };
 
@@ -643,14 +667,14 @@ function PlacementActions({
           X
         </button>
         <button
-          className="placement-action placement-action--delete"
+          className="placement-action placement-action--store"
           onClick={(event) => {
             event.stopPropagation();
-            onDelete();
+            onStore();
           }}
           type="button"
         >
-          Del
+          Store
         </button>
         <button
           className={`placement-action placement-action--confirm${
@@ -760,6 +784,7 @@ export function RoomView({
   floorSecondaryColor,
   onCameraPositionChange,
   onPlayerPositionChange,
+  onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
   onInteractionStateChange
 }: RoomViewProps) {
@@ -770,6 +795,9 @@ export function RoomView({
   const lastProcessedSpawnRequestIdRef = useRef<number | null>(null);
   const lastCameraResetTokenRef = useRef(0);
   const lastStandRequestTokenRef = useRef(0);
+  const lastReportedFurnitureRef = useRef<RoomFurniturePlacement[]>(
+    cloneFurniturePlacements(initialFurnitureRef.current)
+  );
   const lastReportedCommittedFurnitureRef = useRef<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
@@ -886,6 +914,16 @@ export function RoomView({
   ]);
 
   useEffect(() => {
+    if (placementListsMatch(lastReportedFurnitureRef.current, furniture)) {
+      return;
+    }
+
+    const nextPlacements = cloneFurniturePlacements(furniture);
+    lastReportedFurnitureRef.current = nextPlacements;
+    onFurnitureSnapshotChange(nextPlacements);
+  }, [furniture, onFurnitureSnapshotChange]);
+
+  useEffect(() => {
     if (placementListsMatch(lastReportedCommittedFurnitureRef.current, committedFurniture)) {
       return;
     }
@@ -907,9 +945,7 @@ export function RoomView({
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
     setHoveredInteractableFurnitureId(null);
-    setIsDraggingFurniture(false);
-    setIsTransformingFurniture(false);
-    dragStateRef.current = null;
+    resetBuilderGestureState(false);
     furnitureEditStartRef.current = {};
     setPendingInteraction(null);
     setActiveInteraction(null);
@@ -927,9 +963,7 @@ export function RoomView({
       setSelectedFurnitureId(null);
       setHoveredFurnitureId(null);
       setHoveredInteractableFurnitureId(null);
-      setIsDraggingFurniture(false);
-      setIsTransformingFurniture(false);
-      dragStateRef.current = null;
+      resetBuilderGestureState(false);
       furnitureEditStartRef.current = {};
     }
   }, [buildModeEnabled, committedFurniture]);
@@ -937,6 +971,17 @@ export function RoomView({
   useEffect(() => {
     onInteractionStateChange(playerInteractionStatus);
   }, [onInteractionStateChange, playerInteractionStatus]);
+
+  useEffect(() => {
+    if (!selectedFurnitureId || selectedFurniture) {
+      return;
+    }
+
+    delete furnitureEditStartRef.current[selectedFurnitureId];
+    setSelectedFurnitureId(null);
+    setHoveredFurnitureId((current) => (current === selectedFurnitureId ? null : current));
+    resetBuilderGestureState(false);
+  }, [selectedFurniture, selectedFurnitureId]);
 
   useEffect(() => {
     if (!interactionHint) {
@@ -986,8 +1031,7 @@ export function RoomView({
     }
 
     function stopDragging() {
-      releaseCapturedPointer();
-      setIsDraggingFurniture(false);
+      resetBuilderGestureState(isTransformingFurniture);
     }
 
     window.addEventListener("pointerup", stopDragging);
@@ -997,7 +1041,7 @@ export function RoomView({
       window.removeEventListener("pointerup", stopDragging);
       window.removeEventListener("pointercancel", stopDragging);
     };
-  }, [isDraggingFurniture]);
+  }, [isDraggingFurniture, isTransformingFurniture]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -1075,6 +1119,7 @@ export function RoomView({
       initialSpawnPlacement.position,
       spawnSurface,
       {
+        ownedFurnitureId: spawnRequest.ownedFurnitureId,
         anchorFurnitureId: initialSpawnPlacement.anchorFurnitureId,
         surfaceLocalOffset: initialSpawnPlacement.surfaceLocalOffset
       }
@@ -1089,6 +1134,7 @@ export function RoomView({
       const candidatePlacement = {
         id: `${spawnRequest.type}-spawn-preview`,
         type: spawnRequest.type,
+        ownedFurnitureId: spawnRequest.ownedFurnitureId,
         ...candidate
       };
 
@@ -1098,6 +1144,7 @@ export function RoomView({
           candidate.position,
           candidate.surface,
           {
+            ownedFurnitureId: spawnRequest.ownedFurnitureId,
             anchorFurnitureId: candidate.anchorFurnitureId,
             surfaceLocalOffset: candidate.surfaceLocalOffset
           }
@@ -1113,6 +1160,7 @@ export function RoomView({
         initialSpawnPlacement.position,
         spawnSurface,
         {
+          ownedFurnitureId: spawnRequest.ownedFurnitureId,
           anchorFurnitureId: initialSpawnPlacement.anchorFurnitureId,
           surfaceLocalOffset: initialSpawnPlacement.surfaceLocalOffset
         }
@@ -1122,9 +1170,7 @@ export function RoomView({
     setFurniture((currentFurniture) => [...currentFurniture, nextPlacement]);
     setSelectedFurnitureId(nextPlacement.id);
     setHoveredFurnitureId(nextPlacement.id);
-    setIsDraggingFurniture(false);
-    setIsTransformingFurniture(false);
-    dragStateRef.current = null;
+    resetBuilderGestureState(false);
     furnitureEditStartRef.current[nextPlacement.id] = null;
   }, [furniture, playerWorldPosition, spawnRequest, targetPosition]);
 
@@ -1152,6 +1198,34 @@ export function RoomView({
 
     capturedPointerIdRef.current = null;
     capturedPointerTargetRef.current = null;
+  }
+
+  function resetBuilderGestureState(nextTransforming = false) {
+    releaseCapturedPointer();
+    setIsDraggingFurniture(false);
+    setIsTransformingFurniture(nextTransforming);
+    dragStateRef.current = null;
+
+    if (orbitControlsRef.current) {
+      orbitControlsRef.current.enabled = !nextTransforming;
+    }
+  }
+
+  function finishFurnitureEditingSession(
+    furnitureId: string | null,
+    cancelDraft: boolean
+  ) {
+    if (furnitureId) {
+      if (cancelDraft && hasDraftChanges(furnitureId)) {
+        cancelFurnitureDraft(furnitureId);
+      } else {
+        delete furnitureEditStartRef.current[furnitureId];
+      }
+    }
+
+    setSelectedFurnitureId(null);
+    setHoveredFurnitureId(null);
+    resetBuilderGestureState(false);
   }
 
   function getEditableSurfaceHosts(excludedFurnitureId?: string): RoomFurniturePlacement[] {
@@ -1616,15 +1690,7 @@ export function RoomView({
     }
 
     if (selectedFurnitureId) {
-      if (hasDraftChanges(selectedFurnitureId)) {
-        cancelFurnitureDraft(selectedFurnitureId);
-      }
-
-      setSelectedFurnitureId(null);
-      setHoveredFurnitureId(null);
-      setIsDraggingFurniture(false);
-      setIsTransformingFurniture(false);
-      dragStateRef.current = null;
+      finishFurnitureEditingSession(selectedFurnitureId, true);
     }
 
     return true;
@@ -1670,6 +1736,12 @@ export function RoomView({
       return;
     }
 
+    const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
+
+    if (!isPrimaryPointer) {
+      return;
+    }
+
     event.stopPropagation();
     if (orbitControlsRef.current) {
       orbitControlsRef.current.enabled = false;
@@ -1700,13 +1772,7 @@ export function RoomView({
     event.stopPropagation();
 
     if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
-      if (hasDraftChanges(selectedFurnitureId)) {
-        cancelFurnitureDraft(selectedFurnitureId);
-      }
-
-      setIsDraggingFurniture(false);
-      setIsTransformingFurniture(false);
-      dragStateRef.current = null;
+      finishFurnitureEditingSession(selectedFurnitureId, true);
     }
 
     selectFurnitureForEditing(furnitureId);
@@ -1730,13 +1796,7 @@ export function RoomView({
     event.stopPropagation();
 
     if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
-      if (hasDraftChanges(selectedFurnitureId)) {
-        cancelFurnitureDraft(selectedFurnitureId);
-      }
-
-      setIsDraggingFurniture(false);
-      setIsTransformingFurniture(false);
-      dragStateRef.current = null;
+      finishFurnitureEditingSession(selectedFurnitureId, true);
     }
 
     selectFurnitureForEditing(furnitureId);
@@ -1819,12 +1879,7 @@ export function RoomView({
 
   function handleFurniturePointerUp(event?: ThreeEvent<PointerEvent>) {
     event?.stopPropagation();
-    releaseCapturedPointer();
-    setIsDraggingFurniture(false);
-    dragStateRef.current = null;
-    if (orbitControlsRef.current) {
-      orbitControlsRef.current.enabled = !isTransformingFurniture;
-    }
+    resetBuilderGestureState(isTransformingFurniture);
   }
 
   function handlePivotDrag(localMatrix: Matrix4) {
@@ -1930,27 +1985,14 @@ export function RoomView({
   }
 
   function handleSurfacePointerUp() {
-    releaseCapturedPointer();
-    setIsDraggingFurniture(false);
-    dragStateRef.current = null;
-    if (orbitControlsRef.current) {
-      orbitControlsRef.current.enabled = !isTransformingFurniture;
-    }
+    resetBuilderGestureState(isTransformingFurniture);
   }
 
   function handleCancelFurniturePlacement() {
-    if (selectedFurnitureId) {
-      cancelFurnitureDraft(selectedFurnitureId);
-    }
-
-    setSelectedFurnitureId(null);
-    setHoveredFurnitureId(null);
-    setIsDraggingFurniture(false);
-    setIsTransformingFurniture(false);
-    dragStateRef.current = null;
+    finishFurnitureEditingSession(selectedFurnitureId, true);
   }
 
-  function handleDeleteFurniturePlacement() {
+  function handleStoreFurniturePlacement() {
     if (!selectedFurnitureId) {
       return;
     }
@@ -1971,11 +2013,7 @@ export function RoomView({
     furnitureIdsToRemove.forEach((furnitureId) => {
       delete furnitureEditStartRef.current[furnitureId];
     });
-    setSelectedFurnitureId(null);
-    setHoveredFurnitureId(null);
-    setIsDraggingFurniture(false);
-    setIsTransformingFurniture(false);
-    dragStateRef.current = null;
+    finishFurnitureEditingSession(selectedFurnitureId, false);
   }
 
   function getNudgeStep() {
@@ -2174,17 +2212,7 @@ export function RoomView({
   }
 
   function handleDeselectFurniture() {
-    if (selectedFurnitureId) {
-      if (hasDraftChanges(selectedFurnitureId)) {
-        cancelFurnitureDraft(selectedFurnitureId);
-      }
-
-      setSelectedFurnitureId(null);
-      setHoveredFurnitureId(null);
-      setIsDraggingFurniture(false);
-      setIsTransformingFurniture(false);
-      dragStateRef.current = null;
-    }
+    finishFurnitureEditingSession(selectedFurnitureId, true);
   }
 
   function handleConfirmFurniturePlacement() {
@@ -2193,12 +2221,7 @@ export function RoomView({
     }
 
     setCommittedFurniture(cloneFurniturePlacements(furniture));
-    delete furnitureEditStartRef.current[selectedFurnitureId];
-    setSelectedFurnitureId(null);
-    setHoveredFurnitureId(null);
-    setIsDraggingFurniture(false);
-    setIsTransformingFurniture(false);
-    dragStateRef.current = null;
+    finishFurnitureEditingSession(selectedFurnitureId, false);
   }
 
   function renderFurnitureModel(
@@ -2409,7 +2432,7 @@ export function RoomView({
           <PivotControls
             matrix={selectedFurnitureMatrix}
             autoTransform={false}
-            offset={getGizmoOffset(selectedSurface)}
+            offset={getGizmoOffset(selectedFurniture)}
             activeAxes={getActiveAxes(selectedSurface)}
             disableRotations={
               selectedSurface !== "floor" && selectedSurface !== "surface"
@@ -2425,11 +2448,10 @@ export function RoomView({
                 : WALL_GIZMO_SCREEN_SIZE
             }
             onDragStart={() => {
-              setIsDraggingFurniture(false);
-              setIsTransformingFurniture(true);
+              resetBuilderGestureState(true);
             }}
             onDrag={handlePivotDrag}
-            onDragEnd={() => setIsTransformingFurniture(false)}
+            onDragEnd={() => resetBuilderGestureState(false)}
           >
             <group
               onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
@@ -2478,7 +2500,7 @@ export function RoomView({
               selectedFurniture.position[2] + getPlacementActionOffset(selectedFurniture)[2]
             ]}
             onCancel={handleCancelFurniturePlacement}
-            onDelete={handleDeleteFurniturePlacement}
+            onStore={handleStoreFurniturePlacement}
             onConfirm={handleConfirmFurniturePlacement}
             confirmDisabled={isPlacementBlocked}
           />

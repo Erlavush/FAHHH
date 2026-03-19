@@ -85,33 +85,34 @@ flowchart TD
 ```
 
 ## Full Product Roadmap Diagram
-Future: the intended path from current local sandbox to the full couple-room release.
+Future: the intended path from the current sandbox foundation to the jam-ready `Risk It All` experience.
 
 ```mermaid
 flowchart LR
-  A["Current: Local Solo Sandbox"] --> B["Phase 0: Docs + AI Handoff Pack"]
-  B --> C["Phase 1: Core System Stabilization"]
-  C --> D["Phase 2: Content + Interaction Completion"]
-  D --> E["Phase 3: UX / Mobile / Builder Polish"]
-  E --> F["Phase 4: Save Schema + Data Model Unification"]
-  F --> G["Phase 5: Themes / Cosmetics / Progression"]
-  G --> H["Phase 6: Auth + Pairing + Shared Room Backend"]
-  H --> I["Phase 7: Live Sync + Partner Presence Beta"]
-  I --> J["Phase 8: V1 Polish + Release"]
+  A["Current: Local Solo Sandbox Foundation"] --> B["Stabilize Builder + Current Interactions"]
+  B --> C["Unify Local Room Schema With Shared Room Model"]
+  C --> D["Auth + Pairing + Shared Room Sync"]
+  D --> E["Coins + Buying + Levels + Couple Streak"]
+  E --> F["One PC Minigame + One Daily Quest"]
+  F --> G["Custom Photo Frames + One Pet"]
+  G --> H["Breakup Reset Flow + Final Jam Polish"]
 ```
 
 ## Current vs Future Boundary
-Future-facing note: backend and auth already exist in the repo, but the active runtime currently stops at the local solo sandbox.
+Future-facing note: backend and auth already exist in the repo, but the active runtime currently stops at the local solo sandbox foundation.
 
 ```mermaid
 flowchart TD
-  Current["Current Active Product<br/>Local Solo Sandbox"] --> CurrentTruth["Registry + RoomState + RoomView"]
+  Current["Current Active Product<br/>Local Sandbox Foundation"] --> CurrentTruth["Registry + RoomState + RoomView"]
   Current --> LocalSave["Local sandbox persistence"]
 
-  Future["Future Connected Couple Product"] --> Auth["Google auth"]
-  Future --> Pairing["Invite pairing"]
-  Future --> SharedRoom["Shared room backend"]
+  Future["Future Risk It All Product"] --> Auth["Pairing + Sign-In"]
+  Future --> SharedRoom["Canonical shared-room state"]
   Future --> Presence["Live partner presence"]
+  Future --> Economy["Coins + levels + buying"]
+  Future --> Loop["PC minigame + daily quest + streak"]
+  Future --> Personal["Photo frames + pets"]
+  Future --> Breakup["Breakup reset flow"]
 
   CurrentTruth -. must be adopted by .-> SharedRoom
   LocalSave -. schema should converge with .-> SharedRoom

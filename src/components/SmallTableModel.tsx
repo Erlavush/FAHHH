@@ -154,7 +154,7 @@ export function SmallTableModel({
       </mesh>
 
       {selected || blocked || hovered || interactionHovered ? (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
           <ringGeometry args={[0.42, 0.52, 32]} />
           <meshBasicMaterial
             color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}

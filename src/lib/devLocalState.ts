@@ -2,6 +2,8 @@ import { FURNITURE_REGISTRY, type FurniturePlacementSurface, type FurnitureType 
 import {
   cloneRoomState,
   createDefaultRoomState,
+  ensureRoomStateOwnership,
+  type OwnedFurnitureItem,
   type RoomFurniturePlacement,
   type RoomState,
   type Vector3Tuple
@@ -12,7 +14,7 @@ export type PersistedFurnitureType = FurnitureType;
 export type PersistedVector3 = Vector3Tuple;
 
 export interface PersistedSandboxState {
-  version: 1;
+  version: 2;
   skinSrc: string | null;
   cameraPosition: PersistedVector3;
   playerPosition: PersistedVector3;
@@ -54,6 +56,9 @@ function isValidFurniturePlacement(value: unknown): value is PersistedFurnitureP
     value.position.length === 3 &&
     value.position.every((entry) => typeof entry === "number") &&
     typeof value.rotationY === "number" &&
+    (!("ownedFurnitureId" in value) ||
+      value.ownedFurnitureId === undefined ||
+      typeof value.ownedFurnitureId === "string") &&
     (!("anchorFurnitureId" in value) ||
       value.anchorFurnitureId === undefined ||
       typeof value.anchorFurnitureId === "string") &&
@@ -65,12 +70,29 @@ function isValidFurniturePlacement(value: unknown): value is PersistedFurnitureP
   );
 }
 
+function isValidOwnedFurnitureItem(value: unknown): value is OwnedFurnitureItem {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "type" in value &&
+    "ownerId" in value &&
+    "acquiredFrom" in value &&
+    typeof value.id === "string" &&
+    typeof value.type === "string" &&
+    value.type in FURNITURE_REGISTRY &&
+    typeof value.ownerId === "string" &&
+    (value.acquiredFrom === "starter" || value.acquiredFrom === "sandbox_catalog")
+  );
+}
+
 function isValidRoomState(value: unknown): value is RoomState {
   return (
     typeof value === "object" &&
     value !== null &&
     "metadata" in value &&
     "furniture" in value &&
+    "ownedFurniture" in value &&
     typeof value.metadata === "object" &&
     value.metadata !== null &&
     "roomId" in value.metadata &&
@@ -85,7 +107,9 @@ function isValidRoomState(value: unknown): value is RoomState {
       (entry) => typeof entry === "string" && entry in FURNITURE_REGISTRY
     ) &&
     Array.isArray(value.furniture) &&
-    value.furniture.every(isValidFurniturePlacement)
+    value.furniture.every(isValidFurniturePlacement) &&
+    Array.isArray(value.ownedFurniture) &&
+    value.ownedFurniture.every(isValidOwnedFurnitureItem)
   );
 }
 
@@ -160,7 +184,11 @@ function loadLegacyFurniturePlacements(
                   ? "surface"
                   : "floor",
               position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
-              rotationY: entry.rotationY
+              rotationY: entry.rotationY,
+              ownedFurnitureId:
+                "ownedFurnitureId" in entry && typeof entry.ownedFurnitureId === "string"
+                  ? entry.ownedFurnitureId
+                  : undefined
             };
           }
 
@@ -173,6 +201,7 @@ function loadLegacyFurniturePlacements(
           surface: entry.surface,
           position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
           rotationY: entry.rotationY,
+          ownedFurnitureId: entry.ownedFurnitureId,
           anchorFurnitureId: entry.anchorFurnitureId,
           surfaceLocalOffset: entry.surfaceLocalOffset
         };
@@ -193,11 +222,11 @@ function loadLegacySandboxState(
   roomState.furniture = loadLegacyFurniturePlacements(roomState.furniture);
 
   return {
-    version: 1,
+    version: 2,
     skinSrc: loadPersistedSkin(),
     cameraPosition: loadLegacyVector3(DEV_CAMERA_KEY, fallbackCameraPosition),
     playerPosition: loadLegacyVector3(DEV_PLAYER_KEY, fallbackPlayerPosition),
-    roomState
+    roomState: ensureRoomStateOwnership(roomState)
   };
 }
 
@@ -216,7 +245,7 @@ export function createDefaultSandboxState(
   playerPosition: PersistedVector3
 ): PersistedSandboxState {
   return {
-    version: 1,
+    version: 2,
     skinSrc: null,
     cameraPosition,
     playerPosition,
@@ -250,7 +279,7 @@ export function loadPersistedSandboxState(
       typeof parsedValue !== "object" ||
       parsedValue === null ||
       !("version" in parsedValue) ||
-      parsedValue.version !== 1 ||
+      parsedValue.version !== 2 ||
       !("skinSrc" in parsedValue) ||
       !("cameraPosition" in parsedValue) ||
       !("playerPosition" in parsedValue) ||
@@ -269,7 +298,7 @@ export function loadPersistedSandboxState(
 
     if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState)) {
       return {
-        version: 1,
+        version: 2,
         skinSrc: parsedValue.skinSrc,
         cameraPosition: [...fallbackCameraPosition],
         playerPosition: [...fallbackPlayerPosition],
@@ -278,7 +307,7 @@ export function loadPersistedSandboxState(
     }
 
     return {
-      version: 1,
+      version: 2,
       skinSrc: parsedValue.skinSrc,
       cameraPosition: [
         parsedValue.cameraPosition[0],
@@ -290,7 +319,7 @@ export function loadPersistedSandboxState(
         parsedValue.playerPosition[1],
         parsedValue.playerPosition[2]
       ],
-      roomState: cloneRoomState(parsedValue.roomState)
+      roomState: ensureRoomStateOwnership(cloneRoomState(parsedValue.roomState))
     };
   } catch {
     return loadLegacySandboxState(
