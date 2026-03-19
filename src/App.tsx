@@ -15,6 +15,7 @@ import {
   type RoomState,
   type Vector3Tuple
 } from "./lib/roomState";
+import { useControls, folder, Leva } from "leva";
 
 type FurnitureSpawnRequest = {
   requestId: number;
@@ -26,7 +27,7 @@ const RoomView = lazy(async () => {
   return { default: module.RoomView };
 });
 
-const DEFAULT_CAMERA_POSITION: Vector3Tuple = [7.5, 6.5, 7.5];
+const DEFAULT_CAMERA_POSITION: Vector3Tuple = [15, 13, 15];
 const DEFAULT_PLAYER_POSITION: Vector3Tuple = [0, 0, 0];
 
 function App() {
@@ -46,12 +47,17 @@ function App() {
   const [skinSrc, setSkinSrc] = useState<string | null>(initialSandboxState.skinSrc);
   const [skinError, setSkinError] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(true);
-  const [timeOfDay, setTimeOfDay] = useState<"day" | "night">("day");
-  const [sunEnabled, setSunEnabled] = useState(true);
-  const [shadowsEnabled, setShadowsEnabled] = useState(true);
-  const [checkerEnabled, setCheckerEnabled] = useState(false);
-  const [floorPrimaryColor, setFloorPrimaryColor] = useState("#f1f1f1");
-  const [floorSecondaryColor, setFloorSecondaryColor] = useState("#e5e5e5");
+
+  const { timeOfDay, sunEnabled, shadowsEnabled, checkerEnabled, floorPrimaryColor, floorSecondaryColor } = useControls("World Settings", {
+    timeOfDay: { options: ["day", "night"] },
+    sunEnabled: true,
+    shadowsEnabled: true,
+    Checkerboard: folder({
+      checkerEnabled: false,
+      floorPrimaryColor: "#f1f1f1",
+      floorSecondaryColor: "#e5e5e5"
+    })
+  });
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
   const [roomState, setRoomState] = useState<RoomState>(initialSandboxState.roomState);
@@ -218,8 +224,48 @@ function App() {
     setCameraResetToken((current) => current + 1);
   }
 
+  const [, setLiveCoords] = useControls("Live Coordinates", () => ({
+    Player: folder({
+      pX: { value: playerPosition[0], label: 'x', onChange: (v) => { if (typeof v === 'number') setPlayerPosition(prev => [v, prev[1], prev[2]]) } },
+      pY: { value: playerPosition[1], label: 'y', onChange: (v) => { if (typeof v === 'number') setPlayerPosition(prev => [prev[0], v, prev[2]]) } },
+      pZ: { value: playerPosition[2], label: 'z', onChange: (v) => { if (typeof v === 'number') setPlayerPosition(prev => [prev[0], prev[1], v]) } }
+    }),
+    Camera: folder({
+      cX: { value: cameraPosition[0], label: 'x', onChange: (v) => { if (typeof v === 'number') setCameraPosition(prev => [v, prev[1], prev[2]]) } },
+      cY: { value: cameraPosition[1], label: 'y', onChange: (v) => { if (typeof v === 'number') setCameraPosition(prev => [prev[0], v, prev[2]]) } },
+      cZ: { value: cameraPosition[2], label: 'z', onChange: (v) => { if (typeof v === 'number') setCameraPosition(prev => [prev[0], prev[1], v]) } }
+    })
+  }));
+
+  const [, setRoomStateUI] = useControls("Room State", () => ({
+    Theme: { value: roomState.metadata.roomTheme, editable: false },
+    Layout: { value: `v${roomState.metadata.layoutVersion}`, editable: false },
+    Items: { value: `${roomState.furniture.length}`, editable: false }
+  }));
+
+  useEffect(() => {
+    setLiveCoords({
+      pX: playerPosition[0],
+      pY: playerPosition[1],
+      pZ: playerPosition[2],
+      cX: cameraPosition[0],
+      cY: cameraPosition[1],
+      cZ: cameraPosition[2]
+    } as any);
+  }, [playerPosition, cameraPosition, setLiveCoords]);
+
+  useEffect(() => {
+    setRoomStateUI({
+      Theme: roomState.metadata.roomTheme,
+      Layout: `v${roomState.metadata.layoutVersion}`,
+      Items: `${roomState.furniture.length}`
+    });
+  }, [roomState, setRoomStateUI]);
+
   return (
-    <div className="scene-shell">
+    <>
+      <Leva hidden={!debugOpen} />
+      <div className="scene-shell">
       <div className="scene-toolbar">
         <button
           className={`camera-toggle${cameraEditEnabled ? " camera-toggle--active" : ""}`}
@@ -306,92 +352,7 @@ function App() {
 
       {skinError ? <div className="scene-note">{skinError}</div> : null}
 
-      {debugOpen ? (
-        <aside className="debug-panel">
-          <div className="debug-section">
-            <span className="debug-title">Live Coordinates</span>
-            <div className="debug-readout">
-              <strong>Player</strong>
-              <span>{`x: ${playerPosition[0].toFixed(3)}`}</span>
-              <span>{`y: ${playerPosition[1].toFixed(3)}`}</span>
-              <span>{`z: ${playerPosition[2].toFixed(3)}`}</span>
-            </div>
-            <div className="debug-readout">
-              <strong>Camera</strong>
-              <span>{`x: ${cameraPosition[0].toFixed(3)}`}</span>
-              <span>{`y: ${cameraPosition[1].toFixed(3)}`}</span>
-              <span>{`z: ${cameraPosition[2].toFixed(3)}`}</span>
-            </div>
-          </div>
 
-          <div className="debug-section">
-            <span className="debug-title">Room State</span>
-            <div className="debug-readout">
-              <strong>Theme</strong>
-              <span>{roomState.metadata.roomTheme}</span>
-              <span>{`Layout v${roomState.metadata.layoutVersion}`}</span>
-              <span>{`${roomState.furniture.length} placed items`}</span>
-            </div>
-          </div>
-
-          <div className="debug-section">
-            <span className="debug-title">World Lighting</span>
-            <label className="debug-row">
-              <span>Day Mode</span>
-              <input
-                type="checkbox"
-                checked={timeOfDay === "day"}
-                onChange={(event) => setTimeOfDay(event.target.checked ? "day" : "night")}
-              />
-            </label>
-            <label className="debug-row">
-              <span>Sun</span>
-              <input
-                type="checkbox"
-                checked={sunEnabled}
-                onChange={(event) => setSunEnabled(event.target.checked)}
-              />
-            </label>
-            <label className="debug-row">
-              <span>Shadows</span>
-              <input
-                type="checkbox"
-                checked={shadowsEnabled}
-                onChange={(event) => setShadowsEnabled(event.target.checked)}
-              />
-            </label>
-          </div>
-
-          <div className="debug-section">
-            <span className="debug-title">Floor</span>
-            <label className="debug-row">
-              <span>Checker Pattern</span>
-              <input
-                type="checkbox"
-                checked={checkerEnabled}
-                onChange={(event) => setCheckerEnabled(event.target.checked)}
-              />
-            </label>
-            <label className="debug-row">
-              <span>Primary Color</span>
-              <input
-                type="color"
-                value={floorPrimaryColor}
-                onChange={(event) => setFloorPrimaryColor(event.target.value)}
-              />
-            </label>
-            <label className="debug-row">
-              <span>Secondary Color</span>
-              <input
-                type="color"
-                value={floorSecondaryColor}
-                disabled={!checkerEnabled}
-                onChange={(event) => setFloorSecondaryColor(event.target.value)}
-              />
-            </label>
-          </div>
-        </aside>
-      ) : null}
 
       <input
         ref={skinInputRef}
@@ -412,7 +373,7 @@ function App() {
           initialPlayerPosition={playerPosition}
           initialFurniturePlacements={roomState.furniture}
           skinSrc={skinSrc}
-          timeOfDay={timeOfDay}
+          timeOfDay={timeOfDay as "day" | "night"}
           sunEnabled={sunEnabled}
           shadowsEnabled={shadowsEnabled}
           checkerEnabled={checkerEnabled}
@@ -424,6 +385,7 @@ function App() {
         />
       </Suspense>
     </div>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useControls } from "leva";
 import {
   CanvasTexture,
   FrontSide,
@@ -344,6 +345,9 @@ export function MinecraftPlayer({
   onPositionChange,
   shadowsEnabled
 }: MinecraftPlayerProps) {
+  const { moveSpeed } = useControls("Player", {
+    moveSpeed: { value: 3.1, min: 0.5, max: 15, step: 0.1, label: "Movement Speed" }
+  });
   const defaultSkin = useMemo(() => createDefaultSkin(), []);
   const [skinSet, setSkinSet] = useState<SkinSet | null>(null);
   const rootRef = useRef<Group>(null);
@@ -435,7 +439,6 @@ export function MinecraftPlayer({
     const isMoving = distance > 0.02;
 
     if (isMoving) {
-      const moveSpeed = 3.1;
       const moveStep = Math.min(distance, moveSpeed * delta);
       root.position.x += (dx / distance) * moveStep;
       root.position.z += (dz / distance) * moveStep;
