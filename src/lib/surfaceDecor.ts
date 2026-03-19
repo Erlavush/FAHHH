@@ -40,7 +40,7 @@ function snapSurfaceValue(value: number, gridSnapEnabled: boolean): number {
     return value;
   }
 
-  return Math.round(value / SURFACE_DECOR_SNAP_STEP) * SURFACE_DECOR_SNAP_STEP;
+  return Math.round((value - 0.25) / SURFACE_DECOR_SNAP_STEP) * SURFACE_DECOR_SNAP_STEP + 0.25;
 }
 
 export function canHostSurfaceDecor(placement: RoomFurniturePlacement): boolean {

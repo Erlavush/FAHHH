@@ -84,8 +84,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     unlockKey: "starter-desk",
     starterUnlocked: true,
     supportSurface: {
-      width: 2.6,
-      depth: 0.82,
+      width: 3,
+      depth: 1,
       height: 0.94
     }
   },
@@ -115,8 +115,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     unlockKey: "starter-small-table",
     starterUnlocked: true,
     supportSurface: {
-      width: 0.82,
-      depth: 0.82,
+      width: 1,
+      depth: 1,
       height: 0.81
     }
   },
@@ -132,8 +132,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     unlockKey: "starter-fridge",
     starterUnlocked: true,
     supportSurface: {
-      width: 0.72,
-      depth: 0.72,
+      width: 1,
+      depth: 1,
       height: 2.1
     }
   },
@@ -149,8 +149,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     unlockKey: "starter-office-desk",
     starterUnlocked: true,
     supportSurface: {
-      width: 2.64,
-      depth: 0.82,
+      width: 3,
+      depth: 1,
       height: 0.84
     }
   },

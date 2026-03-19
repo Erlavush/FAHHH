@@ -295,6 +295,18 @@ function getInteractionHitboxSize(
   }
 }
 
+function getSurfaceDecorSelectionHitboxSize(
+  item: RoomFurniturePlacement
+): [number, number, number] {
+  const definition = getFurnitureDefinition(item.type);
+
+  return [
+    Math.max(0.56, definition.footprintWidth + 0.18),
+    0.88,
+    Math.max(0.56, definition.footprintDepth + 0.18)
+  ];
+}
+
 function getActiveAxes(surface: FurniturePlacementSurface): [boolean, boolean, boolean] {
   if (surface === "wall_back") {
     return [true, true, false];
@@ -1656,6 +1668,36 @@ export function RoomView({
     setHoveredFurnitureId(furnitureId);
   }
 
+  function handleFurnitureClick(
+    furnitureId: string,
+    event: ThreeEvent<MouseEvent>
+  ) {
+    if (!buildModeEnabled || isDraggingFurniture || isTransformingFurniture) {
+      return;
+    }
+
+    const clickedFurniture = findFurniturePlacement(furniture, furnitureId);
+
+    if (!clickedFurniture || clickedFurniture.surface !== "surface") {
+      return;
+    }
+
+    event.stopPropagation();
+
+    if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
+      if (hasDraftChanges(selectedFurnitureId)) {
+        cancelFurnitureDraft(selectedFurnitureId);
+      }
+
+      setIsDraggingFurniture(false);
+      setIsTransformingFurniture(false);
+      dragStateRef.current = null;
+    }
+
+    selectFurnitureForEditing(furnitureId);
+    setHoveredFurnitureId(furnitureId);
+  }
+
   function handleFurnitureInteractionCommand(
     furnitureId: string,
     event: ThreeEvent<MouseEvent>
@@ -2175,6 +2217,21 @@ export function RoomView({
     );
   }
 
+  function renderSurfaceDecorSelectionProxy(item: RoomFurniturePlacement) {
+    if (!buildModeEnabled || item.surface !== "surface") {
+      return null;
+    }
+
+    const [width, height, depth] = getSurfaceDecorSelectionHitboxSize(item);
+
+    return (
+      <mesh position={[0, height / 2, 0]}>
+        <boxGeometry args={[width, height, depth]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    );
+  }
+
   return (
     <div
       className="canvas-wrap"
@@ -2267,6 +2324,7 @@ export function RoomView({
             key={item.id}
             position={item.position}
             rotation={[0, item.rotationY, 0]}
+            onClick={(event) => handleFurnitureClick(item.id, event)}
             onDoubleClick={(event) => handleFurnitureDoubleClick(item.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(item.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(item.id, event)}
@@ -2282,6 +2340,7 @@ export function RoomView({
                 !isDraggingFurniture,
               !buildModeEnabled && hoveredInteractableFurnitureId === item.id
             )}
+            {renderSurfaceDecorSelectionProxy(item)}
             {renderInteractionProxy(item)}
           </group>
         ))}
@@ -2312,6 +2371,7 @@ export function RoomView({
             onDragEnd={() => setIsTransformingFurniture(false)}
           >
             <group
+              onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
               onDoubleClick={(event) => handleFurnitureDoubleClick(selectedFurniture.id, event)}
               onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
               onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
@@ -2324,6 +2384,7 @@ export function RoomView({
               false,
               !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
             )}
+            {renderSurfaceDecorSelectionProxy(selectedFurniture)}
             {renderInteractionProxy(selectedFurniture)}
           </group>
         </PivotControls>
@@ -2331,6 +2392,7 @@ export function RoomView({
           <group
             position={selectedFurniture.position}
             rotation={[0, selectedFurniture.rotationY, 0]}
+            onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
             onDoubleClick={(event) => handleFurnitureDoubleClick(selectedFurniture.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
@@ -2343,6 +2405,7 @@ export function RoomView({
               false,
               !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
             )}
+            {renderSurfaceDecorSelectionProxy(selectedFurniture)}
             {renderInteractionProxy(selectedFurniture)}
           </group>
         ) : null}
