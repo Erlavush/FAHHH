@@ -197,11 +197,15 @@ function clampFurnitureToFloor(value: number, halfSize: number): number {
 
 function getEffectiveHalfSizes(type: FurnitureType, rotationY: number): [number, number] {
   const definition = getFurnitureDefinition(type);
-  const isRotated90 = Math.abs(Math.sin(rotationY)) > 0.5;
-  if (isRotated90) {
-    return [definition.footprintDepth / 2, definition.footprintWidth / 2];
-  }
-  return [definition.footprintWidth / 2, definition.footprintDepth / 2];
+  const halfWidth = definition.footprintWidth / 2;
+  const halfDepth = definition.footprintDepth / 2;
+  const cos = Math.abs(Math.cos(rotationY));
+  const sin = Math.abs(Math.sin(rotationY));
+
+  return [
+    cos * halfWidth + sin * halfDepth,
+    sin * halfWidth + cos * halfDepth
+  ];
 }
 
 function clampWallAxis(value: number, halfSize: number): number {
@@ -284,6 +288,10 @@ function getInteractionHitboxSize(
   const definition = getFurnitureDefinition(item.type);
 
   switch (item.type) {
+    case "desk":
+      return [definition.footprintWidth + 0.4, 1.55, definition.footprintDepth + 0.72];
+    case "office_desk":
+      return [definition.footprintWidth + 0.35, 1.55, definition.footprintDepth + 0.7];
     case "chair":
       return [definition.footprintWidth + 0.52, 1.85, definition.footprintDepth + 0.42];
     case "office_chair":
@@ -784,6 +792,11 @@ export function RoomView({
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const [hoveredInteractableFurnitureId, setHoveredInteractableFurnitureId] = useState<string | null>(null);
+  const [interactionHint, setInteractionHint] = useState<{
+    message: string;
+    left: number;
+    top: number;
+  } | null>(null);
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
@@ -924,6 +937,20 @@ export function RoomView({
   useEffect(() => {
     onInteractionStateChange(playerInteractionStatus);
   }, [onInteractionStateChange, playerInteractionStatus]);
+
+  useEffect(() => {
+    if (!interactionHint) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setInteractionHint((current) => (current === interactionHint ? null : current));
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [interactionHint]);
 
   useEffect(() => {
     if (!pendingInteraction || activeInteraction) {
@@ -1231,7 +1258,12 @@ export function RoomView({
     }
 
     if (dragState.surface === "floor") {
-      return resolveFloorPlacement(dragPlaneHitPoint.x, dragPlaneHitPoint.z, dragState.type);
+      return resolveFloorPlacement(
+        dragPlaneHitPoint.x,
+        dragPlaneHitPoint.z,
+        dragState.type,
+        dragState.rotationY
+      );
     }
 
     if (dragState.surface === "wall_back") {
@@ -1261,7 +1293,10 @@ export function RoomView({
   function resolveInteractionExitPosition(
     interaction: FurnitureInteractionTarget
   ): Vector3Tuple {
-    const [offsetX, offsetY, offsetZ] = rotateLocalOffset([0, 0, 0.9], interaction.rotationY);
+    const [offsetX, offsetY, offsetZ] = rotateLocalOffset(
+      interaction.type === "use_pc" ? [0, 0, -0.9] : [0, 0, 0.9],
+      interaction.rotationY
+    );
 
     return [
       clampToFloor(interaction.position[0] + offsetX),
@@ -1284,6 +1319,16 @@ export function RoomView({
       playerWorldPosition[1],
       playerWorldPosition[2]
     ]);
+  }
+
+  function showInteractionHint(message: string, event: ThreeEvent<MouseEvent>) {
+    const nativeEvent = event.nativeEvent;
+
+    setInteractionHint({
+      message,
+      left: nativeEvent.clientX,
+      top: nativeEvent.clientY
+    });
   }
 
   function resolveFloorPlacement(
@@ -1712,14 +1757,18 @@ export function RoomView({
       return;
     }
 
-    const interactionTarget = getFurnitureInteractionTarget(clickedFurniture);
-
-    if (!interactionTarget) {
-      return;
-    }
-
     event.nativeEvent.preventDefault();
     event.stopPropagation();
+
+    const interactionTarget = getFurnitureInteractionTarget(clickedFurniture, furniture);
+
+    if (!interactionTarget) {
+      if (getFurnitureDefinition(clickedFurniture.type).interactionType === "use_pc") {
+        showInteractionHint("Need a chair", event);
+      }
+
+      return;
+    }
 
     if (activeInteraction?.furnitureId === furnitureId) {
       clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
@@ -1839,12 +1888,13 @@ export function RoomView({
       return;
     }
 
+    const nextRotation = resolveFurnitureRotation(transformDragEuler.y);
     const nextPlacement = resolveFloorPlacement(
       transformDragPosition.x,
       transformDragPosition.z,
-      selectedFurniture.type
+      selectedFurniture.type,
+      nextRotation
     );
-    const nextRotation = resolveFurnitureRotation(transformDragEuler.y);
 
     updateFurnitureItem(selectedFurnitureId, (item) => ({
       ...item,
@@ -1947,7 +1997,12 @@ export function RoomView({
       updateFurnitureItem(selectedFurnitureId, (item) =>
         applyPlacementToItem(
           item,
-          resolveFloorPlacement(item.position[0] + step, item.position[2], item.type)
+          resolveFloorPlacement(
+            item.position[0] + step,
+            item.position[2],
+            item.type,
+            item.rotationY
+          )
         )
       );
       return;
@@ -1999,7 +2054,12 @@ export function RoomView({
       updateFurnitureItem(selectedFurnitureId, (item) =>
         applyPlacementToItem(
           item,
-          resolveFloorPlacement(item.position[0], item.position[2] + step, item.type)
+          resolveFloorPlacement(
+            item.position[0],
+            item.position[2] + step,
+            item.type,
+            item.rotationY
+          )
         )
       );
       return;
@@ -2080,6 +2140,7 @@ export function RoomView({
 
       return {
         ...item,
+        ...resolveFloorPlacement(item.position[0], item.position[2], item.type, nextRotation),
         rotationY: nextRotation
       };
     });
@@ -2188,9 +2249,9 @@ export function RoomView({
   }
 
   function renderInteractionProxy(item: RoomFurniturePlacement) {
-    const interactionTarget = getFurnitureInteractionTarget(item);
+    const definition = getFurnitureDefinition(item.type);
 
-    if (buildModeEnabled || !interactionTarget) {
+    if (buildModeEnabled || !definition.interactionType) {
       return null;
     }
 
@@ -2453,6 +2514,17 @@ export function RoomView({
           onSwapWall={handleSwapSelectedWall}
           onDeselect={handleDeselectFurniture}
         />
+      ) : null}
+      {interactionHint ? (
+        <div
+          className="interaction-hint"
+          style={{
+            left: `${interactionHint.left}px`,
+            top: `${interactionHint.top}px`
+          }}
+        >
+          {interactionHint.message}
+        </div>
       ) : null}
     </div>
   );

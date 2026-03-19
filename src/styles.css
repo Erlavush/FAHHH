@@ -379,6 +379,21 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.interaction-hint {
+  position: absolute;
+  z-index: 14;
+  transform: translate(-50%, -115%);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(12, 18, 28, 0.9);
+  color: #eef7ff;
+  font: 700 12px/1.1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 24px rgba(7, 12, 20, 0.28);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 
 
 .canvas-fallback {

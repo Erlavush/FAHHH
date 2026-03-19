@@ -19,7 +19,7 @@ export type FurnitureCatalogCategory =
   | "Wall Decor"
   | "Surface Decor"
   | "Accents";
-export type FurnitureInteractionType = "sit" | "lie";
+export type FurnitureInteractionType = "sit" | "lie" | "use_pc";
 
 export interface FurnitureSupportSurface {
   width: number;
@@ -83,6 +83,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     category: "Floor Furniture",
     unlockKey: "starter-desk",
     starterUnlocked: true,
+    interactionType: "use_pc",
+    interactionOffset: [0, 0, 1],
     supportSurface: {
       width: 3,
       depth: 1,
@@ -148,6 +150,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     category: "Floor Furniture",
     unlockKey: "starter-office-desk",
     starterUnlocked: true,
+    interactionType: "use_pc",
+    interactionOffset: [0, 0, -1],
     supportSurface: {
       width: 3,
       depth: 1,

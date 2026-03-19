@@ -42,7 +42,7 @@ interface MinecraftPlayerProps {
   targetPosition: [number, number, number];
   interaction:
     | {
-        type: "sit" | "lie";
+        type: "sit" | "lie" | "use_pc";
         position: [number, number, number];
         rotationY: number;
       }
@@ -456,6 +456,7 @@ export function MinecraftPlayer({
     const interactionReady = interactionDistance < 0.035;
     const isSitting = interaction?.type === "sit" && interactionReady;
     const isLying = interaction?.type === "lie" && interactionReady;
+    const isUsingPc = interaction?.type === "use_pc" && interactionReady;
 
     if (interaction?.type === "lie") {
       if (interactionReady) {
@@ -525,7 +526,29 @@ export function MinecraftPlayer({
       pose.rotation.set(0, 0, 0);
     }
 
-    if (isSitting) {
+    if (isUsingPc) {
+      body.position.y = 0.97 + idleFloat * 0.15;
+      body.rotation.x = -0.36 + idleSway * 0.04;
+      body.rotation.z = idleSway * 0.03;
+
+      head.position.y = 1.54 + idleFloat * 0.12;
+      head.rotation.x = 0.18 + Math.sin(state.clock.elapsedTime * 1.2) * 0.015;
+      head.rotation.z = idleSway * 0.1;
+
+      rightArm.position.set(-0.34, 1.3, 0.1);
+      leftArm.position.set(0.34, 1.3, 0.1);
+      rightArm.rotation.x = -1.12;
+      leftArm.rotation.x = -1.06;
+      rightArm.rotation.z = 0.1;
+      leftArm.rotation.z = -0.1;
+
+      rightLeg.position.set(-0.125, 0.56, 0.1);
+      leftLeg.position.set(0.125, 0.56, 0.1);
+      rightLeg.rotation.x = -1.4;
+      leftLeg.rotation.x = -1.4;
+      rightLeg.rotation.z = 0;
+      leftLeg.rotation.z = 0;
+    } else if (isSitting) {
       body.position.y = 0.98 + idleFloat * 0.2;
       body.rotation.x = -0.18 + idleSway * 0.08;
       body.rotation.z = idleSway * 0.06;
