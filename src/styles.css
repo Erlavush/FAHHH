@@ -31,13 +31,16 @@ body {
   left: 18px;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  max-width: min(760px, calc(100vw - 36px));
 }
 
 .canvas-wrap,
 .canvas-fallback {
   width: 100vw;
   height: 100vh;
+  touch-action: none;
 }
 
 .camera-toggle {
@@ -76,7 +79,9 @@ body {
   top: 72px;
   left: 18px;
   z-index: 10;
-  width: 240px;
+  width: 280px;
+  max-height: calc(100vh - 92px);
+  overflow: auto;
   padding: 14px;
   border-radius: 18px;
   background: rgba(247, 251, 255, 0.92);
@@ -96,6 +101,21 @@ body {
 .spawn-grid {
   display: grid;
   gap: 10px;
+}
+
+.spawn-section + .spawn-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(84, 102, 123, 0.12);
+}
+
+.spawn-section__title {
+  display: block;
+  margin-bottom: 10px;
+  color: #6a8198;
+  font: 700 11px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .spawn-card {
@@ -220,6 +240,10 @@ body {
   background: #43b56e;
 }
 
+.placement-action--delete {
+  background: #477ac8;
+}
+
 .placement-action--disabled {
   background: #6e8a78;
   color: rgba(247, 251, 255, 0.7);
@@ -233,4 +257,34 @@ body {
   background: #f4eadf;
   color: #6c4a39;
   font-family: Georgia, "Times New Roman", serif;
+}
+
+@media (max-width: 860px) {
+  .scene-toolbar {
+    max-width: calc(100vw - 24px);
+    top: 12px;
+    left: 12px;
+    gap: 8px;
+  }
+
+  .camera-toggle {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .spawn-panel {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    width: min(320px, calc(100vw - 24px));
+    max-height: 46vh;
+  }
+
+  .debug-panel {
+    top: auto;
+    bottom: 12px;
+    right: 12px;
+    width: min(280px, calc(100vw - 24px));
+    max-height: 42vh;
+  }
 }

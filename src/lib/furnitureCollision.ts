@@ -17,16 +17,16 @@ type FootprintRect = {
   rotationY: number;
 };
 
-type Axis2D = {
-  x: number;
-  z: number;
-};
-
 type SurfaceRect = {
   centerA: number;
   centerB: number;
   halfWidth: number;
   halfHeight: number;
+};
+
+type Axis2D = {
+  x: number;
+  z: number;
 };
 
 const PLAYER_OCCUPANCY_FOOTPRINT: FurnitureCollisionFootprint = {
@@ -115,69 +115,6 @@ function rectanglesOverlap(first: FootprintRect, second: FootprintRect): boolean
   );
 }
 
-export function getFurnitureFootprintRect(
-  placement: RoomFurniturePlacement
-): FootprintRect {
-  const definition = getFurnitureDefinition(placement.type);
-
-  return createFootprintRect(
-    placement.position,
-    placement.rotationY,
-    {
-      width: definition.footprintWidth,
-      depth: definition.footprintDepth
-    }
-  );
-}
-
-export function getPlayerOccupancyRect(position: PersistedVector3): FootprintRect {
-  return createFootprintRect(position, 0, PLAYER_OCCUPANCY_FOOTPRINT);
-}
-
-export function getFurnitureCollisionReason(
-  selectedFurniture: RoomFurniturePlacement,
-  otherFurniture: RoomFurniturePlacement[],
-  playerPosition: PersistedVector3
-): CollisionReason | null {
-  const selectedDefinition = getFurnitureDefinition(selectedFurniture.type);
-
-  if (selectedDefinition.surface === "wall_back") {
-    const selectedRect = getWallSurfaceRect(selectedFurniture);
-
-    if (
-      otherFurniture.some((placement) => {
-        const otherDefinition = getFurnitureDefinition(placement.type);
-
-        return (
-          otherDefinition.surface === "wall_back" &&
-          surfaceRectanglesOverlap(selectedRect, getWallSurfaceRect(placement))
-        );
-      })
-    ) {
-      return "furniture_overlap";
-    }
-
-    return null;
-  }
-
-  const selectedRect = getFurnitureFootprintRect(selectedFurniture);
-
-  if (
-    otherFurniture.some((placement) =>
-      getFurnitureDefinition(placement.type).surface === "floor" &&
-      rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
-    )
-  ) {
-    return "furniture_overlap";
-  }
-
-  if (rectanglesOverlap(selectedRect, getPlayerOccupancyRect(playerPosition))) {
-    return "player_overlap";
-  }
-
-  return null;
-}
-
 function createSurfaceRect(
   centerA: number,
   centerB: number,
@@ -192,8 +129,37 @@ function createSurfaceRect(
   };
 }
 
+function surfaceRectanglesOverlap(first: SurfaceRect, second: SurfaceRect): boolean {
+  return (
+    Math.abs(first.centerA - second.centerA) <= first.halfWidth + second.halfWidth &&
+    Math.abs(first.centerB - second.centerB) <= first.halfHeight + second.halfHeight
+  );
+}
+
+export function getFurnitureFootprintRect(placement: RoomFurniturePlacement): FootprintRect {
+  const definition = getFurnitureDefinition(placement.type);
+
+  return createFootprintRect(placement.position, placement.rotationY, {
+    width: definition.footprintWidth,
+    depth: definition.footprintDepth
+  });
+}
+
+export function getPlayerOccupancyRect(position: PersistedVector3): FootprintRect {
+  return createFootprintRect(position, 0, PLAYER_OCCUPANCY_FOOTPRINT);
+}
+
 function getWallSurfaceRect(placement: RoomFurniturePlacement): SurfaceRect {
   const definition = getFurnitureDefinition(placement.type);
+
+  if (placement.surface === "wall_left") {
+    return createSurfaceRect(
+      placement.position[2],
+      placement.position[1],
+      definition.footprintWidth,
+      definition.footprintDepth
+    );
+  }
 
   return createSurfaceRect(
     placement.position[0],
@@ -203,9 +169,51 @@ function getWallSurfaceRect(placement: RoomFurniturePlacement): SurfaceRect {
   );
 }
 
-function surfaceRectanglesOverlap(first: SurfaceRect, second: SurfaceRect): boolean {
-  return (
-    Math.abs(first.centerA - second.centerA) <= first.halfWidth + second.halfWidth &&
-    Math.abs(first.centerB - second.centerB) <= first.halfHeight + second.halfHeight
-  );
+export function getFurnitureCollisionReason(
+  selectedFurniture: RoomFurniturePlacement,
+  otherFurniture: RoomFurniturePlacement[],
+  playerPosition: PersistedVector3
+): CollisionReason | null {
+  const selectedDefinition = getFurnitureDefinition(selectedFurniture.type);
+
+  if (selectedDefinition.surface === "wall") {
+    const selectedRect = getWallSurfaceRect(selectedFurniture);
+
+    if (
+      otherFurniture.some((placement) => {
+        const otherDefinition = getFurnitureDefinition(placement.type);
+
+        return (
+          otherDefinition.surface === "wall" &&
+          placement.surface === selectedFurniture.surface &&
+          surfaceRectanglesOverlap(selectedRect, getWallSurfaceRect(placement))
+        );
+      })
+    ) {
+      return "furniture_overlap";
+    }
+
+    return null;
+  }
+
+  const selectedRect = getFurnitureFootprintRect(selectedFurniture);
+
+  if (
+    otherFurniture.some((placement) => {
+      const otherDefinition = getFurnitureDefinition(placement.type);
+
+      return (
+        otherDefinition.surface === "floor" &&
+        rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
+      );
+    })
+  ) {
+    return "furniture_overlap";
+  }
+
+  if (rectanglesOverlap(selectedRect, getPlayerOccupancyRect(playerPosition))) {
+    return "player_overlap";
+  }
+
+  return null;
 }

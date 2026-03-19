@@ -27,7 +27,7 @@ export function SmallTableModel({
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.76, 0]}>
-        <boxGeometry args={[0.92, 0.1, 0.92]} />
+        <boxGeometry args={[1.02, 0.1, 0.92]} />
         <meshStandardMaterial
           color={blocked ? "#ef6f7c" : selected ? "#57db8d" : "#d4b28c"}
           transparent={selected || blocked}
@@ -59,6 +59,39 @@ export function SmallTableModel({
           />
         </mesh>
       ))}
+
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[-0.16, 1.01, -0.02]}>
+        <cylinderGeometry args={[0.12, 0.16, 0.34, 10]} />
+        <meshStandardMaterial
+          color={blocked ? "#d98e98" : selected ? "#93efb6" : "#f0e4d4"}
+          transparent={selected || blocked}
+          opacity={selected || blocked ? 0.76 : 1}
+        />
+      </mesh>
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[-0.16, 1.22, -0.02]}>
+        <coneGeometry args={[0.08, 0.28, 8]} />
+        <meshStandardMaterial
+          color={blocked ? "#cb5966" : selected ? "#4dd985" : "#7fb26d"}
+          transparent={selected || blocked}
+          opacity={selected || blocked ? 0.78 : 1}
+        />
+      </mesh>
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0.18, 0.95, 0.02]} rotation={[0, -0.18, 0]}>
+        <boxGeometry args={[0.26, 0.38, 0.06]} />
+        <meshStandardMaterial
+          color={blocked ? "#d87784" : selected ? "#77e5a1" : "#f6efe4"}
+          transparent={selected || blocked}
+          opacity={selected || blocked ? 0.8 : 1}
+        />
+      </mesh>
+      <mesh position={[0.18, 0.95, 0.055]} rotation={[0, -0.18, 0]}>
+        <boxGeometry args={[0.18, 0.28, 0.01]} />
+        <meshStandardMaterial
+          color={blocked ? "#f2c2c9" : selected ? "#c3f7d7" : "#d2a97f"}
+          transparent={selected || blocked}
+          opacity={selected || blocked ? 0.84 : 1}
+        />
+      </mesh>
 
       {selected || blocked ? (
         <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>

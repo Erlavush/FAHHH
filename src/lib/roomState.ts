@@ -1,37 +1,89 @@
-import { getFurnitureDefinition, type FurnitureType } from "./furnitureRegistry";
+import {
+  ALL_FURNITURE_TYPES,
+  getDefaultPlacementSurface,
+  getSurfaceRotationY,
+  type FurniturePlacementSurface,
+  type FurnitureType
+} from "./furnitureRegistry";
 
 export type Vector3Tuple = [number, number, number];
 
 export interface RoomFurniturePlacement {
   id: string;
   type: FurnitureType;
+  surface: FurniturePlacementSurface;
   position: Vector3Tuple;
   rotationY: number;
 }
 
+export interface RoomMetadata {
+  roomId: string;
+  roomTheme: string;
+  layoutVersion: number;
+  unlockedFurniture: FurnitureType[];
+}
+
 export interface RoomState {
+  metadata: RoomMetadata;
   furniture: RoomFurniturePlacement[];
 }
 
 export const DEFAULT_ROOM_STATE: RoomState = {
+  metadata: {
+    roomId: "local-sandbox-room",
+    roomTheme: "starter-cozy",
+    layoutVersion: 2,
+    unlockedFurniture: [...ALL_FURNITURE_TYPES]
+  },
   furniture: [
     {
-      id: "chair-1",
-      type: "chair",
-      position: [2.5, 0, 0.5],
+      id: "starter-rug",
+      type: "rug",
+      surface: "floor",
+      position: [0, 0, 1.5],
       rotationY: 0
     },
     {
-      id: "table-1",
+      id: "starter-bed",
+      type: "bed",
+      surface: "floor",
+      position: [4.9, 0, -4.7],
+      rotationY: 0
+    },
+    {
+      id: "starter-desk",
+      type: "desk",
+      surface: "floor",
+      position: [-5.4, 0, -5.6],
+      rotationY: 0
+    },
+    {
+      id: "starter-chair",
+      type: "chair",
+      surface: "floor",
+      position: [-5.4, 0, -3.8],
+      rotationY: Math.PI
+    },
+    {
+      id: "starter-table",
       type: "table",
-      position: [-2.5, 0, 1.5],
+      surface: "floor",
+      position: [3.2, 0, 2.5],
       rotationY: Math.PI / 2
     },
     {
-      id: "poster-1",
+      id: "starter-poster",
       type: "poster",
-      position: [2, 1.85, -7.83],
+      surface: "wall_back",
+      position: [2.2, 1.9, -7.83],
       rotationY: 0
+    },
+    {
+      id: "starter-wall-frame",
+      type: "wall_frame",
+      surface: "wall_left",
+      position: [-7.83, 1.75, 1.8],
+      rotationY: Math.PI / 2
     }
   ]
 };
@@ -51,10 +103,18 @@ export function cloneFurniturePlacements(
   return placements.map(cloneFurniturePlacement);
 }
 
-export function createDefaultRoomState(): RoomState {
+export function cloneRoomState(roomState: RoomState): RoomState {
   return {
-    furniture: cloneFurniturePlacements(DEFAULT_ROOM_STATE.furniture)
+    metadata: {
+      ...roomState.metadata,
+      unlockedFurniture: [...roomState.metadata.unlockedFurniture]
+    },
+    furniture: cloneFurniturePlacements(roomState.furniture)
   };
+}
+
+export function createDefaultRoomState(): RoomState {
+  return cloneRoomState(DEFAULT_ROOM_STATE);
 }
 
 export function findFurniturePlacement(
@@ -85,14 +145,14 @@ export function removeFurniturePlacement(
 
 export function createFurniturePlacement(
   type: FurnitureType,
-  position: Vector3Tuple
+  position: Vector3Tuple,
+  surface = getDefaultPlacementSurface(type)
 ): RoomFurniturePlacement {
-  const definition = getFurnitureDefinition(type);
-
   return {
     id: `${type}-${crypto.randomUUID()}`,
     type,
+    surface,
     position,
-    rotationY: definition.defaultRotationY
+    rotationY: getSurfaceRotationY(type, surface)
   };
 }
