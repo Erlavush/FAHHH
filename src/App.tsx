@@ -22,13 +22,20 @@ type FurnitureSpawnRequest = {
   type: FurnitureType;
 };
 
+type PlayerInteractionStatus =
+  | {
+      phase: "approaching" | "active";
+      label: string;
+    }
+  | null;
+
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
   return { default: module.RoomView };
 });
 
-const DEFAULT_CAMERA_POSITION: Vector3Tuple = [15, 13, 15];
-const DEFAULT_PLAYER_POSITION: Vector3Tuple = [0, 0, 0];
+const DEFAULT_CAMERA_POSITION: Vector3Tuple = [10.5, 8.7, 10.5];
+const DEFAULT_PLAYER_POSITION: Vector3Tuple = [0, 0, 0.85];
 
 function App() {
   const initialSandboxState = useMemo(
@@ -40,7 +47,6 @@ function App() {
       ),
     []
   );
-  const [cameraEditEnabled, setCameraEditEnabled] = useState(false);
   const [buildModeEnabled, setBuildModeEnabled] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
@@ -63,6 +69,9 @@ function App() {
   const [roomState, setRoomState] = useState<RoomState>(initialSandboxState.roomState);
   const [spawnRequest, setSpawnRequest] = useState<FurnitureSpawnRequest | null>(null);
   const [cameraResetToken, setCameraResetToken] = useState(0);
+  const [standRequestToken, setStandRequestToken] = useState(0);
+  const [playerInteractionStatus, setPlayerInteractionStatus] =
+    useState<PlayerInteractionStatus>(null);
   const skinInputRef = useRef<HTMLInputElement | null>(null);
   const nextSpawnRequestIdRef = useRef(1);
 
@@ -221,6 +230,7 @@ function App() {
     setBuildModeEnabled(false);
     setCatalogOpen(false);
     setGridSnapEnabled(true);
+    setPlayerInteractionStatus(null);
     setCameraResetToken((current) => current + 1);
   }
 
@@ -268,16 +278,14 @@ function App() {
       <div className="scene-shell">
       <div className="scene-toolbar">
         <button
-          className={`camera-toggle${cameraEditEnabled ? " camera-toggle--active" : ""}`}
-          onClick={() => setCameraEditEnabled((current) => !current)}
-          type="button"
-        >
-          {cameraEditEnabled ? "Camera Edit: On" : "Camera Edit: Off"}
-        </button>
-        <button
           className={`camera-toggle${buildModeEnabled ? " camera-toggle--active" : ""}`}
+          disabled={playerInteractionStatus !== null && !buildModeEnabled}
           onClick={() =>
             setBuildModeEnabled((current) => {
+              if (!current && playerInteractionStatus) {
+                return current;
+              }
+
               const nextValue = !current;
 
               if (!nextValue) {
@@ -293,7 +301,12 @@ function App() {
         </button>
         <button
           className={`camera-toggle${catalogOpen ? " camera-toggle--active" : ""}`}
+          disabled={playerInteractionStatus !== null}
           onClick={() => {
+            if (playerInteractionStatus) {
+              return;
+            }
+
             setBuildModeEnabled(true);
             setCatalogOpen((current) => !current);
           }}
@@ -317,6 +330,17 @@ function App() {
         <button className="camera-toggle" onClick={handleResetSandbox} type="button">
           Reset Room
         </button>
+        {playerInteractionStatus ? (
+          <button
+            className="camera-toggle camera-toggle--active"
+            onClick={() => setStandRequestToken((current) => current + 1)}
+            type="button"
+          >
+            {playerInteractionStatus.phase === "active"
+              ? `Stand Up (${playerInteractionStatus.label})`
+              : `Cancel ${playerInteractionStatus.label}`}
+          </button>
+        ) : null}
         <button
           className={`camera-toggle${debugOpen ? " camera-toggle--active" : ""}`}
           onClick={() => setDebugOpen((current) => !current)}
@@ -364,11 +388,11 @@ function App() {
 
       <Suspense fallback={<div className="canvas-fallback">Loading scene...</div>}>
         <RoomView
-          cameraEditEnabled={cameraEditEnabled}
           buildModeEnabled={buildModeEnabled}
           gridSnapEnabled={gridSnapEnabled}
           spawnRequest={spawnRequest}
           cameraResetToken={cameraResetToken}
+          standRequestToken={standRequestToken}
           initialCameraPosition={cameraPosition}
           initialPlayerPosition={playerPosition}
           initialFurniturePlacements={roomState.furniture}
@@ -382,6 +406,7 @@ function App() {
           onCameraPositionChange={handleCameraPositionChange}
           onPlayerPositionChange={handlePlayerPositionChange}
           onCommittedFurnitureChange={handleCommittedFurnitureChange}
+          onInteractionStateChange={setPlayerInteractionStatus}
         />
       </Suspense>
     </div>

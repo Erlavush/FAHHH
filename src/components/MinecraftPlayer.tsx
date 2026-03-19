@@ -40,6 +40,13 @@ interface MinecraftPlayerProps {
   initialPosition: [number, number, number];
   skinSrc: string | null;
   targetPosition: [number, number, number];
+  interaction:
+    | {
+        type: "sit";
+        position: [number, number, number];
+        rotationY: number;
+      }
+    | null;
   onPositionChange: (position: [number, number, number]) => void;
   shadowsEnabled: boolean;
 }
@@ -342,6 +349,7 @@ export function MinecraftPlayer({
   initialPosition,
   skinSrc,
   targetPosition,
+  interaction,
   onPositionChange,
   shadowsEnabled
 }: MinecraftPlayerProps) {
@@ -437,8 +445,14 @@ export function MinecraftPlayer({
     const dz = targetPosition[2] - root.position.z;
     const distance = Math.hypot(dx, dz);
     const isMoving = distance > 0.02;
+    const isSitting = interaction?.type === "sit";
 
-    if (isMoving) {
+    if (isSitting) {
+      root.position.x += (interaction.position[0] - root.position.x) * Math.min(1, delta * 16);
+      root.position.z += (interaction.position[2] - root.position.z) * Math.min(1, delta * 16);
+      root.rotation.y = lerpAngle(root.rotation.y, interaction.rotationY, Math.min(1, delta * 12));
+      stepTimeRef.current += delta * 1.4;
+    } else if (isMoving) {
       const moveStep = Math.min(distance, moveSpeed * delta);
       root.position.x += (dx / distance) * moveStep;
       root.position.z += (dz / distance) * moveStep;
@@ -451,30 +465,62 @@ export function MinecraftPlayer({
       stepTimeRef.current += delta * 2.3;
     }
 
-    const walkSwing = isMoving ? Math.sin(stepTimeRef.current) : 0;
-    const walkSwingOpposite = isMoving ? -Math.sin(stepTimeRef.current) : 0;
+    const walkSwing = !isSitting && isMoving ? Math.sin(stepTimeRef.current) : 0;
+    const walkSwingOpposite = !isSitting && isMoving ? -Math.sin(stepTimeRef.current) : 0;
     const idleFloat = Math.sin(state.clock.elapsedTime * 1.8) * 0.015;
     const idleSway = Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
 
     root.position.y = targetPosition[1];
 
-    body.position.y = 1.125 + (isMoving ? Math.abs(Math.sin(stepTimeRef.current)) * 0.04 : idleFloat * 0.5);
-    body.rotation.x = isMoving ? Math.cos(stepTimeRef.current) * 0.04 : idleSway * 0.2;
-    body.rotation.z = isMoving ? Math.sin(stepTimeRef.current * 0.5) * 0.035 : idleSway * 0.18;
+    if (isSitting) {
+      body.position.y = 0.98 + idleFloat * 0.2;
+      body.rotation.x = -0.18 + idleSway * 0.08;
+      body.rotation.z = idleSway * 0.06;
 
-    head.position.y = 1.75 + (isMoving ? Math.abs(Math.sin(stepTimeRef.current * 0.5)) * 0.03 : idleFloat * 0.4);
-    head.rotation.x = isMoving ? -Math.abs(Math.sin(stepTimeRef.current)) * 0.08 : Math.sin(state.clock.elapsedTime * 1.2) * 0.03;
-    head.rotation.z = isMoving ? Math.sin(stepTimeRef.current * 0.45) * 0.05 : idleSway * 0.4;
+      head.position.y = 1.56 + idleFloat * 0.18;
+      head.rotation.x = 0.06 + Math.sin(state.clock.elapsedTime * 1.2) * 0.02;
+      head.rotation.z = idleSway * 0.18;
 
-    rightArm.rotation.x = walkSwingOpposite * 0.72;
-    leftArm.rotation.x = walkSwing * 0.72;
-    rightArm.rotation.z = isMoving ? 0.08 : 0.03;
-    leftArm.rotation.z = isMoving ? -0.08 : -0.03;
+      rightArm.position.set(-0.37, 1.28, 0.08);
+      leftArm.position.set(0.37, 1.28, 0.08);
+      rightArm.rotation.x = -0.62;
+      leftArm.rotation.x = -0.62;
+      rightArm.rotation.z = 0.08;
+      leftArm.rotation.z = -0.08;
 
-    rightLeg.rotation.x = walkSwing * 0.72;
-    leftLeg.rotation.x = walkSwingOpposite * 0.72;
-    rightLeg.rotation.z = 0;
-    leftLeg.rotation.z = 0;
+      rightLeg.position.set(-0.125, 0.56, 0.08);
+      leftLeg.position.set(0.125, 0.56, 0.08);
+      rightLeg.rotation.x = -1.34;
+      leftLeg.rotation.x = -1.34;
+      rightLeg.rotation.z = 0;
+      leftLeg.rotation.z = 0;
+    } else {
+      body.position.y =
+        1.125 + (isMoving ? Math.abs(Math.sin(stepTimeRef.current)) * 0.04 : idleFloat * 0.5);
+      body.rotation.x = isMoving ? Math.cos(stepTimeRef.current) * 0.04 : idleSway * 0.2;
+      body.rotation.z = isMoving ? Math.sin(stepTimeRef.current * 0.5) * 0.035 : idleSway * 0.18;
+
+      head.position.y =
+        1.75 + (isMoving ? Math.abs(Math.sin(stepTimeRef.current * 0.5)) * 0.03 : idleFloat * 0.4);
+      head.rotation.x = isMoving
+        ? -Math.abs(Math.sin(stepTimeRef.current)) * 0.08
+        : Math.sin(state.clock.elapsedTime * 1.2) * 0.03;
+      head.rotation.z = isMoving ? Math.sin(stepTimeRef.current * 0.45) * 0.05 : idleSway * 0.4;
+
+      rightArm.position.set(-0.375, 1.5, 0);
+      leftArm.position.set(0.375, 1.5, 0);
+      rightArm.rotation.x = walkSwingOpposite * 0.72;
+      leftArm.rotation.x = walkSwing * 0.72;
+      rightArm.rotation.z = isMoving ? 0.08 : 0.03;
+      leftArm.rotation.z = isMoving ? -0.08 : -0.03;
+
+      rightLeg.position.set(-0.125, 0.75, 0);
+      leftLeg.position.set(0.125, 0.75, 0);
+      rightLeg.rotation.x = walkSwing * 0.72;
+      leftLeg.rotation.x = walkSwingOpposite * 0.72;
+      rightLeg.rotation.z = 0;
+      leftLeg.rotation.z = 0;
+    }
 
     if (state.clock.elapsedTime - lastSentTimeRef.current >= 0.1) {
       lastSentTimeRef.current = state.clock.elapsedTime;

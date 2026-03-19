@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createFurniturePlacement, createDefaultRoomState } from "../src/lib/roomState";
+import {
+  createFurniturePlacement,
+  createDefaultRoomState,
+  DEFAULT_ROOM_LAYOUT_VERSION
+} from "../src/lib/roomState";
 
 describe("roomState", () => {
   it("creates the full starter room layout with metadata", () => {
@@ -7,7 +11,7 @@ describe("roomState", () => {
     const furnitureIds = roomState.furniture.map((item) => item.id);
 
     expect(roomState.metadata.roomTheme).toBe("starter-cozy");
-    expect(roomState.metadata.layoutVersion).toBe(2);
+    expect(roomState.metadata.layoutVersion).toBe(DEFAULT_ROOM_LAYOUT_VERSION);
     expect(furnitureIds).toEqual(
       expect.arrayContaining([
         "starter-rug",

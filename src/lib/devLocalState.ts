@@ -189,6 +189,16 @@ function loadLegacySandboxState(
   };
 }
 
+function shouldResetToFallbackRoomState(
+  persistedRoomState: RoomState,
+  fallbackRoomState: RoomState
+): boolean {
+  return (
+    persistedRoomState.metadata.roomTheme !== fallbackRoomState.metadata.roomTheme ||
+    persistedRoomState.metadata.layoutVersion < fallbackRoomState.metadata.layoutVersion
+  );
+}
+
 export function createDefaultSandboxState(
   cameraPosition: PersistedVector3,
   playerPosition: PersistedVector3
@@ -243,6 +253,16 @@ export function loadPersistedSandboxState(
         fallbackPlayerPosition,
         fallbackRoomState
       );
+    }
+
+    if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState)) {
+      return {
+        version: 1,
+        skinSrc: parsedValue.skinSrc,
+        cameraPosition: [...fallbackCameraPosition],
+        playerPosition: [...fallbackPlayerPosition],
+        roomState: cloneRoomState(fallbackRoomState)
+      };
     }
 
     return {

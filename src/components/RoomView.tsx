@@ -29,6 +29,10 @@ import {
   type CollisionReason
 } from "../lib/furnitureCollision";
 import {
+  getFurnitureInteractionTarget,
+  type FurnitureInteractionTarget
+} from "../lib/furnitureInteractions";
+import {
   getFurnitureDefinition,
   getSurfaceRotationY,
   type FurniturePlacementSurface,
@@ -46,16 +50,24 @@ import {
 } from "../lib/roomState";
 
 const TILE_SIZE = 1;
-const GRID_SIZE = 16;
+const GRID_SIZE = 10;
 const HALF_FLOOR_SIZE = (GRID_SIZE * TILE_SIZE) / 2;
-const BACK_WALL_SURFACE_Z = -7.83;
-const LEFT_WALL_SURFACE_X = -7.83;
+const BACK_WALL_SURFACE_Z = -HALF_FLOOR_SIZE + 0.17;
+const LEFT_WALL_SURFACE_X = -HALF_FLOOR_SIZE + 0.17;
+const WALL_CENTER_COORD = -HALF_FLOOR_SIZE - 0.06;
+const BASEBOARD_COORD = -HALF_FLOOR_SIZE + 0.07;
+const TRIM_COORD = -HALF_FLOOR_SIZE + 0.08;
+const WALL_SPAN = GRID_SIZE + 0.2;
+const BASEBOARD_SPAN = GRID_SIZE - 0.3;
+const SHADE_PANEL_SPAN = Math.max(2.5, GRID_SIZE * 0.26);
+const SHADE_PANEL_CENTER = -HALF_FLOOR_SIZE + 1.7;
 const WALL_MIN_Y = 1;
 const WALL_MAX_Y = 2.7;
 const FLOOR_GIZMO_SCREEN_SIZE = 108;
 const WALL_GIZMO_SCREEN_SIZE = 94;
 const GIZMO_LINE_WIDTH = 4;
 const FREE_MOVE_NUDGE_STEP = 0.1;
+const DISABLED_MOUSE_BUTTON = -1 as MOUSE;
 const floorDragPlane = new Plane(new Vector3(0, 1, 0), 0);
 const backWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
   new Vector3(0, 0, 1),
@@ -95,6 +107,12 @@ type DragState = {
   type: FurnitureType;
   surface: FurniturePlacementSurface;
 };
+type PlayerInteractionStatus =
+  | {
+      phase: "approaching" | "active";
+      label: string;
+    }
+  | null;
 
 function createConcreteTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -156,6 +174,21 @@ function clampWallHeight(value: number, halfSize: number): number {
 
 function snapToBlockCenter(value: number): number {
   return Math.round(value - 0.5) + 0.5;
+}
+
+function rotateLocalOffset(
+  offset: [number, number, number],
+  rotationY: number
+): [number, number, number] {
+  const [localX, localY, localZ] = offset;
+  const cos = Math.cos(rotationY);
+  const sin = Math.sin(rotationY);
+
+  return [
+    localX * cos + localZ * sin,
+    localY,
+    localZ * cos - localX * sin
+  ];
 }
 
 function getGizmoOffset(surface: FurniturePlacementSurface): [number, number, number] {
@@ -228,7 +261,7 @@ function placementListsMatch(
 
 interface FloorStageProps {
   targetPosition: [number, number, number];
-  onFloorClick: (event: ThreeEvent<MouseEvent>) => void;
+  onFloorMoveCommand: (event: ThreeEvent<MouseEvent>) => void;
   onFloorPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onFloorPointerUp: () => void;
   checkerEnabled: boolean;
@@ -239,7 +272,7 @@ interface FloorStageProps {
 
 function FloorStage({
   targetPosition,
-  onFloorClick,
+  onFloorMoveCommand,
   onFloorPointerMove,
   onFloorPointerUp,
   checkerEnabled,
@@ -267,7 +300,7 @@ function FloorStage({
             position={[x, -0.5, z]}
             receiveShadow={shadowsEnabled}
             castShadow={shadowsEnabled}
-            onClick={onFloorClick}
+            onContextMenu={onFloorMoveCommand}
             onPointerMove={onFloorPointerMove}
             onPointerUp={onFloorPointerUp}
           >
@@ -284,7 +317,7 @@ function FloorStage({
     concreteTexture,
     floorPrimaryColor,
     floorSecondaryColor,
-    onFloorClick,
+    onFloorMoveCommand,
     onFloorPointerMove,
     onFloorPointerUp,
     shadowsEnabled
@@ -322,52 +355,52 @@ function RoomShell({
   return (
     <group>
       <mesh
-        position={[-8.06, 2.2, 0]}
+        position={[WALL_CENTER_COORD, 2.2, 0]}
         castShadow={shadowsEnabled}
         receiveShadow={shadowsEnabled}
         onClick={onWallClick}
         onPointerMove={onWallPointerMove}
         onPointerUp={onWallPointerUp}
       >
-        <boxGeometry args={[0.22, 4.4, 16.2]} />
+        <boxGeometry args={[0.22, 4.4, WALL_SPAN]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
       <mesh
-        position={[0, 2.2, -8.06]}
+        position={[0, 2.2, WALL_CENTER_COORD]}
         castShadow={shadowsEnabled}
         receiveShadow={shadowsEnabled}
         onClick={onWallClick}
         onPointerMove={onWallPointerMove}
         onPointerUp={onWallPointerUp}
       >
-        <boxGeometry args={[16.2, 4.4, 0.22]} />
+        <boxGeometry args={[WALL_SPAN, 4.4, 0.22]} />
         <meshStandardMaterial color={wallColor} />
       </mesh>
 
-      <mesh position={[-7.93, 0.12, 0]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[0.12, 0.24, 15.7]} />
+      <mesh position={[BASEBOARD_COORD, 0.12, 0]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[0.12, 0.24, BASEBOARD_SPAN]} />
         <meshStandardMaterial color={baseboardColor} />
       </mesh>
-      <mesh position={[0, 0.12, -7.93]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[15.7, 0.24, 0.12]} />
+      <mesh position={[0, 0.12, BASEBOARD_COORD]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[BASEBOARD_SPAN, 0.24, 0.12]} />
         <meshStandardMaterial color={baseboardColor} />
       </mesh>
 
-      <mesh position={[-7.92, 3.55, 0]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[0.08, 0.18, 15.7]} />
+      <mesh position={[TRIM_COORD, 3.55, 0]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[0.08, 0.18, BASEBOARD_SPAN]} />
         <meshStandardMaterial color={trimColor} />
       </mesh>
-      <mesh position={[0, 3.55, -7.92]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[15.7, 0.18, 0.08]} />
+      <mesh position={[0, 3.55, TRIM_COORD]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[BASEBOARD_SPAN, 0.18, 0.08]} />
         <meshStandardMaterial color={trimColor} />
       </mesh>
 
-      <mesh position={[-7.88, 1.2, -4.2]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[0.08, 1.8, 4.1]} />
+      <mesh position={[-HALF_FLOOR_SIZE + 0.12, 1.24, SHADE_PANEL_CENTER]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[0.08, 1.95, SHADE_PANEL_SPAN]} />
         <meshStandardMaterial color={wallShade} />
       </mesh>
-      <mesh position={[-4.2, 1.2, -7.88]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[4.1, 1.8, 0.08]} />
+      <mesh position={[SHADE_PANEL_CENTER, 1.24, -HALF_FLOOR_SIZE + 0.12]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[SHADE_PANEL_SPAN, 1.95, 0.08]} />
         <meshStandardMaterial color={wallShade} />
       </mesh>
     </group>
@@ -375,7 +408,6 @@ function RoomShell({
 }
 
 interface RoomViewProps {
-  cameraEditEnabled: boolean;
   buildModeEnabled: boolean;
   gridSnapEnabled: boolean;
   spawnRequest: {
@@ -383,6 +415,7 @@ interface RoomViewProps {
     type: FurnitureType;
   } | null;
   cameraResetToken: number;
+  standRequestToken: number;
   initialCameraPosition: Vector3Tuple;
   initialPlayerPosition: Vector3Tuple;
   initialFurniturePlacements: RoomFurniturePlacement[];
@@ -396,6 +429,7 @@ interface RoomViewProps {
   onCameraPositionChange: (position: Vector3Tuple) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
+  onInteractionStateChange: (status: PlayerInteractionStatus) => void;
 }
 
 function StarField() {
@@ -613,11 +647,11 @@ function EditDock({
 }
 
 export function RoomView({
-  cameraEditEnabled,
   buildModeEnabled,
   gridSnapEnabled,
   spawnRequest,
   cameraResetToken,
+  standRequestToken,
   initialCameraPosition,
   initialPlayerPosition,
   initialFurniturePlacements,
@@ -630,7 +664,8 @@ export function RoomView({
   floorSecondaryColor,
   onCameraPositionChange,
   onPlayerPositionChange,
-  onCommittedFurnitureChange
+  onCommittedFurnitureChange,
+  onInteractionStateChange
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
   const initialFurnitureRef = useRef(cloneFurniturePlacements(initialFurniturePlacements));
@@ -638,6 +673,7 @@ export function RoomView({
   const orbitControlsRef = useRef<any>(null);
   const lastProcessedSpawnRequestIdRef = useRef<number | null>(null);
   const lastCameraResetTokenRef = useRef(0);
+  const lastStandRequestTokenRef = useRef(0);
   const lastReportedCommittedFurnitureRef = useRef<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
@@ -655,6 +691,8 @@ export function RoomView({
   const [furniture, setFurniture] = useState<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
+  const [pendingInteraction, setPendingInteraction] = useState<FurnitureInteractionTarget | null>(null);
+  const [activeInteraction, setActiveInteraction] = useState<FurnitureInteractionTarget | null>(null);
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
@@ -698,23 +736,42 @@ export function RoomView({
 
     return nextMatrix;
   }, [selectedFurniture]);
+  const playerInteractionStatus = useMemo<PlayerInteractionStatus>(() => {
+    if (activeInteraction) {
+      return {
+        phase: "active",
+        label: activeInteraction.furnitureLabel
+      };
+    }
+
+    if (pendingInteraction) {
+      return {
+        phase: "approaching",
+        label: pendingInteraction.furnitureLabel
+      };
+    }
+
+    return null;
+  }, [activeInteraction, pendingInteraction]);
+  const playerInteractionPose = activeInteraction
+    ? {
+        type: "sit" as const,
+        position: activeInteraction.position,
+        rotationY: activeInteraction.rotationY
+      }
+    : null;
   const interactionCursor = useMemo(() => {
     if (isDraggingFurniture || isTransformingFurniture) {
       return "grabbing";
-    }
-
-    if (cameraEditEnabled) {
-      return "grab";
     }
 
     if (buildModeEnabled && (hoveredFurnitureId || selectedFurnitureId)) {
       return "grab";
     }
 
-    return "default";
+    return "grab";
   }, [
     buildModeEnabled,
-    cameraEditEnabled,
     hoveredFurnitureId,
     isDraggingFurniture,
     isTransformingFurniture,
@@ -746,9 +803,17 @@ export function RoomView({
     setIsTransformingFurniture(false);
     dragStateRef.current = null;
     furnitureEditStartRef.current = {};
+    setPendingInteraction(null);
+    setActiveInteraction(null);
   }, [initialFurniturePlacements]);
 
   useEffect(() => {
+    if (buildModeEnabled) {
+      setPendingInteraction(null);
+      setActiveInteraction(null);
+      return;
+    }
+
     if (!buildModeEnabled) {
       setFurniture(cloneFurniturePlacements(committedFurniture));
       setSelectedFurnitureId(null);
@@ -761,10 +826,33 @@ export function RoomView({
   }, [buildModeEnabled, committedFurniture]);
 
   useEffect(() => {
-    if (!buildModeEnabled || cameraEditEnabled) {
+    onInteractionStateChange(playerInteractionStatus);
+  }, [onInteractionStateChange, playerInteractionStatus]);
+
+  useEffect(() => {
+    if (!pendingInteraction || activeInteraction) {
+      return;
+    }
+
+    const distance = Math.hypot(
+      playerWorldPosition[0] - pendingInteraction.position[0],
+      playerWorldPosition[2] - pendingInteraction.position[2]
+    );
+
+    if (distance > 0.12) {
+      return;
+    }
+
+    setTargetPosition(pendingInteraction.position);
+    setActiveInteraction(pendingInteraction);
+    setPendingInteraction(null);
+  }, [activeInteraction, pendingInteraction, playerWorldPosition]);
+
+  useEffect(() => {
+    if (!buildModeEnabled) {
       setHoveredFurnitureId(null);
     }
-  }, [buildModeEnabled, cameraEditEnabled]);
+  }, [buildModeEnabled]);
 
   useEffect(() => {
     if (!isDraggingFurniture) {
@@ -818,6 +906,23 @@ export function RoomView({
     orbitControlsRef.current?.update();
     onCameraPositionChange(initialCameraPosition);
   }, [cameraResetToken, initialCameraPosition, onCameraPositionChange]);
+
+  useEffect(() => {
+    if (!standRequestToken || standRequestToken === lastStandRequestTokenRef.current) {
+      return;
+    }
+
+    lastStandRequestTokenRef.current = standRequestToken;
+
+    if (activeInteraction) {
+      clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
+      return;
+    }
+
+    if (pendingInteraction) {
+      clearPlayerInteraction();
+    }
+  }, [activeInteraction, pendingInteraction, standRequestToken]);
 
   useEffect(() => {
     if (!spawnRequest || lastProcessedSpawnRequestIdRef.current === spawnRequest.requestId) {
@@ -935,6 +1040,34 @@ export function RoomView({
     const backWallDistance = Math.abs(targetPosition[2] - BACK_WALL_SURFACE_Z);
 
     return leftWallDistance < backWallDistance ? "wall_left" : "wall_back";
+  }
+
+  function resolveInteractionExitPosition(
+    interaction: FurnitureInteractionTarget
+  ): Vector3Tuple {
+    const [offsetX, offsetY, offsetZ] = rotateLocalOffset([0, 0, 0.9], interaction.rotationY);
+
+    return [
+      clampToFloor(interaction.position[0] + offsetX),
+      interaction.position[1] + offsetY,
+      clampToFloor(interaction.position[2] + offsetZ)
+    ];
+  }
+
+  function clearPlayerInteraction(nextTarget?: Vector3Tuple) {
+    setPendingInteraction(null);
+    setActiveInteraction(null);
+
+    if (nextTarget) {
+      setTargetPosition(nextTarget);
+      return;
+    }
+
+    setTargetPosition([
+      playerWorldPosition[0],
+      playerWorldPosition[1],
+      playerWorldPosition[2]
+    ]);
   }
 
   function resolveFloorPlacement(
@@ -1176,7 +1309,7 @@ export function RoomView({
 
     event.stopPropagation();
 
-    if (cameraEditEnabled || isTransformingFurniture || isDraggingFurniture) {
+    if (isTransformingFurniture || isDraggingFurniture) {
       return true;
     }
 
@@ -1195,17 +1328,26 @@ export function RoomView({
     return true;
   }
 
-  function handleFloorClick(event: ThreeEvent<MouseEvent>) {
+  function handleFloorMoveCommand(event: ThreeEvent<MouseEvent>) {
+    event.nativeEvent.preventDefault();
+
     if (handleBuildSurfaceClick(event)) {
       return;
     }
 
-    if (cameraEditEnabled || isTransformingFurniture) {
+    if (isTransformingFurniture) {
       return;
     }
 
     event.stopPropagation();
-    setTargetPosition([clampToFloor(event.point.x), 0, clampToFloor(event.point.z)]);
+    const nextTarget: Vector3Tuple = [clampToFloor(event.point.x), 0, clampToFloor(event.point.z)];
+
+    if (activeInteraction || pendingInteraction) {
+      clearPlayerInteraction(nextTarget);
+      return;
+    }
+
+    setTargetPosition(nextTarget);
   }
 
   function handleWallClick(event: ThreeEvent<MouseEvent>) {
@@ -1216,11 +1358,14 @@ export function RoomView({
     furnitureId: string,
     event: ThreeEvent<PointerEvent>
   ) {
-    if (!buildModeEnabled || cameraEditEnabled) {
+    if (!buildModeEnabled) {
       return;
     }
 
     event.stopPropagation();
+    if (orbitControlsRef.current) {
+      orbitControlsRef.current.enabled = false;
+    }
     capturePointer(event);
     setHoveredFurnitureId(furnitureId);
 
@@ -1246,11 +1391,43 @@ export function RoomView({
       : null;
   }
 
+  function handleFurnitureClick(
+    furnitureId: string,
+    event: ThreeEvent<MouseEvent>
+  ) {
+    if (buildModeEnabled || isDraggingFurniture || isTransformingFurniture) {
+      return;
+    }
+
+    const clickedFurniture = findFurniturePlacement(furniture, furnitureId);
+
+    if (!clickedFurniture) {
+      return;
+    }
+
+    const interactionTarget = getFurnitureInteractionTarget(clickedFurniture);
+
+    if (!interactionTarget) {
+      return;
+    }
+
+    event.stopPropagation();
+
+    if (activeInteraction?.furnitureId === furnitureId) {
+      clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
+      return;
+    }
+
+    setActiveInteraction(null);
+    setPendingInteraction(interactionTarget);
+    setTargetPosition(interactionTarget.position);
+  }
+
   function handleFurniturePointerMove(
     furnitureId: string,
     event: ThreeEvent<PointerEvent>
   ) {
-    if (buildModeEnabled && !cameraEditEnabled) {
+    if (buildModeEnabled) {
       event.stopPropagation();
 
       if (
@@ -1264,7 +1441,6 @@ export function RoomView({
 
     if (
       !buildModeEnabled ||
-      cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
       !dragStateRef.current
@@ -1289,6 +1465,9 @@ export function RoomView({
     releaseCapturedPointer();
     setIsDraggingFurniture(false);
     dragStateRef.current = null;
+    if (orbitControlsRef.current) {
+      orbitControlsRef.current.enabled = !isTransformingFurniture;
+    }
   }
 
   function handlePivotDrag(localMatrix: Matrix4) {
@@ -1350,7 +1529,6 @@ export function RoomView({
 
     if (
       !buildModeEnabled ||
-      cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
       !dragStateRef.current
@@ -1374,6 +1552,9 @@ export function RoomView({
     releaseCapturedPointer();
     setIsDraggingFurniture(false);
     dragStateRef.current = null;
+    if (orbitControlsRef.current) {
+      orbitControlsRef.current.enabled = !isTransformingFurniture;
+    }
   }
 
   function handleCancelFurniturePlacement() {
@@ -1585,6 +1766,7 @@ export function RoomView({
     <div
       className="canvas-wrap"
       style={{ cursor: interactionCursor }}
+      onContextMenu={(event) => event.preventDefault()}
       onPointerLeave={() => {
         if (!isDraggingFurniture && !isTransformingFurniture) {
           setHoveredFurnitureId(null);
@@ -1602,20 +1784,20 @@ export function RoomView({
         />
         <OrbitControls
           ref={orbitControlsRef}
-          enabled={cameraEditEnabled && !isTransformingFurniture}
-          enableRotate={cameraEditEnabled && !isTransformingFurniture}
+          enabled={!isTransformingFurniture && !isDraggingFurniture}
+          enableRotate={!isTransformingFurniture && !isDraggingFurniture}
           enablePan={false}
-          enableZoom={cameraEditEnabled && !isTransformingFurniture}
+          enableZoom={!isTransformingFurniture}
           screenSpacePanning={false}
           minDistance={5}
           maxDistance={48}
           target={[0, 0.9, 0]}
-          minPolarAngle={0.5}
-          maxPolarAngle={1.2}
+          minPolarAngle={0.18}
+          maxPolarAngle={1.5}
           mouseButtons={{
             LEFT: MOUSE.ROTATE,
             MIDDLE: MOUSE.ROTATE,
-            RIGHT: MOUSE.ROTATE
+            RIGHT: DISABLED_MOUSE_BUTTON
           }}
         />
         <ambientLight intensity={isDay ? 1.4 : 0.22} color={isDay ? "#fff8f0" : "#8fa4c9"} />
@@ -1644,7 +1826,7 @@ export function RoomView({
         />
         <FloorStage
           targetPosition={targetPosition}
-          onFloorClick={handleFloorClick}
+          onFloorMoveCommand={handleFloorMoveCommand}
           onFloorPointerMove={handleSurfacePointerMove}
           onFloorPointerUp={handleSurfacePointerUp}
           checkerEnabled={checkerEnabled}
@@ -1656,6 +1838,7 @@ export function RoomView({
           initialPosition={initialPlayerPosition}
           skinSrc={skinSrc}
           targetPosition={targetPosition}
+          interaction={playerInteractionPose}
           onPositionChange={(position) => {
             setPlayerWorldPosition(position);
             onPlayerPositionChange(position);
@@ -1669,6 +1852,7 @@ export function RoomView({
             key={item.id}
             position={item.position}
             rotation={[0, item.rotationY, 0]}
+            onClick={(event) => handleFurnitureClick(item.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(item.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(item.id, event)}
             onPointerUp={handleFurniturePointerUp}
@@ -1705,6 +1889,7 @@ export function RoomView({
             onDragEnd={() => setIsTransformingFurniture(false)}
           >
             <group
+              onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
               onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
               onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
               onPointerUp={handleFurniturePointerUp}
@@ -1717,6 +1902,7 @@ export function RoomView({
           <group
             position={selectedFurniture.position}
             rotation={[0, selectedFurniture.rotationY, 0]}
+            onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
             onPointerUp={handleFurniturePointerUp}

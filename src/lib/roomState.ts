@@ -28,11 +28,13 @@ export interface RoomState {
   furniture: RoomFurniturePlacement[];
 }
 
+export const DEFAULT_ROOM_LAYOUT_VERSION = 3;
+
 export const DEFAULT_ROOM_STATE: RoomState = {
   metadata: {
     roomId: "local-sandbox-room",
     roomTheme: "starter-cozy",
-    layoutVersion: 2,
+    layoutVersion: DEFAULT_ROOM_LAYOUT_VERSION,
     unlockedFurniture: [...ALL_FURNITURE_TYPES]
   },
   furniture: [
@@ -40,49 +42,49 @@ export const DEFAULT_ROOM_STATE: RoomState = {
       id: "starter-rug",
       type: "rug",
       surface: "floor",
-      position: [0, 0, 1.5],
+      position: [0.1, 0, 1.25],
       rotationY: 0
     },
     {
       id: "starter-bed",
       type: "bed",
       surface: "floor",
-      position: [4.9, 0, -4.7],
+      position: [3.05, 0, -2.75],
       rotationY: 0
     },
     {
       id: "starter-desk",
       type: "desk",
       surface: "floor",
-      position: [-5.4, 0, -5.6],
+      position: [-3.2, 0, -4.15],
       rotationY: 0
     },
     {
       id: "starter-chair",
       type: "chair",
       surface: "floor",
-      position: [-5.4, 0, -3.8],
+      position: [-3.2, 0, -2.85],
       rotationY: Math.PI
     },
     {
       id: "starter-table",
       type: "table",
       surface: "floor",
-      position: [3.2, 0, 2.5],
+      position: [2.65, 0, 2.2],
       rotationY: Math.PI / 2
     },
     {
       id: "starter-poster",
       type: "poster",
       surface: "wall_back",
-      position: [2.2, 1.9, -7.83],
+      position: [2.95, 1.95, -4.83],
       rotationY: 0
     },
     {
       id: "starter-wall-frame",
       type: "wall_frame",
       surface: "wall_left",
-      position: [-7.83, 1.75, 1.8],
+      position: [-4.83, 1.75, 1.55],
       rotationY: Math.PI / 2
     }
   ]

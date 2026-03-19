@@ -10,6 +10,7 @@ export type FurnitureType =
 export type FurnitureSurfaceFamily = "floor" | "wall";
 export type FurniturePlacementSurface = "floor" | "wall_back" | "wall_left";
 export type FurnitureCatalogCategory = "Floor Furniture" | "Wall Decor" | "Accents";
+export type FurnitureInteractionType = "sit";
 
 export interface FurnitureDefinition {
   type: FurnitureType;
@@ -29,6 +30,8 @@ export interface FurnitureDefinition {
   category: FurnitureCatalogCategory;
   unlockKey: string;
   starterUnlocked: boolean;
+  interactionType?: FurnitureInteractionType;
+  interactionOffset?: [number, number, number];
 }
 
 export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
@@ -66,7 +69,9 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     defaultRotationY: 0,
     category: "Floor Furniture",
     unlockKey: "starter-chair",
-    starterUnlocked: true
+    starterUnlocked: true,
+    interactionType: "sit",
+    interactionOffset: [0, 0, 0.06]
   },
   table: {
     type: "table",
