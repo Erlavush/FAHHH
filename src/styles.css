@@ -43,6 +43,10 @@ body {
   touch-action: none;
 }
 
+.canvas-wrap {
+  position: relative;
+}
+
 .camera-toggle {
   padding: 10px 14px;
   border: 1px solid rgba(84, 102, 123, 0.18);
@@ -213,23 +217,44 @@ body {
 .placement-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(12, 18, 28, 0.82);
-  box-shadow: 0 14px 32px rgba(7, 12, 20, 0.28);
-  backdrop-filter: blur(10px);
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.placement-actions--floating {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  z-index: 24;
+  padding-bottom: 14px;
+}
+
+.placement-actions--floating::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  background: rgba(12, 18, 28, 0.88);
+  transform: translate(-50%, 45%) rotate(45deg);
+  border-radius: 4px;
+  box-shadow: 0 10px 18px rgba(7, 12, 20, 0.2);
 }
 
 .placement-action {
-  min-width: 42px;
-  height: 38px;
-  padding: 0 12px;
+  min-width: 52px;
+  height: 46px;
+  padding: 0 14px;
   border: 0;
   border-radius: 999px;
   color: #f7fbff;
-  font: 700 13px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font: 700 15px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 14px 28px rgba(7, 12, 20, 0.28);
+  backdrop-filter: blur(10px);
 }
 
 .placement-action--cancel {
@@ -250,6 +275,105 @@ body {
   cursor: not-allowed;
   opacity: 0.72;
 }
+
+.edit-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(12, 18, 28, 0.85);
+  box-shadow: 0 12px 32px rgba(7, 12, 20, 0.4);
+  backdrop-filter: blur(16px);
+  color: #eef7ff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.edit-dock__summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.edit-dock__summary strong {
+  font: 700 14px/1.2 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.edit-dock__summary span {
+  font: 600 11px/1.2 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #a4bcdf;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.edit-dock__divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 4px;
+}
+
+.edit-dock__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-dock__button,
+.edit-dock__icon-btn {
+  height: 38px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f7fbff;
+  font: 600 13px/1 "Segoe UI", sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+}
+
+.edit-dock__button {
+  padding: 0 16px;
+}
+
+.edit-dock__icon-btn {
+  width: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  border-radius: 50%;
+}
+
+.edit-dock__button:hover,
+.edit-dock__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.edit-dock__button:active,
+.edit-dock__icon-btn:active {
+  transform: translateY(1px);
+}
+
+.edit-dock__button--secondary {
+  background: transparent;
+  color: #a4bcdf;
+}
+.edit-dock__button--secondary:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+
 
 .canvas-fallback {
   display: grid;
@@ -286,5 +410,17 @@ body {
     right: 12px;
     width: min(280px, calc(100vw - 24px));
     max-height: 42vh;
+  }
+
+  .edit-dock {
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 20px;
+    padding: 12px 16px;
+    bottom: 48px;
+  }
+  .edit-dock__actions {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
