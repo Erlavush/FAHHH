@@ -34,7 +34,7 @@ function isValidVector3(value: unknown): value is PersistedVector3 {
 }
 
 function isValidPlacementSurface(value: unknown): value is FurniturePlacementSurface {
-  return value === "floor" || value === "wall_back" || value === "wall_left";
+  return value === "floor" || value === "wall_back" || value === "wall_left" || value === "surface";
 }
 
 function isValidFurniturePlacement(value: unknown): value is PersistedFurniturePlacement {
@@ -53,7 +53,15 @@ function isValidFurniturePlacement(value: unknown): value is PersistedFurnitureP
     Array.isArray(value.position) &&
     value.position.length === 3 &&
     value.position.every((entry) => typeof entry === "number") &&
-    typeof value.rotationY === "number"
+    typeof value.rotationY === "number" &&
+    (!("anchorFurnitureId" in value) ||
+      value.anchorFurnitureId === undefined ||
+      typeof value.anchorFurnitureId === "string") &&
+    (!("surfaceLocalOffset" in value) ||
+      value.surfaceLocalOffset === undefined ||
+      (Array.isArray(value.surfaceLocalOffset) &&
+        value.surfaceLocalOffset.length === 2 &&
+        value.surfaceLocalOffset.every((entry) => typeof entry === "number")))
   );
 }
 
@@ -148,7 +156,9 @@ function loadLegacyFurniturePlacements(
               type: entry.type as FurnitureType,
               surface: FURNITURE_REGISTRY[entry.type as FurnitureType].surface === "wall"
                 ? "wall_back"
-                : "floor",
+                : FURNITURE_REGISTRY[entry.type as FurnitureType].surface === "surface"
+                  ? "surface"
+                  : "floor",
               position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
               rotationY: entry.rotationY
             };
@@ -162,7 +172,9 @@ function loadLegacyFurniturePlacements(
           type: entry.type,
           surface: entry.surface,
           position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
-          rotationY: entry.rotationY
+          rotationY: entry.rotationY,
+          anchorFurnitureId: entry.anchorFurnitureId,
+          surfaceLocalOffset: entry.surfaceLocalOffset
         };
       })
       .filter((entry): entry is PersistedFurniturePlacement => entry !== null);

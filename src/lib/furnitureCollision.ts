@@ -2,7 +2,10 @@ import type { PersistedVector3 } from "./devLocalState";
 import { getFurnitureDefinition } from "./furnitureRegistry";
 import type { RoomFurniturePlacement } from "./roomState";
 
-export type CollisionReason = "furniture_overlap" | "player_overlap";
+export type CollisionReason =
+  | "furniture_overlap"
+  | "player_overlap"
+  | "unsupported_surface";
 
 export type FurnitureCollisionFootprint = {
   width: number;
@@ -53,16 +56,16 @@ function getRectAxes(rect: FootprintRect): Axis2D[] {
   const sin = Math.sin(rect.rotationY);
 
   return [
-    { x: cos, z: sin },
-    { x: -sin, z: cos }
+    { x: cos, z: -sin },
+    { x: sin, z: cos }
   ];
 }
 
 function getRectCorners(rect: FootprintRect): Axis2D[] {
-  const forwardX = Math.cos(rect.rotationY);
-  const forwardZ = Math.sin(rect.rotationY);
-  const rightX = -Math.sin(rect.rotationY);
-  const rightZ = Math.cos(rect.rotationY);
+  const rightX = Math.cos(rect.rotationY);
+  const rightZ = -Math.sin(rect.rotationY);
+  const forwardX = Math.sin(rect.rotationY);
+  const forwardZ = Math.cos(rect.rotationY);
 
   const halfWidthX = rightX * rect.halfWidth;
   const halfWidthZ = rightZ * rect.halfWidth;
@@ -104,7 +107,8 @@ function projectRectToAxis(rect: FootprintRect, axis: Axis2D): [number, number] 
 }
 
 function rangesOverlap(first: [number, number], second: [number, number]): boolean {
-  return first[0] <= second[1] && second[0] <= first[1];
+  const epsilon = 0.0001;
+  return first[0] < second[1] - epsilon && second[0] < first[1] - epsilon;
 }
 
 function rectanglesOverlap(first: FootprintRect, second: FootprintRect): boolean {
@@ -130,9 +134,10 @@ function createSurfaceRect(
 }
 
 function surfaceRectanglesOverlap(first: SurfaceRect, second: SurfaceRect): boolean {
+  const epsilon = 0.0001;
   return (
-    Math.abs(first.centerA - second.centerA) <= first.halfWidth + second.halfWidth &&
-    Math.abs(first.centerB - second.centerB) <= first.halfHeight + second.halfHeight
+    Math.abs(first.centerA - second.centerA) < first.halfWidth + second.halfWidth - epsilon &&
+    Math.abs(first.centerB - second.centerB) < first.halfHeight + second.halfHeight - epsilon
   );
 }
 
@@ -175,6 +180,31 @@ export function getFurnitureCollisionReason(
   playerPosition: PersistedVector3
 ): CollisionReason | null {
   const selectedDefinition = getFurnitureDefinition(selectedFurniture.type);
+  const selectedIsRug = selectedFurniture.type === "rug";
+
+  if (selectedDefinition.surface === "surface") {
+    if (!selectedFurniture.anchorFurnitureId || !selectedFurniture.surfaceLocalOffset) {
+      return "unsupported_surface";
+    }
+
+    const selectedRect = getFurnitureFootprintRect(selectedFurniture);
+
+    if (
+      otherFurniture.some((placement) => {
+        const otherDefinition = getFurnitureDefinition(placement.type);
+
+        return (
+          otherDefinition.surface === "surface" &&
+          placement.anchorFurnitureId === selectedFurniture.anchorFurnitureId &&
+          rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
+        );
+      })
+    ) {
+      return "furniture_overlap";
+    }
+
+    return null;
+  }
 
   if (selectedDefinition.surface === "wall") {
     const selectedRect = getWallSurfaceRect(selectedFurniture);
@@ -204,6 +234,8 @@ export function getFurnitureCollisionReason(
 
       return (
         otherDefinition.surface === "floor" &&
+        !(selectedIsRug && placement.type !== "rug") &&
+        !(!selectedIsRug && placement.type === "rug") &&
         rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
       );
     })
@@ -211,7 +243,7 @@ export function getFurnitureCollisionReason(
     return "furniture_overlap";
   }
 
-  if (rectanglesOverlap(selectedRect, getPlayerOccupancyRect(playerPosition))) {
+  if (!selectedIsRug && rectanglesOverlap(selectedRect, getPlayerOccupancyRect(playerPosition))) {
     return "player_overlap";
   }
 

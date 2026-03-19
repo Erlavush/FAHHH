@@ -42,7 +42,7 @@ interface MinecraftPlayerProps {
   targetPosition: [number, number, number];
   interaction:
     | {
-        type: "sit";
+        type: "sit" | "lie";
         position: [number, number, number];
         rotationY: number;
       }
@@ -359,6 +359,7 @@ export function MinecraftPlayer({
   const defaultSkin = useMemo(() => createDefaultSkin(), []);
   const [skinSet, setSkinSet] = useState<SkinSet | null>(null);
   const rootRef = useRef<Group>(null);
+  const poseRef = useRef<Group>(null);
   const headRef = useRef<Group>(null);
   const bodyRef = useRef<Group>(null);
   const rightArmRef = useRef<Group>(null);
@@ -430,6 +431,7 @@ export function MinecraftPlayer({
 
   useFrame((state, delta) => {
     const root = rootRef.current;
+    const pose = poseRef.current;
     const head = headRef.current;
     const body = bodyRef.current;
     const rightArm = rightArmRef.current;
@@ -437,7 +439,7 @@ export function MinecraftPlayer({
     const rightLeg = rightLegRef.current;
     const leftLeg = leftLegRef.current;
 
-    if (!root || !head || !body || !rightArm || !leftArm || !rightLeg || !leftLeg) {
+    if (!root || !pose || !head || !body || !rightArm || !leftArm || !rightLeg || !leftLeg) {
       return;
     }
 
@@ -445,9 +447,34 @@ export function MinecraftPlayer({
     const dz = targetPosition[2] - root.position.z;
     const distance = Math.hypot(dx, dz);
     const isMoving = distance > 0.02;
-    const isSitting = interaction?.type === "sit";
+    const interactionDistance = interaction
+      ? Math.hypot(
+          interaction.position[0] - root.position.x,
+          interaction.position[2] - root.position.z
+        )
+      : Infinity;
+    const interactionReady = interactionDistance < 0.035;
+    const isSitting = interaction?.type === "sit" && interactionReady;
+    const isLying = interaction?.type === "lie" && interactionReady;
 
-    if (isSitting) {
+    if (interaction?.type === "lie") {
+      if (interactionReady) {
+        root.position.x = interaction.position[0];
+        root.position.z = interaction.position[2];
+        root.rotation.y = interaction.rotationY;
+      } else {
+        root.position.x += (interaction.position[0] - root.position.x) * Math.min(1, delta * 16);
+        root.position.z += (interaction.position[2] - root.position.z) * Math.min(1, delta * 16);
+
+        const targetYaw = Math.atan2(
+          interaction.position[0] - root.position.x,
+          interaction.position[2] - root.position.z
+        );
+        root.rotation.y = lerpAngle(root.rotation.y, targetYaw, Math.min(1, delta * 12));
+      }
+
+      stepTimeRef.current += delta * 1.4;
+    } else if (interaction) {
       root.position.x += (interaction.position[0] - root.position.x) * Math.min(1, delta * 16);
       root.position.z += (interaction.position[2] - root.position.z) * Math.min(1, delta * 16);
       root.rotation.y = lerpAngle(root.rotation.y, interaction.rotationY, Math.min(1, delta * 12));
@@ -465,12 +492,38 @@ export function MinecraftPlayer({
       stepTimeRef.current += delta * 2.3;
     }
 
-    const walkSwing = !isSitting && isMoving ? Math.sin(stepTimeRef.current) : 0;
-    const walkSwingOpposite = !isSitting && isMoving ? -Math.sin(stepTimeRef.current) : 0;
+    const walkSwing =
+      !interactionReady && isMoving ? Math.sin(stepTimeRef.current) : 0;
+    const walkSwingOpposite =
+      !interactionReady && isMoving ? -Math.sin(stepTimeRef.current) : 0;
     const idleFloat = Math.sin(state.clock.elapsedTime * 1.8) * 0.015;
     const idleSway = Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
 
     root.position.y = targetPosition[1];
+
+    if (isLying) {
+      pose.position.set(0, 0.84, 0);
+      pose.rotation.set(-Math.PI / 2, 0, 0);
+
+      body.position.set(0, 1.125, 0);
+      body.rotation.set(0, 0, 0);
+
+      head.position.set(0, 1.75, 0);
+      head.rotation.set(0, 0, 0);
+
+      rightArm.position.set(-0.375, 1.5, 0);
+      leftArm.position.set(0.375, 1.5, 0);
+      rightArm.rotation.set(0, 0, 0);
+      leftArm.rotation.set(0, 0, 0);
+
+      rightLeg.position.set(-0.125, 0.75, 0);
+      leftLeg.position.set(0.125, 0.75, 0);
+      rightLeg.rotation.set(0, 0, 0);
+      leftLeg.rotation.set(0, 0, 0);
+    } else {
+      pose.position.set(0, 0, 0);
+      pose.rotation.set(0, 0, 0);
+    }
 
     if (isSitting) {
       body.position.y = 0.98 + idleFloat * 0.2;
@@ -534,74 +587,76 @@ export function MinecraftPlayer({
 
   return (
     <group ref={rootRef} position={initialPosition}>
-      <group ref={headRef} position={[0, 1.75, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.head}>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-        </mesh>
-        <mesh castShadow={shadowsEnabled} material={skinSet.helmet}>
-          <boxGeometry args={[0.5625, 0.5625, 0.5625]} />
-        </mesh>
-      </group>
+      <group ref={poseRef}>
+        <group ref={headRef} position={[0, 1.75, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.head}>
+            <boxGeometry args={[0.5, 0.5, 0.5]} />
+          </mesh>
+          <mesh castShadow={shadowsEnabled} material={skinSet.helmet}>
+            <boxGeometry args={[0.5625, 0.5625, 0.5625]} />
+          </mesh>
+        </group>
 
-      <group ref={bodyRef} position={[0, 1.125, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.body}>
-          <boxGeometry args={[0.5, 0.75, 0.25]} />
-        </mesh>
-        <mesh castShadow={shadowsEnabled} material={skinSet.jacket}>
-          <boxGeometry args={[0.5625, 0.8125, 0.3125]} />
-        </mesh>
-      </group>
+        <group ref={bodyRef} position={[0, 1.125, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.body}>
+            <boxGeometry args={[0.5, 0.75, 0.25]} />
+          </mesh>
+          <mesh castShadow={shadowsEnabled} material={skinSet.jacket}>
+            <boxGeometry args={[0.5625, 0.8125, 0.3125]} />
+          </mesh>
+        </group>
 
-      <group ref={rightArmRef} position={[-0.375, 1.5, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.rightArm} position={[0, -0.375, 0]}>
-          <boxGeometry args={[0.25, 0.75, 0.25]} />
-        </mesh>
-        <mesh
-          castShadow={shadowsEnabled}
-          material={skinSet.rightSleeve}
-          position={[0, -0.375, 0]}
-        >
-          <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
-        </mesh>
-      </group>
+        <group ref={rightArmRef} position={[-0.375, 1.5, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.rightArm} position={[0, -0.375, 0]}>
+            <boxGeometry args={[0.25, 0.75, 0.25]} />
+          </mesh>
+          <mesh
+            castShadow={shadowsEnabled}
+            material={skinSet.rightSleeve}
+            position={[0, -0.375, 0]}
+          >
+            <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
+          </mesh>
+        </group>
 
-      <group ref={leftArmRef} position={[0.375, 1.5, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.leftArm} position={[0, -0.375, 0]}>
-          <boxGeometry args={[0.25, 0.75, 0.25]} />
-        </mesh>
-        <mesh
-          castShadow={shadowsEnabled}
-          material={skinSet.leftSleeve}
-          position={[0, -0.375, 0]}
-        >
-          <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
-        </mesh>
-      </group>
+        <group ref={leftArmRef} position={[0.375, 1.5, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.leftArm} position={[0, -0.375, 0]}>
+            <boxGeometry args={[0.25, 0.75, 0.25]} />
+          </mesh>
+          <mesh
+            castShadow={shadowsEnabled}
+            material={skinSet.leftSleeve}
+            position={[0, -0.375, 0]}
+          >
+            <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
+          </mesh>
+        </group>
 
-      <group ref={rightLegRef} position={[-0.125, 0.75, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.rightLeg} position={[0, -0.375, 0]}>
-          <boxGeometry args={[0.25, 0.75, 0.25]} />
-        </mesh>
-        <mesh
-          castShadow={shadowsEnabled}
-          material={skinSet.rightPants}
-          position={[0, -0.375, 0]}
-        >
-          <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
-        </mesh>
-      </group>
+        <group ref={rightLegRef} position={[-0.125, 0.75, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.rightLeg} position={[0, -0.375, 0]}>
+            <boxGeometry args={[0.25, 0.75, 0.25]} />
+          </mesh>
+          <mesh
+            castShadow={shadowsEnabled}
+            material={skinSet.rightPants}
+            position={[0, -0.375, 0]}
+          >
+            <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
+          </mesh>
+        </group>
 
-      <group ref={leftLegRef} position={[0.125, 0.75, 0]}>
-        <mesh castShadow={shadowsEnabled} material={skinSet.leftLeg} position={[0, -0.375, 0]}>
-          <boxGeometry args={[0.25, 0.75, 0.25]} />
-        </mesh>
-        <mesh
-          castShadow={shadowsEnabled}
-          material={skinSet.leftPants}
-          position={[0, -0.375, 0]}
-        >
-          <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
-        </mesh>
+        <group ref={leftLegRef} position={[0.125, 0.75, 0]}>
+          <mesh castShadow={shadowsEnabled} material={skinSet.leftLeg} position={[0, -0.375, 0]}>
+            <boxGeometry args={[0.25, 0.75, 0.25]} />
+          </mesh>
+          <mesh
+            castShadow={shadowsEnabled}
+            material={skinSet.leftPants}
+            position={[0, -0.375, 0]}
+          >
+            <boxGeometry args={[0.3125, 0.8125, 0.3125]} />
+          </mesh>
+        </group>
       </group>
     </group>
   );

@@ -6,6 +6,7 @@ interface FurnitureModelProps {
   shadowsEnabled: boolean;
   selected?: boolean;
   hovered?: boolean;
+  interactionHovered?: boolean;
   blocked?: boolean;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
 }
@@ -14,6 +15,7 @@ function createMaterialProps(
   blocked: boolean,
   selected: boolean,
   hovered: boolean,
+  interactionHovered: boolean,
   baseColor: string,
   activeColor: string,
   hoverColor: string,
@@ -26,9 +28,11 @@ function createMaterialProps(
         ? activeColor
         : hovered
           ? hoverColor
+          : interactionHovered
+            ? hoverColor
           : baseColor,
-    transparent: selected || blocked || hovered,
-    opacity: selected || blocked ? 0.72 : hovered ? 0.9 : 1
+    transparent: selected || blocked || hovered || interactionHovered,
+    opacity: selected || blocked ? 0.72 : hovered ? 0.9 : interactionHovered ? 0.8 : 1
   };
 }
 
@@ -38,6 +42,7 @@ export function BedModel({
   shadowsEnabled,
   selected = false,
   hovered = false,
+  interactionHovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
@@ -45,6 +50,7 @@ export function BedModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#af7b54",
     "#57db8d",
     "#7bc4f8",
@@ -54,6 +60,7 @@ export function BedModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#f4e9dc",
     "#9df2bf",
     "#d7efff",
@@ -63,6 +70,7 @@ export function BedModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#d1b59e",
     "#79e2a2",
     "#a9dafb",
@@ -72,19 +80,19 @@ export function BedModel({
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.32, 0]}>
-        <boxGeometry args={[2.7, 0.28, 4.1]} />
+        <boxGeometry args={[2.82, 0.28, 3.82]} />
         <meshStandardMaterial {...frame} />
       </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.54, -0.15]}>
-        <boxGeometry args={[2.5, 0.18, 3.2]} />
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.54, -0.12]}>
+        <boxGeometry args={[2.56, 0.18, 2.96]} />
         <meshStandardMaterial {...sheet} />
       </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.66, 0.95]}>
-        <boxGeometry args={[2.42, 0.08, 1.4]} />
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.66, 0.86]}>
+        <boxGeometry args={[2.46, 0.08, 1.28]} />
         <meshStandardMaterial {...blanket} />
       </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.68, -1.55]}>
-        <boxGeometry args={[2.32, 0.26, 0.72]} />
+      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.68, -1.42]}>
+        <boxGeometry args={[2.36, 0.26, 0.56]} />
         <meshStandardMaterial {...frame} />
       </mesh>
     </group>
@@ -97,6 +105,7 @@ export function DeskModel({
   shadowsEnabled,
   selected = false,
   hovered = false,
+  interactionHovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
@@ -104,6 +113,7 @@ export function DeskModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#ba865d",
     "#57db8d",
     "#7bc4f8",
@@ -113,6 +123,7 @@ export function DeskModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#8a5a39",
     "#3fc67c",
     "#5a9edb",
@@ -122,6 +133,7 @@ export function DeskModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#3b4e67",
     "#71e2a3",
     "#8bcdf9",
@@ -131,6 +143,7 @@ export function DeskModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#97d1ee",
     "#c0ffe0",
     "#ddf3ff",
@@ -138,16 +151,16 @@ export function DeskModel({
   );
 
   const legOffsets: Array<[number, number, number]> = [
-    [-1.06, 0.42, -0.42],
-    [1.06, 0.42, -0.42],
-    [-1.06, 0.42, 0.42],
-    [1.06, 0.42, 0.42]
+    [-1.14, 0.42, -0.32],
+    [1.14, 0.42, -0.32],
+    [-1.14, 0.42, 0.32],
+    [1.14, 0.42, 0.32]
   ];
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.88, 0]}>
-        <boxGeometry args={[2.5, 0.12, 1.12]} />
+        <boxGeometry args={[2.72, 0.12, 0.92]} />
         <meshStandardMaterial {...wood} />
       </mesh>
       {legOffsets.map((legOffset) => (
@@ -186,6 +199,7 @@ export function RugModel({
   rotationY = 0,
   selected = false,
   hovered = false,
+  interactionHovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
@@ -195,6 +209,8 @@ export function RugModel({
       ? "#57db8d"
       : hovered
         ? "#88cffd"
+        : interactionHovered
+          ? "#88cffd"
         : "#d8c5ac";
   const stripeColor = blocked
     ? "#f3a0aa"
@@ -202,6 +218,8 @@ export function RugModel({
       ? "#a4f5c2"
       : hovered
         ? "#d9f0ff"
+        : interactionHovered
+          ? "#d9f0ff"
         : "#f2e8d9";
 
   return (
@@ -210,16 +228,16 @@ export function RugModel({
         <boxGeometry args={[3.8, 0.04, 2.6]} />
         <meshStandardMaterial
           color={topColor}
-          transparent={selected || blocked || hovered}
-          opacity={selected || blocked ? 0.68 : hovered ? 0.88 : 1}
+          transparent={selected || blocked || hovered || interactionHovered}
+          opacity={selected || blocked ? 0.68 : hovered ? 0.88 : interactionHovered ? 0.8 : 1}
         />
       </mesh>
       <mesh position={[0, 0.051, 0]}>
         <boxGeometry args={[3.05, 0.01, 1.84]} />
         <meshStandardMaterial
           color={stripeColor}
-          transparent={selected || blocked || hovered}
-          opacity={selected || blocked ? 0.8 : hovered ? 0.92 : 1}
+          transparent={selected || blocked || hovered || interactionHovered}
+          opacity={selected || blocked ? 0.8 : hovered ? 0.92 : interactionHovered ? 0.8 : 1}
         />
       </mesh>
     </group>
@@ -232,6 +250,7 @@ export function WallFrameModel({
   shadowsEnabled,
   selected = false,
   hovered = false,
+  interactionHovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
@@ -239,6 +258,7 @@ export function WallFrameModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#8b6d53",
     "#57db8d",
     "#7bc4f8",
@@ -248,6 +268,7 @@ export function WallFrameModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#f8f2ea",
     "#bdf6d1",
     "#edf7ff",
@@ -257,6 +278,7 @@ export function WallFrameModel({
     blocked,
     selected,
     hovered,
+    interactionHovered,
     "#c3926b",
     "#7ee2a4",
     "#a4d7fb",
@@ -281,13 +303,13 @@ export function WallFrameModel({
         <boxGeometry args={[0.42, 0.16, 0.02]} />
         <meshStandardMaterial {...frame} />
       </mesh>
-      {selected || blocked || hovered ? (
+      {selected || blocked || hovered || interactionHovered ? (
         <mesh position={[0, 0, 0.08]}>
           <boxGeometry args={[1.56, 1.2, 0.01]} />
           <meshBasicMaterial
             color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}
             transparent
-            opacity={selected || blocked ? 0.3 : 0.18}
+            opacity={selected || blocked ? 0.3 : interactionHovered ? 0.12 : 0.18}
           />
         </mesh>
       ) : null}

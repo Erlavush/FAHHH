@@ -7,6 +7,7 @@ import {
 } from "./furnitureRegistry";
 
 export type Vector3Tuple = [number, number, number];
+export type Vector2Tuple = [number, number];
 
 export interface RoomFurniturePlacement {
   id: string;
@@ -14,6 +15,8 @@ export interface RoomFurniturePlacement {
   surface: FurniturePlacementSurface;
   position: Vector3Tuple;
   rotationY: number;
+  anchorFurnitureId?: string;
+  surfaceLocalOffset?: Vector2Tuple;
 }
 
 export interface RoomMetadata {
@@ -95,7 +98,10 @@ export function cloneFurniturePlacement(
 ): RoomFurniturePlacement {
   return {
     ...placement,
-    position: [...placement.position] as Vector3Tuple
+    position: [...placement.position] as Vector3Tuple,
+    surfaceLocalOffset: placement.surfaceLocalOffset
+      ? [...placement.surfaceLocalOffset] as Vector2Tuple
+      : undefined
   };
 }
 
@@ -148,13 +154,16 @@ export function removeFurniturePlacement(
 export function createFurniturePlacement(
   type: FurnitureType,
   position: Vector3Tuple,
-  surface = getDefaultPlacementSurface(type)
+  surface = getDefaultPlacementSurface(type),
+  options?: Pick<RoomFurniturePlacement, "anchorFurnitureId" | "surfaceLocalOffset">
 ): RoomFurniturePlacement {
   return {
     id: `${type}-${crypto.randomUUID()}`,
     type,
     surface,
     position,
-    rotationY: getSurfaceRotationY(type, surface)
+    rotationY: getSurfaceRotationY(type, surface),
+    anchorFurnitureId: options?.anchorFurnitureId,
+    surfaceLocalOffset: options?.surfaceLocalOffset
   };
 }

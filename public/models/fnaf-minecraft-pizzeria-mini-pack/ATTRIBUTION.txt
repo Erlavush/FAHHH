@@ -1,0 +1,8 @@
+Fridge asset source:
+FNAF Minecraft Pizzeria Mini-Pack by VoxelBear
+Source: https://sketchfab.com/3d-models/fnaf-minecraft-pizzeria-mini-pack-4b6d5151af0a4ccfb5750c6399cfc741
+License: CC Attribution (CC BY)
+
+This project currently loads the "Fridge" object from the downloaded pack.
+It also loads "OfficeTable" + "Conputer" as the office desk asset,
+and "OfficeChair" as the office chair asset.

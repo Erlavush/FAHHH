@@ -15,9 +15,12 @@ import {
   Vector3
 } from "three";
 import { ChairModel } from "./ChairModel";
+import { FridgeModel } from "./FridgeModel";
 import { MinecraftPlayer } from "./MinecraftPlayer";
+import { OfficeChairModel, OfficeDeskModel } from "./OfficePackModels";
 import { PosterModel } from "./PosterModel";
 import { SmallTableModel } from "./SmallTableModel";
+import { BookStackModel, VaseModel } from "./SurfaceDecorModels";
 import {
   BedModel,
   DeskModel,
@@ -48,6 +51,16 @@ import {
   type RoomFurniturePlacement,
   type Vector3Tuple
 } from "../lib/roomState";
+import {
+  canHostSurfaceDecor,
+  clampSurfaceOffsetToHost,
+  findBestSurfaceHostForWorldPoint,
+  findBestSurfaceHostFromRay,
+  getSurfaceHosts,
+  getSurfaceWorldPosition,
+  syncAnchoredSurfaceDecor,
+  type SurfaceLocalOffset
+} from "../lib/surfaceDecor";
 
 const TILE_SIZE = 1;
 const GRID_SIZE = 10;
@@ -96,8 +109,24 @@ const spawnCandidateOffsets: Array<[number, number]> = [
   [3.5, 0],
   [-3.5, 0]
 ];
+const surfaceSpawnCandidateOffsets: Array<SurfaceLocalOffset> = [
+  [0, 0],
+  [0.5, 0],
+  [-0.5, 0],
+  [0, 0.5],
+  [0, -0.5],
+  [1, 0],
+  [-1, 0],
+  [0.5, 0.5],
+  [-0.5, 0.5],
+  [0.5, -0.5],
+  [-0.5, -0.5]
+];
 
-type PlacementTransform = Pick<RoomFurniturePlacement, "position" | "rotationY" | "surface">;
+type PlacementTransform = Pick<
+  RoomFurniturePlacement,
+  "position" | "rotationY" | "surface" | "anchorFurnitureId" | "surfaceLocalOffset"
+>;
 type PointerCaptureTarget = EventTarget & {
   setPointerCapture?: (pointerId: number) => void;
   releasePointerCapture?: (pointerId: number) => void;
@@ -106,6 +135,8 @@ type DragState = {
   furnitureId: string;
   type: FurnitureType;
   surface: FurniturePlacementSurface;
+  rotationY: number;
+  anchorFurnitureId?: string;
 };
 type PlayerInteractionStatus =
   | {
@@ -164,6 +195,15 @@ function clampFurnitureToFloor(value: number, halfSize: number): number {
   return Math.min(HALF_FLOOR_SIZE - halfSize, Math.max(-HALF_FLOOR_SIZE + halfSize, value));
 }
 
+function getEffectiveHalfSizes(type: FurnitureType, rotationY: number): [number, number] {
+  const definition = getFurnitureDefinition(type);
+  const isRotated90 = Math.abs(Math.sin(rotationY)) > 0.5;
+  if (isRotated90) {
+    return [definition.footprintDepth / 2, definition.footprintWidth / 2];
+  }
+  return [definition.footprintWidth / 2, definition.footprintDepth / 2];
+}
+
 function clampWallAxis(value: number, halfSize: number): number {
   return Math.min(HALF_FLOOR_SIZE - halfSize - 0.18, Math.max(-HALF_FLOOR_SIZE + halfSize + 0.18, value));
 }
@@ -200,6 +240,10 @@ function getGizmoOffset(surface: FurniturePlacementSurface): [number, number, nu
     return [0.12, 0, 0];
   }
 
+  if (surface === "surface") {
+    return [0, 0.42, 0];
+  }
+
   return [0, 0.68, 0];
 }
 
@@ -213,6 +257,16 @@ function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number
       return [0, 1.92, 0];
     case "table":
       return [0, 1.82, 0];
+    case "fridge":
+      return [0, 2.28, 0];
+    case "office_desk":
+      return [0, 1.68, 0];
+    case "office_chair":
+      return [0, 1.48, 0];
+    case "vase":
+      return [0, 1.08, 0];
+    case "books":
+      return [0, 0.86, 0];
     case "rug":
       return [0, 0.82, 0];
     case "poster":
@@ -221,6 +275,23 @@ function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number
       return [0, 1.18, 0.14];
     default:
       return item.surface === "floor" ? [0, 1.64, 0] : [0, 1.16, 0.14];
+  }
+}
+
+function getInteractionHitboxSize(
+  item: RoomFurniturePlacement
+): [number, number, number] {
+  const definition = getFurnitureDefinition(item.type);
+
+  switch (item.type) {
+    case "chair":
+      return [definition.footprintWidth + 0.52, 1.85, definition.footprintDepth + 0.42];
+    case "office_chair":
+      return [definition.footprintWidth + 0.52, 1.85, definition.footprintDepth + 0.42];
+    case "bed":
+      return [definition.footprintWidth + 0.38, 1.2, definition.footprintDepth + 0.3];
+    default:
+      return [definition.footprintWidth + 0.3, 1.35, definition.footprintDepth + 0.3];
   }
 }
 
@@ -242,9 +313,14 @@ function placementsMatch(
 ): boolean {
   return (
     first.surface === second.surface &&
+    first.anchorFurnitureId === second.anchorFurnitureId &&
     Math.abs(first.position[0] - second.position[0]) < 0.0001 &&
     Math.abs(first.position[1] - second.position[1]) < 0.0001 &&
     Math.abs(first.position[2] - second.position[2]) < 0.0001 &&
+    Math.abs((first.surfaceLocalOffset?.[0] ?? 0) - (second.surfaceLocalOffset?.[0] ?? 0)) <
+      0.0001 &&
+    Math.abs((first.surfaceLocalOffset?.[1] ?? 0) - (second.surfaceLocalOffset?.[1] ?? 0)) <
+      0.0001 &&
     Math.abs(first.rotationY - second.rotationY) < 0.0001
   );
 }
@@ -695,6 +771,7 @@ export function RoomView({
   const [activeInteraction, setActiveInteraction] = useState<FurnitureInteractionTarget | null>(null);
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
+  const [hoveredInteractableFurnitureId, setHoveredInteractableFurnitureId] = useState<string | null>(null);
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
@@ -755,7 +832,7 @@ export function RoomView({
   }, [activeInteraction, pendingInteraction]);
   const playerInteractionPose = activeInteraction
     ? {
-        type: "sit" as const,
+        type: activeInteraction.type,
         position: activeInteraction.position,
         rotationY: activeInteraction.rotationY
       }
@@ -763,6 +840,10 @@ export function RoomView({
   const interactionCursor = useMemo(() => {
     if (isDraggingFurniture || isTransformingFurniture) {
       return "grabbing";
+    }
+
+    if (!buildModeEnabled && hoveredInteractableFurnitureId) {
+      return "pointer";
     }
 
     if (buildModeEnabled && (hoveredFurnitureId || selectedFurnitureId)) {
@@ -773,6 +854,7 @@ export function RoomView({
   }, [
     buildModeEnabled,
     hoveredFurnitureId,
+    hoveredInteractableFurnitureId,
     isDraggingFurniture,
     isTransformingFurniture,
     selectedFurnitureId
@@ -799,6 +881,7 @@ export function RoomView({
     setFurniture(nextPlacements);
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
+    setHoveredInteractableFurnitureId(null);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
     dragStateRef.current = null;
@@ -818,6 +901,7 @@ export function RoomView({
       setFurniture(cloneFurniturePlacements(committedFurniture));
       setSelectedFurnitureId(null);
       setHoveredFurnitureId(null);
+      setHoveredInteractableFurnitureId(null);
       setIsDraggingFurniture(false);
       setIsTransformingFurniture(false);
       dragStateRef.current = null;
@@ -839,7 +923,7 @@ export function RoomView({
       playerWorldPosition[2] - pendingInteraction.position[2]
     );
 
-    if (distance > 0.12) {
+    if (distance > 0.05) {
       return;
     }
 
@@ -851,7 +935,10 @@ export function RoomView({
   useEffect(() => {
     if (!buildModeEnabled) {
       setHoveredFurnitureId(null);
+      return;
     }
+
+    setHoveredInteractableFurnitureId(null);
   }, [buildModeEnabled]);
 
   useEffect(() => {
@@ -932,15 +1019,33 @@ export function RoomView({
     lastProcessedSpawnRequestIdRef.current = spawnRequest.requestId;
 
     const definition = getFurnitureDefinition(spawnRequest.type);
-    const spawnSurface = definition.surface === "wall" ? getPreferredWallSurface() : "floor";
+    const spawnSurface =
+      definition.surface === "wall"
+        ? getPreferredWallSurface()
+        : definition.surface === "surface"
+          ? "surface"
+          : "floor";
+
+    if (spawnSurface === "surface" && getEditableSurfaceHosts().length === 0) {
+      return;
+    }
+
+    const initialSpawnPlacement = resolveSpawnPosition(spawnRequest.type, spawnSurface, 0, 0);
     let nextPlacement = createFurniturePlacement(
       spawnRequest.type,
-      resolveSpawnPosition(spawnRequest.type, spawnSurface, 0, 0).position,
-      spawnSurface
+      initialSpawnPlacement.position,
+      spawnSurface,
+      {
+        anchorFurnitureId: initialSpawnPlacement.anchorFurnitureId,
+        surfaceLocalOffset: initialSpawnPlacement.surfaceLocalOffset
+      }
     );
     let foundOpenSpot = false;
 
-    for (const [offsetA, offsetB] of spawnCandidateOffsets) {
+    const candidateOffsets =
+      spawnSurface === "surface" ? surfaceSpawnCandidateOffsets : spawnCandidateOffsets;
+
+    for (const [offsetA, offsetB] of candidateOffsets) {
       const candidate = resolveSpawnPosition(spawnRequest.type, spawnSurface, offsetA, offsetB);
       const candidatePlacement = {
         id: `${spawnRequest.type}-spawn-preview`,
@@ -952,7 +1057,11 @@ export function RoomView({
         nextPlacement = createFurniturePlacement(
           spawnRequest.type,
           candidate.position,
-          candidate.surface
+          candidate.surface,
+          {
+            anchorFurnitureId: candidate.anchorFurnitureId,
+            surfaceLocalOffset: candidate.surfaceLocalOffset
+          }
         );
         foundOpenSpot = true;
         break;
@@ -962,8 +1071,12 @@ export function RoomView({
     if (!foundOpenSpot) {
       nextPlacement = createFurniturePlacement(
         spawnRequest.type,
-        resolveSpawnPosition(spawnRequest.type, spawnSurface, 0, 0).position,
-        spawnSurface
+        initialSpawnPlacement.position,
+        spawnSurface,
+        {
+          anchorFurnitureId: initialSpawnPlacement.anchorFurnitureId,
+          surfaceLocalOffset: initialSpawnPlacement.surfaceLocalOffset
+        }
       );
     }
 
@@ -1002,7 +1115,98 @@ export function RoomView({
     capturedPointerTargetRef.current = null;
   }
 
+  function getEditableSurfaceHosts(excludedFurnitureId?: string): RoomFurniturePlacement[] {
+    return getSurfaceHosts(furniture.filter((item) => item.id !== excludedFurnitureId));
+  }
+
+  function resolveSurfacePlacementOnHost(
+    host: RoomFurniturePlacement,
+    furnitureType: FurnitureType,
+    localOffset: SurfaceLocalOffset,
+    itemRotationY: number
+  ): PlacementTransform | null {
+    const clampedOffset = clampSurfaceOffsetToHost(
+      host,
+      furnitureType,
+      localOffset,
+      itemRotationY,
+      gridSnapEnabled
+    );
+
+    if (!clampedOffset) {
+      return null;
+    }
+
+    const worldPosition = getSurfaceWorldPosition(host, clampedOffset);
+
+    if (!worldPosition) {
+      return null;
+    }
+
+    return {
+      position: worldPosition,
+      rotationY: getSurfaceRotationY(furnitureType, "surface"),
+      surface: "surface",
+      anchorFurnitureId: host.id,
+      surfaceLocalOffset: clampedOffset
+    };
+  }
+
+  function resolveSurfacePlacementFromWorldPoint(
+    worldX: number,
+    worldZ: number,
+    furnitureType: FurnitureType,
+    itemRotationY: number,
+    preferredHostId?: string | null,
+    excludedFurnitureId?: string
+  ): PlacementTransform | null {
+    const hostCandidate = findBestSurfaceHostForWorldPoint(
+      getEditableSurfaceHosts(excludedFurnitureId),
+      furnitureType,
+      itemRotationY,
+      worldX,
+      worldZ,
+      gridSnapEnabled,
+      preferredHostId
+    );
+
+    if (!hostCandidate) {
+      return null;
+    }
+
+    return resolveSurfacePlacementOnHost(
+      hostCandidate.host,
+      furnitureType,
+      hostCandidate.localOffset,
+      itemRotationY
+    );
+  }
+
   function resolvePlacementFromDragRay(ray: Ray, dragState: DragState): PlacementTransform | null {
+    if (dragState.surface === "surface") {
+      const hostCandidate = findBestSurfaceHostFromRay(
+        getEditableSurfaceHosts(dragState.furnitureId),
+        dragState.type,
+        dragState.rotationY,
+        [ray.origin.x, ray.origin.y, ray.origin.z],
+        [ray.direction.x, ray.direction.y, ray.direction.z],
+        gridSnapEnabled,
+        dragState.anchorFurnitureId ?? null
+      );
+
+      if (!hostCandidate) {
+        return null;
+      }
+
+      return resolveSurfacePlacementOnHost(
+        hostCandidate.host,
+        dragState.type,
+        hostCandidate.localOffset,
+        dragState.rotationY
+      );
+    }
+
+    
     const dragPlane =
       dragState.surface === "floor"
         ? floorDragPlane
@@ -1073,21 +1277,21 @@ export function RoomView({
   function resolveFloorPlacement(
     x: number,
     z: number,
-    furnitureType: FurnitureType
+    furnitureType: FurnitureType,
+    currentRotationY?: number
   ): PlacementTransform {
-    const definition = getFurnitureDefinition(furnitureType);
-    const halfWidth = definition.footprintWidth / 2;
-    const halfDepth = definition.footprintDepth / 2;
+    const rotationY = currentRotationY !== undefined ? currentRotationY : getSurfaceRotationY(furnitureType, "floor");
+    const [effHalfWidth, effHalfDepth] = getEffectiveHalfSizes(furnitureType, rotationY);
     const nextX = gridSnapEnabled ? snapToBlockCenter(x) : x;
     const nextZ = gridSnapEnabled ? snapToBlockCenter(z) : z;
 
     return {
       position: [
-        clampFurnitureToFloor(nextX, halfWidth),
+        clampFurnitureToFloor(nextX, effHalfWidth),
         0,
-        clampFurnitureToFloor(nextZ, halfDepth)
+        clampFurnitureToFloor(nextZ, effHalfDepth)
       ],
-      rotationY: getSurfaceRotationY(furnitureType, "floor"),
+      rotationY,
       surface: "floor"
     };
   }
@@ -1133,6 +1337,23 @@ export function RoomView({
     offsetA: number,
     offsetB: number
   ): PlacementTransform {
+    if (surface === "surface") {
+      return (
+        resolveSurfacePlacementFromWorldPoint(
+          targetPosition[0] + offsetA,
+          targetPosition[2] + offsetB,
+          furnitureType,
+          getSurfaceRotationY(furnitureType, "surface")
+        ) ?? {
+          position: [targetPosition[0], 0.9, targetPosition[2]],
+          rotationY: getSurfaceRotationY(furnitureType, "surface"),
+          surface: "surface",
+          anchorFurnitureId: undefined,
+          surfaceLocalOffset: undefined
+        }
+      );
+    }
+
     if (surface === "floor") {
       return resolveFloorPlacement(targetPosition[0] + offsetA, targetPosition[2] + offsetB, furnitureType);
     }
@@ -1165,7 +1386,22 @@ export function RoomView({
     furnitureId: string,
     updater: (item: RoomFurniturePlacement) => RoomFurniturePlacement
   ) {
-    setFurniture((currentFurniture) => updateFurniturePlacement(currentFurniture, furnitureId, updater));
+    setFurniture((currentFurniture) => {
+      const previousItem = findFurniturePlacement(currentFurniture, furnitureId);
+
+      if (!previousItem) {
+        return currentFurniture;
+      }
+
+      const nextItem = updater(previousItem);
+      let nextFurniture = updateFurniturePlacement(currentFurniture, furnitureId, () => nextItem);
+
+      if (canHostSurfaceDecor(previousItem)) {
+        nextFurniture = syncAnchoredSurfaceDecor(nextFurniture, previousItem, nextItem);
+      }
+
+      return nextFurniture;
+    });
   }
 
   function hasDraftChanges(furnitureId: string | null): boolean {
@@ -1240,6 +1476,15 @@ export function RoomView({
   ): PlacementTransform | null {
     const definition = getFurnitureDefinition(furnitureType);
 
+    if (definition.surface === "surface") {
+      return resolveSurfacePlacementFromWorldPoint(
+        hitPoint.x,
+        hitPoint.z,
+        furnitureType,
+        getSurfaceRotationY(furnitureType, "surface")
+      );
+    }
+
     if (definition.surface === "wall") {
       const halfWidth = definition.footprintWidth / 2;
       const halfHeight = definition.footprintDepth / 2;
@@ -1288,7 +1533,7 @@ export function RoomView({
     item: RoomFurniturePlacement,
     nextPlacement: PlacementTransform
   ): RoomFurniturePlacement {
-    if (nextPlacement.surface === "floor") {
+    if (nextPlacement.surface === "floor" || nextPlacement.surface === "surface") {
       return {
         ...item,
         ...nextPlacement,
@@ -1362,14 +1607,40 @@ export function RoomView({
       return;
     }
 
+    setHoveredFurnitureId(furnitureId);
+
+    if (selectedFurnitureId !== furnitureId || isTransformingFurniture) {
+      return;
+    }
+
     event.stopPropagation();
     if (orbitControlsRef.current) {
       orbitControlsRef.current.enabled = false;
     }
     capturePointer(event);
-    setHoveredFurnitureId(furnitureId);
 
     const pressedFurniture = findFurniturePlacement(furniture, furnitureId);
+    setIsDraggingFurniture(true);
+    dragStateRef.current = pressedFurniture
+      ? {
+          furnitureId,
+          type: pressedFurniture.type,
+          surface: pressedFurniture.surface,
+          rotationY: pressedFurniture.rotationY,
+          anchorFurnitureId: pressedFurniture.anchorFurnitureId
+        }
+      : null;
+  }
+
+  function handleFurnitureDoubleClick(
+    furnitureId: string,
+    event: ThreeEvent<MouseEvent>
+  ) {
+    if (!buildModeEnabled || isDraggingFurniture || isTransformingFurniture) {
+      return;
+    }
+
+    event.stopPropagation();
 
     if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
       if (hasDraftChanges(selectedFurnitureId)) {
@@ -1378,20 +1649,14 @@ export function RoomView({
 
       setIsDraggingFurniture(false);
       setIsTransformingFurniture(false);
+      dragStateRef.current = null;
     }
 
     selectFurnitureForEditing(furnitureId);
-    setIsDraggingFurniture(true);
-    dragStateRef.current = pressedFurniture
-      ? {
-          furnitureId,
-          type: pressedFurniture.type,
-          surface: pressedFurniture.surface
-        }
-      : null;
+    setHoveredFurnitureId(furnitureId);
   }
 
-  function handleFurnitureClick(
+  function handleFurnitureInteractionCommand(
     furnitureId: string,
     event: ThreeEvent<MouseEvent>
   ) {
@@ -1411,6 +1676,7 @@ export function RoomView({
       return;
     }
 
+    event.nativeEvent.preventDefault();
     event.stopPropagation();
 
     if (activeInteraction?.furnitureId === furnitureId) {
@@ -1508,6 +1774,29 @@ export function RoomView({
       return;
     }
 
+    if (selectedFurniture.surface === "surface") {
+      const nextRotation = resolveFurnitureRotation(transformDragEuler.y);
+      const nextPlacement = resolveSurfacePlacementFromWorldPoint(
+        transformDragPosition.x,
+        transformDragPosition.z,
+        selectedFurniture.type,
+        nextRotation,
+        selectedFurniture.anchorFurnitureId,
+        selectedFurniture.id
+      );
+
+      if (!nextPlacement) {
+        return;
+      }
+
+      updateFurnitureItem(selectedFurnitureId, (item) => ({
+        ...item,
+        ...nextPlacement,
+        rotationY: nextRotation
+      }));
+      return;
+    }
+
     const nextPlacement = resolveFloorPlacement(
       transformDragPosition.x,
       transformDragPosition.z,
@@ -1574,11 +1863,22 @@ export function RoomView({
       return;
     }
 
-    setFurniture((currentFurniture) => removeFurniturePlacement(currentFurniture, selectedFurnitureId));
-    setCommittedFurniture((currentFurniture) =>
-      removeFurniturePlacement(currentFurniture, selectedFurnitureId)
+    const furnitureIdsToRemove = new Set([
+      selectedFurnitureId,
+      ...furniture
+        .filter((item) => item.anchorFurnitureId === selectedFurnitureId)
+        .map((item) => item.id)
+    ]);
+
+    setFurniture((currentFurniture) =>
+      currentFurniture.filter((item) => !furnitureIdsToRemove.has(item.id))
     );
-    delete furnitureEditStartRef.current[selectedFurnitureId];
+    setCommittedFurniture((currentFurniture) =>
+      currentFurniture.filter((item) => !furnitureIdsToRemove.has(item.id))
+    );
+    furnitureIdsToRemove.forEach((furnitureId) => {
+      delete furnitureEditStartRef.current[furnitureId];
+    });
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
     setIsDraggingFurniture(false);
@@ -1587,6 +1887,10 @@ export function RoomView({
   }
 
   function getNudgeStep() {
+    if (selectedFurniture?.surface === "surface") {
+      return gridSnapEnabled ? 0.5 : FREE_MOVE_NUDGE_STEP;
+    }
+
     return gridSnapEnabled ? 1 : FREE_MOVE_NUDGE_STEP;
   }
 
@@ -1604,6 +1908,27 @@ export function RoomView({
           resolveFloorPlacement(item.position[0] + step, item.position[2], item.type)
         )
       );
+      return;
+    }
+
+    if (selectedFurniture.surface === "surface") {
+      updateFurnitureItem(selectedFurnitureId, (item) => {
+        const host = findFurniturePlacement(furniture, item.anchorFurnitureId ?? null);
+        const currentOffset = item.surfaceLocalOffset ?? [0, 0];
+
+        if (!host) {
+          return item;
+        }
+
+        const nextPlacement = resolveSurfacePlacementOnHost(
+          host,
+          item.type,
+          [currentOffset[0] + step, currentOffset[1]],
+          item.rotationY
+        );
+
+        return nextPlacement ? applyPlacementToItem(item, nextPlacement) : item;
+      });
       return;
     }
 
@@ -1638,6 +1963,27 @@ export function RoomView({
       return;
     }
 
+    if (selectedFurniture.surface === "surface") {
+      updateFurnitureItem(selectedFurnitureId, (item) => {
+        const host = findFurniturePlacement(furniture, item.anchorFurnitureId ?? null);
+        const currentOffset = item.surfaceLocalOffset ?? [0, 0];
+
+        if (!host) {
+          return item;
+        }
+
+        const nextPlacement = resolveSurfacePlacementOnHost(
+          host,
+          item.type,
+          [currentOffset[0], currentOffset[1] + step],
+          item.rotationY
+        );
+
+        return nextPlacement ? applyPlacementToItem(item, nextPlacement) : item;
+      });
+      return;
+    }
+
     updateFurnitureItem(selectedFurnitureId, (item) => ({
       ...item,
       ...resolveWallPlacement(
@@ -1650,16 +1996,51 @@ export function RoomView({
   }
 
   function handleRotateSelectedFurniture(direction: -1 | 1) {
-    if (!selectedFurnitureId || !selectedFurniture || selectedFurniture.surface !== "floor") {
+    if (
+      !selectedFurnitureId ||
+      !selectedFurniture ||
+      (selectedFurniture.surface !== "floor" && selectedFurniture.surface !== "surface")
+    ) {
       return;
     }
 
     const step = gridSnapEnabled ? Math.PI / 2 : Math.PI / 180;
 
-    updateFurnitureItem(selectedFurnitureId, (item) => ({
-      ...item,
-      rotationY: resolveFurnitureRotation(item.rotationY + step * direction)
-    }));
+    updateFurnitureItem(selectedFurnitureId, (item) => {
+      const nextRotation = resolveFurnitureRotation(item.rotationY + step * direction);
+
+      if (item.surface === "surface") {
+        const host = findFurniturePlacement(furniture, item.anchorFurnitureId ?? null);
+        const currentOffset = item.surfaceLocalOffset ?? [0, 0];
+
+        if (!host) {
+          return item;
+        }
+
+        const nextPlacement = resolveSurfacePlacementOnHost(
+          host,
+          item.type,
+          currentOffset,
+          nextRotation
+        );
+
+        return nextPlacement
+          ? {
+              ...item,
+              ...nextPlacement,
+              rotationY: nextRotation
+            }
+          : {
+              ...item,
+              rotationY: nextRotation
+            };
+      }
+
+      return {
+        ...item,
+        rotationY: nextRotation
+      };
+    });
   }
 
   function handleSwapSelectedWall() {
@@ -1708,17 +2089,7 @@ export function RoomView({
       return;
     }
 
-    setCommittedFurniture((currentFurniture) => {
-      const existingCommittedItem = currentFurniture.find((item) => item.id === selectedFurnitureId);
-
-      if (!existingCommittedItem) {
-        return [...currentFurniture, cloneFurniturePlacement(selectedFurniture)];
-      }
-
-      return updateFurniturePlacement(currentFurniture, selectedFurnitureId, () =>
-        cloneFurniturePlacement(selectedFurniture)
-      );
-    });
+    setCommittedFurniture(cloneFurniturePlacements(furniture));
     delete furnitureEditStartRef.current[selectedFurnitureId];
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
@@ -1730,7 +2101,8 @@ export function RoomView({
   function renderFurnitureModel(
     item: RoomFurniturePlacement,
     selected: boolean,
-    hovered = false
+    hovered = false,
+    interactionHovered = false
   ) {
     const definition = getFurnitureDefinition(item.type);
     const commonProps = {
@@ -1739,6 +2111,7 @@ export function RoomView({
       shadowsEnabled,
       selected,
       hovered,
+      interactionHovered,
       blocked: selected && isPlacementBlocked
     };
 
@@ -1751,6 +2124,16 @@ export function RoomView({
         return <ChairModel {...commonProps} />;
       case "small_table":
         return <SmallTableModel {...commonProps} />;
+      case "fridge":
+        return <FridgeModel {...commonProps} />;
+      case "office_desk":
+        return <OfficeDeskModel {...commonProps} />;
+      case "office_chair":
+        return <OfficeChairModel {...commonProps} />;
+      case "vase":
+        return <VaseModel {...commonProps} />;
+      case "books":
+        return <BookStackModel {...commonProps} />;
       case "poster":
         return <PosterModel {...commonProps} />;
       case "wall_frame":
@@ -1762,6 +2145,36 @@ export function RoomView({
     }
   }
 
+  function renderInteractionProxy(item: RoomFurniturePlacement) {
+    const interactionTarget = getFurnitureInteractionTarget(item);
+
+    if (buildModeEnabled || !interactionTarget) {
+      return null;
+    }
+
+    const [width, height, depth] = getInteractionHitboxSize(item);
+
+    return (
+      <mesh
+        position={[0, height / 2, 0]}
+        onContextMenu={(event) => handleFurnitureInteractionCommand(item.id, event)}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          if (hoveredInteractableFurnitureId !== item.id) {
+            setHoveredInteractableFurnitureId(item.id);
+          }
+        }}
+        onPointerOut={(event) => {
+          event.stopPropagation();
+          setHoveredInteractableFurnitureId((current) => (current === item.id ? null : current));
+        }}
+      >
+        <boxGeometry args={[width, height, depth]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    );
+  }
+
   return (
     <div
       className="canvas-wrap"
@@ -1771,6 +2184,8 @@ export function RoomView({
         if (!isDraggingFurniture && !isTransformingFurniture) {
           setHoveredFurnitureId(null);
         }
+
+        setHoveredInteractableFurnitureId(null);
       }}
     >
       <Canvas shadows dpr={[1, 1.6]}>
@@ -1852,7 +2267,7 @@ export function RoomView({
             key={item.id}
             position={item.position}
             rotation={[0, item.rotationY, 0]}
-            onClick={(event) => handleFurnitureClick(item.id, event)}
+            onDoubleClick={(event) => handleFurnitureDoubleClick(item.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(item.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(item.id, event)}
             onPointerUp={handleFurniturePointerUp}
@@ -1864,8 +2279,10 @@ export function RoomView({
               buildModeEnabled &&
                 hoveredFurnitureId === item.id &&
                 selectedFurnitureId !== item.id &&
-                !isDraggingFurniture
+                !isDraggingFurniture,
+              !buildModeEnabled && hoveredInteractableFurnitureId === item.id
             )}
+            {renderInteractionProxy(item)}
           </group>
         ))}
         {buildModeEnabled && selectedFurniture && selectedFurnitureMatrix && !prefersTouchControls ? (
@@ -1874,13 +2291,19 @@ export function RoomView({
             autoTransform={false}
             offset={getGizmoOffset(selectedSurface)}
             activeAxes={getActiveAxes(selectedSurface)}
-            disableRotations={selectedSurface !== "floor"}
+            disableRotations={
+              selectedSurface !== "floor" && selectedSurface !== "surface"
+            }
             disableScaling
             rotationLimits={[[0, 0], undefined, [0, 0]]}
             lineWidth={GIZMO_LINE_WIDTH}
             depthTest={false}
             fixed={true}
-            scale={selectedSurface === "floor" ? FLOOR_GIZMO_SCREEN_SIZE : WALL_GIZMO_SCREEN_SIZE}
+            scale={
+              selectedSurface === "floor" || selectedSurface === "surface"
+                ? FLOOR_GIZMO_SCREEN_SIZE
+                : WALL_GIZMO_SCREEN_SIZE
+            }
             onDragStart={() => {
               setIsDraggingFurniture(false);
               setIsTransformingFurniture(true);
@@ -1889,26 +2312,38 @@ export function RoomView({
             onDragEnd={() => setIsTransformingFurniture(false)}
           >
             <group
-              onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
+              onDoubleClick={(event) => handleFurnitureDoubleClick(selectedFurniture.id, event)}
               onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
               onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
               onPointerUp={handleFurniturePointerUp}
               onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(selectedFurniture, true)}
+            {renderFurnitureModel(
+              selectedFurniture,
+              true,
+              false,
+              !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
+            )}
+            {renderInteractionProxy(selectedFurniture)}
           </group>
         </PivotControls>
         ) : selectedFurniture ? (
           <group
             position={selectedFurniture.position}
             rotation={[0, selectedFurniture.rotationY, 0]}
-            onClick={(event) => handleFurnitureClick(selectedFurniture.id, event)}
+            onDoubleClick={(event) => handleFurnitureDoubleClick(selectedFurniture.id, event)}
             onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
             onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
             onPointerUp={handleFurniturePointerUp}
             onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(selectedFurniture, buildModeEnabled)}
+            {renderFurnitureModel(
+              selectedFurniture,
+              buildModeEnabled,
+              false,
+              !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
+            )}
+            {renderInteractionProxy(selectedFurniture)}
           </group>
         ) : null}
         {buildModeEnabled && selectedFurniture ? (
@@ -1924,36 +2359,38 @@ export function RoomView({
             confirmDisabled={isPlacementBlocked}
           />
         ) : null}
-        {buildModeEnabled && selectedFurniture ? (
-          <Html fullscreen style={{ pointerEvents: "none" }}>
-            <EditDock
-              itemLabel={getFurnitureDefinition(selectedFurniture.type).label}
-              surfaceLabel={
-                selectedFurniture.surface === "floor"
-                  ? "Floor item"
-                  : selectedFurniture.surface === "wall_back"
-                    ? "Back wall"
-                    : "Left wall"
-              }
-              blocked={isPlacementBlocked}
-              canRotate={selectedFurniture.surface === "floor"}
-              canSwapWall={
-                selectedFurniture.surface === "wall_back" ||
-                selectedFurniture.surface === "wall_left"
-              }
-              onNudgeNegativeHorizontal={() => handleNudgeSelectedFurniture(-1)}
-              onNudgePositiveHorizontal={() => handleNudgeSelectedFurniture(1)}
-              onNudgeNegativeVertical={() => handleNudgeSelectedFurnitureVertical(-1)}
-              onNudgePositiveVertical={() => handleNudgeSelectedFurnitureVertical(1)}
-              onRotateLeft={() => handleRotateSelectedFurniture(-1)}
-              onRotateRight={() => handleRotateSelectedFurniture(1)}
-              onSwapWall={handleSwapSelectedWall}
-              onDeselect={handleDeselectFurniture}
-            />
-          </Html>
-        ) : null}
         <CameraTracker onCameraPositionChange={onCameraPositionChange} />
       </Canvas>
+      {buildModeEnabled && selectedFurniture ? (
+        <EditDock
+          itemLabel={getFurnitureDefinition(selectedFurniture.type).label}
+          surfaceLabel={
+            selectedFurniture.surface === "floor"
+              ? "Floor item"
+              : selectedFurniture.surface === "surface"
+                ? "Surface decor"
+              : selectedFurniture.surface === "wall_back"
+                ? "Back wall"
+                : "Left wall"
+          }
+          blocked={isPlacementBlocked}
+          canRotate={
+            selectedFurniture.surface === "floor" || selectedFurniture.surface === "surface"
+          }
+          canSwapWall={
+            selectedFurniture.surface === "wall_back" ||
+            selectedFurniture.surface === "wall_left"
+          }
+          onNudgeNegativeHorizontal={() => handleNudgeSelectedFurniture(-1)}
+          onNudgePositiveHorizontal={() => handleNudgeSelectedFurniture(1)}
+          onNudgeNegativeVertical={() => handleNudgeSelectedFurnitureVertical(-1)}
+          onNudgePositiveVertical={() => handleNudgeSelectedFurnitureVertical(1)}
+          onRotateLeft={() => handleRotateSelectedFurniture(-1)}
+          onRotateRight={() => handleRotateSelectedFurniture(1)}
+          onSwapWall={handleSwapSelectedWall}
+          onDeselect={handleDeselectFurniture}
+        />
+      ) : null}
     </div>
   );
 }

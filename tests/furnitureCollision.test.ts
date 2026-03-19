@@ -32,6 +32,34 @@ function makeTable(
   };
 }
 
+function makeDesk(
+  id: string,
+  position: [number, number, number],
+  rotationY = 0
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "desk",
+    surface: "floor",
+    position,
+    rotationY
+  };
+}
+
+function makeRug(
+  id: string,
+  position: [number, number, number],
+  rotationY = 0
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "rug",
+    surface: "floor",
+    position,
+    rotationY
+  };
+}
+
 function makePoster(
   id: string,
   position: [number, number, number],
@@ -46,10 +74,26 @@ function makePoster(
   };
 }
 
+function makeVase(
+  id: string,
+  position: [number, number, number],
+  anchorFurnitureId = "desk-1"
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "vase",
+    surface: "surface",
+    position,
+    rotationY: 0,
+    anchorFurnitureId,
+    surfaceLocalOffset: [0, 0]
+  };
+}
+
 describe("furnitureCollision", () => {
   it("allows valid floor placement when no furniture or player overlap exists", () => {
     const selectedChair = makeChair("chair-1", [0, 0, 0], 0);
-    const otherFurniture = [makeTable("table-1", [2.4, 0, 0], 0)];
+    const otherFurniture = [makeTable("table-1", [1, 0, 0], 0)];
 
     expect(getFurnitureCollisionReason(selectedChair, otherFurniture, farAwayPlayer)).toBeNull();
   });
@@ -72,14 +116,30 @@ describe("furnitureCollision", () => {
   });
 
   it("updates floor collision as rotation changes", () => {
-    const otherFurniture = [makeTable("table-1", [1, 0, 0], 0)];
-    const rotatedChair = makeChair("chair-1", [0, 0, 0], Math.PI / 2);
-    const unrotatedChair = makeChair("chair-1", [0, 0, 0], 0);
+    const otherFurniture = [makeTable("table-1", [1.1, 0, 0], 0)];
+    const unrotatedDesk = makeDesk("desk-1", [0, 0, 0], 0);
+    const rotatedDesk = makeDesk("desk-1", [0, 0, 0], Math.PI / 2);
 
-    expect(getFurnitureCollisionReason(unrotatedChair, otherFurniture, farAwayPlayer)).toBe(
+    expect(getFurnitureCollisionReason(unrotatedDesk, otherFurniture, farAwayPlayer)).toBe(
       "furniture_overlap"
     );
-    expect(getFurnitureCollisionReason(rotatedChair, otherFurniture, farAwayPlayer)).toBeNull();
+    expect(getFurnitureCollisionReason(rotatedDesk, otherFurniture, farAwayPlayer)).toBeNull();
+  });
+
+  it("allows rugs to overlap furniture and the player", () => {
+    const selectedRug = makeRug("rug-1", [0, 0, 0], 0);
+    const otherFurniture = [makeDesk("desk-1", [0, 0, 0], 0)];
+
+    expect(getFurnitureCollisionReason(selectedRug, otherFurniture, [0, 0, 0])).toBeNull();
+  });
+
+  it("blocks rugs from overlapping other rugs", () => {
+    const selectedRug = makeRug("rug-1", [0, 0, 0], 0);
+    const otherFurniture = [makeRug("rug-2", [0.5, 0, 0], 0)];
+
+    expect(getFurnitureCollisionReason(selectedRug, otherFurniture, farAwayPlayer)).toBe(
+      "furniture_overlap"
+    );
   });
 
   it("blocks wall placement when two posters overlap on the same wall", () => {
@@ -96,5 +156,21 @@ describe("furnitureCollision", () => {
     const otherFurniture = [makePoster("poster-2", [-7.83, 1.8, 0.2], "wall_left")];
 
     expect(getFurnitureCollisionReason(selectedPoster, otherFurniture, farAwayPlayer)).toBeNull();
+  });
+
+  it("blocks overlapping surface decor on the same host", () => {
+    const selectedVase = makeVase("vase-1", [0, 0.94, 0], "desk-1");
+    const otherFurniture = [makeVase("vase-2", [0.15, 0.94, 0], "desk-1")];
+
+    expect(getFurnitureCollisionReason(selectedVase, otherFurniture, farAwayPlayer)).toBe(
+      "furniture_overlap"
+    );
+  });
+
+  it("allows surface decor on different hosts without false overlap", () => {
+    const selectedVase = makeVase("vase-1", [0, 0.94, 0], "desk-1");
+    const otherFurniture = [makeVase("vase-2", [0, 2.1, 0], "fridge-1")];
+
+    expect(getFurnitureCollisionReason(selectedVase, otherFurniture, farAwayPlayer)).toBeNull();
   });
 });

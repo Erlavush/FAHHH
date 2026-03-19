@@ -94,9 +94,12 @@ function App() {
             placement.id === other.id &&
             placement.type === other.type &&
             placement.surface === other.surface &&
+            placement.anchorFurnitureId === other.anchorFurnitureId &&
             Math.abs(placement.position[0] - other.position[0]) < 0.0001 &&
             Math.abs(placement.position[1] - other.position[1]) < 0.0001 &&
             Math.abs(placement.position[2] - other.position[2]) < 0.0001 &&
+            Math.abs((placement.surfaceLocalOffset?.[0] ?? 0) - (other.surfaceLocalOffset?.[0] ?? 0)) < 0.0001 &&
+            Math.abs((placement.surfaceLocalOffset?.[1] ?? 0) - (other.surfaceLocalOffset?.[1] ?? 0)) < 0.0001 &&
             Math.abs(placement.rotationY - other.rotationY) < 0.0001
           );
         })

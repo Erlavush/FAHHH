@@ -28,10 +28,13 @@ describe("roomState", () => {
   it("assigns sensible default surfaces when creating furniture instances", () => {
     const chair = createFurniturePlacement("chair", [0, 0, 0]);
     const poster = createFurniturePlacement("poster", [0, 1.8, -7.83]);
+    const vase = createFurniturePlacement("vase", [0, 0.94, 0]);
 
     expect(chair.surface).toBe("floor");
     expect(chair.rotationY).toBe(0);
     expect(poster.surface).toBe("wall_back");
     expect(poster.rotationY).toBe(0);
+    expect(vase.surface).toBe("surface");
+    expect(vase.rotationY).toBe(0);
   });
 });

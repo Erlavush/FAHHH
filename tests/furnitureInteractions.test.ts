@@ -32,4 +32,20 @@ describe("furniture interactions", () => {
 
     expect(getFurnitureInteractionTarget(rug)).toBeNull();
   });
+
+  it("returns a lie target for beds", () => {
+    const bed: RoomFurniturePlacement = {
+      id: "bed-a",
+      type: "bed",
+      surface: "floor",
+      position: [2, 0, -1],
+      rotationY: 0
+    };
+
+    const target = getFurnitureInteractionTarget(bed);
+
+    expect(target?.type).toBe("lie");
+    expect(target?.position[0]).toBeCloseTo(2);
+    expect(target?.position[2]).toBeCloseTo(-0.8);
+  });
 });
