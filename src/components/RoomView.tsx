@@ -7,8 +7,10 @@ import {
   Matrix4,
   MOUSE,
   NearestFilter,
+  Plane,
   PerspectiveCamera as ThreePerspectiveCamera,
   Quaternion,
+  Ray,
   SRGBColorSpace,
   Vector3
 } from "three";
@@ -54,6 +56,16 @@ const FLOOR_GIZMO_SCREEN_SIZE = 108;
 const WALL_GIZMO_SCREEN_SIZE = 94;
 const GIZMO_LINE_WIDTH = 4;
 const FREE_MOVE_NUDGE_STEP = 0.1;
+const floorDragPlane = new Plane(new Vector3(0, 1, 0), 0);
+const backWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
+  new Vector3(0, 0, 1),
+  new Vector3(0, 0, BACK_WALL_SURFACE_Z)
+);
+const leftWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
+  new Vector3(1, 0, 0),
+  new Vector3(LEFT_WALL_SURFACE_X, 0, 0)
+);
+const dragPlaneHitPoint = new Vector3();
 const transformDragPosition = new Vector3();
 const transformDragQuaternion = new Quaternion();
 const transformDragScale = new Vector3();
@@ -74,6 +86,15 @@ const spawnCandidateOffsets: Array<[number, number]> = [
 ];
 
 type PlacementTransform = Pick<RoomFurniturePlacement, "position" | "rotationY" | "surface">;
+type PointerCaptureTarget = EventTarget & {
+  setPointerCapture?: (pointerId: number) => void;
+  releasePointerCapture?: (pointerId: number) => void;
+};
+type DragState = {
+  furnitureId: string;
+  type: FurnitureType;
+  surface: FurniturePlacementSurface;
+};
 
 function createConcreteTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -621,6 +642,9 @@ export function RoomView({
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
   const furnitureEditStartRef = useRef<Record<string, RoomFurniturePlacement | null>>({});
+  const capturedPointerIdRef = useRef<number | null>(null);
+  const capturedPointerTargetRef = useRef<PointerCaptureTarget | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>(initialPlayerPosition);
   const [playerWorldPosition, setPlayerWorldPosition] = useState<[number, number, number]>(
     initialPlayerPosition
@@ -632,6 +656,7 @@ export function RoomView({
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
+  const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
@@ -673,6 +698,28 @@ export function RoomView({
 
     return nextMatrix;
   }, [selectedFurniture]);
+  const interactionCursor = useMemo(() => {
+    if (isDraggingFurniture || isTransformingFurniture) {
+      return "grabbing";
+    }
+
+    if (cameraEditEnabled) {
+      return "grab";
+    }
+
+    if (buildModeEnabled && (hoveredFurnitureId || selectedFurnitureId)) {
+      return "grab";
+    }
+
+    return "default";
+  }, [
+    buildModeEnabled,
+    cameraEditEnabled,
+    hoveredFurnitureId,
+    isDraggingFurniture,
+    isTransformingFurniture,
+    selectedFurnitureId
+  ]);
 
   useEffect(() => {
     if (placementListsMatch(lastReportedCommittedFurnitureRef.current, committedFurniture)) {
@@ -694,8 +741,10 @@ export function RoomView({
     setCommittedFurniture(nextPlacements);
     setFurniture(nextPlacements);
     setSelectedFurnitureId(null);
+    setHoveredFurnitureId(null);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
+    dragStateRef.current = null;
     furnitureEditStartRef.current = {};
   }, [initialFurniturePlacements]);
 
@@ -703,11 +752,19 @@ export function RoomView({
     if (!buildModeEnabled) {
       setFurniture(cloneFurniturePlacements(committedFurniture));
       setSelectedFurnitureId(null);
+      setHoveredFurnitureId(null);
       setIsDraggingFurniture(false);
       setIsTransformingFurniture(false);
+      dragStateRef.current = null;
       furnitureEditStartRef.current = {};
     }
   }, [buildModeEnabled, committedFurniture]);
+
+  useEffect(() => {
+    if (!buildModeEnabled || cameraEditEnabled) {
+      setHoveredFurnitureId(null);
+    }
+  }, [buildModeEnabled, cameraEditEnabled]);
 
   useEffect(() => {
     if (!isDraggingFurniture) {
@@ -715,13 +772,16 @@ export function RoomView({
     }
 
     function stopDragging() {
+      releaseCapturedPointer();
       setIsDraggingFurniture(false);
     }
 
     window.addEventListener("pointerup", stopDragging);
+    window.addEventListener("pointercancel", stopDragging);
 
     return () => {
       window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
     };
   }, [isDraggingFurniture]);
 
@@ -804,10 +864,71 @@ export function RoomView({
 
     setFurniture((currentFurniture) => [...currentFurniture, nextPlacement]);
     setSelectedFurnitureId(nextPlacement.id);
+    setHoveredFurnitureId(nextPlacement.id);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
+    dragStateRef.current = null;
     furnitureEditStartRef.current[nextPlacement.id] = null;
   }, [furniture, playerWorldPosition, spawnRequest, targetPosition]);
+
+  function capturePointer(event: ThreeEvent<PointerEvent>) {
+    const pointerTarget = event.target as PointerCaptureTarget;
+    releaseCapturedPointer();
+    pointerTarget.setPointerCapture?.(event.pointerId);
+    capturedPointerIdRef.current = event.pointerId;
+    capturedPointerTargetRef.current = pointerTarget;
+  }
+
+  function releaseCapturedPointer() {
+    if (
+      capturedPointerIdRef.current === null ||
+      capturedPointerTargetRef.current === null
+    ) {
+      return;
+    }
+
+    try {
+      capturedPointerTargetRef.current.releasePointerCapture?.(capturedPointerIdRef.current);
+    } catch {
+      // Ignore browsers that release capture before we get here.
+    }
+
+    capturedPointerIdRef.current = null;
+    capturedPointerTargetRef.current = null;
+  }
+
+  function resolvePlacementFromDragRay(ray: Ray, dragState: DragState): PlacementTransform | null {
+    const dragPlane =
+      dragState.surface === "floor"
+        ? floorDragPlane
+        : dragState.surface === "wall_back"
+          ? backWallDragPlane
+          : leftWallDragPlane;
+
+    if (!ray.intersectPlane(dragPlane, dragPlaneHitPoint)) {
+      return null;
+    }
+
+    if (dragState.surface === "floor") {
+      return resolveFloorPlacement(dragPlaneHitPoint.x, dragPlaneHitPoint.z, dragState.type);
+    }
+
+    if (dragState.surface === "wall_back") {
+      return resolveWallPlacement(
+        "wall_back",
+        dragPlaneHitPoint.x,
+        dragPlaneHitPoint.y,
+        dragState.type
+      );
+    }
+
+    return resolveWallPlacement(
+      "wall_left",
+      dragPlaneHitPoint.z,
+      dragPlaneHitPoint.y,
+      dragState.type
+    );
+  }
 
   function getPreferredWallSurface(): FurniturePlacementSurface {
     const leftWallDistance = Math.abs(targetPosition[0] - LEFT_WALL_SURFACE_X);
@@ -1065,8 +1186,10 @@ export function RoomView({
       }
 
       setSelectedFurnitureId(null);
+      setHoveredFurnitureId(null);
       setIsDraggingFurniture(false);
       setIsTransformingFurniture(false);
+      dragStateRef.current = null;
     }
 
     return true;
@@ -1098,6 +1221,10 @@ export function RoomView({
     }
 
     event.stopPropagation();
+    capturePointer(event);
+    setHoveredFurnitureId(furnitureId);
+
+    const pressedFurniture = findFurniturePlacement(furniture, furnitureId);
 
     if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
       if (hasDraftChanges(selectedFurnitureId)) {
@@ -1110,35 +1237,58 @@ export function RoomView({
 
     selectFurnitureForEditing(furnitureId);
     setIsDraggingFurniture(true);
+    dragStateRef.current = pressedFurniture
+      ? {
+          furnitureId,
+          type: pressedFurniture.type,
+          surface: pressedFurniture.surface
+        }
+      : null;
   }
 
-  function handleFurniturePointerMove(event: ThreeEvent<PointerEvent>) {
+  function handleFurniturePointerMove(
+    furnitureId: string,
+    event: ThreeEvent<PointerEvent>
+  ) {
+    if (buildModeEnabled && !cameraEditEnabled) {
+      event.stopPropagation();
+
+      if (
+        !isDraggingFurniture &&
+        !isTransformingFurniture &&
+        hoveredFurnitureId !== furnitureId
+      ) {
+        setHoveredFurnitureId(furnitureId);
+      }
+    }
+
     if (
       !buildModeEnabled ||
       cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
-      !selectedFurnitureId ||
-      !selectedFurniture
+      !dragStateRef.current
     ) {
       return;
     }
 
-    const worldNormal = event.face?.normal 
-      ? event.face.normal.clone().transformDirection(event.object.matrixWorld).normalize() 
-      : undefined;
-    const nextPlacement = resolvePlacementFromHit(event.point, worldNormal, selectedFurniture.type);
+    const nextPlacement = resolvePlacementFromDragRay(event.ray, dragStateRef.current);
 
     if (!nextPlacement) {
       return;
     }
 
     event.stopPropagation();
-    updateFurnitureItem(selectedFurnitureId, (item) => applyPlacementToItem(item, nextPlacement));
+    updateFurnitureItem(dragStateRef.current.furnitureId, (item) =>
+      applyPlacementToItem(item, nextPlacement)
+    );
   }
 
-  function handleFurniturePointerUp() {
+  function handleFurniturePointerUp(event?: ThreeEvent<PointerEvent>) {
+    event?.stopPropagation();
+    releaseCapturedPointer();
     setIsDraggingFurniture(false);
+    dragStateRef.current = null;
   }
 
   function handlePivotDrag(localMatrix: Matrix4) {
@@ -1194,32 +1344,36 @@ export function RoomView({
   }
 
   function handleSurfacePointerMove(event: ThreeEvent<PointerEvent>) {
+    if (buildModeEnabled && !isDraggingFurniture && !isTransformingFurniture && hoveredFurnitureId) {
+      setHoveredFurnitureId(null);
+    }
+
     if (
       !buildModeEnabled ||
       cameraEditEnabled ||
       isTransformingFurniture ||
       !isDraggingFurniture ||
-      !selectedFurnitureId ||
-      !selectedFurniture
+      !dragStateRef.current
     ) {
       return;
     }
 
-    const worldNormal = event.face?.normal 
-      ? event.face.normal.clone().transformDirection(event.object.matrixWorld).normalize() 
-      : undefined;
-    const nextPlacement = resolvePlacementFromHit(event.point, worldNormal, selectedFurniture.type);
+    const nextPlacement = resolvePlacementFromDragRay(event.ray, dragStateRef.current);
 
     if (!nextPlacement) {
       return;
     }
 
     event.stopPropagation();
-    updateFurnitureItem(selectedFurnitureId, (item) => applyPlacementToItem(item, nextPlacement));
+    updateFurnitureItem(dragStateRef.current.furnitureId, (item) =>
+      applyPlacementToItem(item, nextPlacement)
+    );
   }
 
   function handleSurfacePointerUp() {
+    releaseCapturedPointer();
     setIsDraggingFurniture(false);
+    dragStateRef.current = null;
   }
 
   function handleCancelFurniturePlacement() {
@@ -1228,8 +1382,10 @@ export function RoomView({
     }
 
     setSelectedFurnitureId(null);
+    setHoveredFurnitureId(null);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
+    dragStateRef.current = null;
   }
 
   function handleDeleteFurniturePlacement() {
@@ -1243,8 +1399,10 @@ export function RoomView({
     );
     delete furnitureEditStartRef.current[selectedFurnitureId];
     setSelectedFurnitureId(null);
+    setHoveredFurnitureId(null);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
+    dragStateRef.current = null;
   }
 
   function getNudgeStep() {
@@ -1357,8 +1515,10 @@ export function RoomView({
       }
 
       setSelectedFurnitureId(null);
+      setHoveredFurnitureId(null);
       setIsDraggingFurniture(false);
       setIsTransformingFurniture(false);
+      dragStateRef.current = null;
     }
   }
 
@@ -1380,17 +1540,24 @@ export function RoomView({
     });
     delete furnitureEditStartRef.current[selectedFurnitureId];
     setSelectedFurnitureId(null);
+    setHoveredFurnitureId(null);
     setIsDraggingFurniture(false);
     setIsTransformingFurniture(false);
+    dragStateRef.current = null;
   }
 
-  function renderFurnitureModel(item: RoomFurniturePlacement, selected: boolean) {
+  function renderFurnitureModel(
+    item: RoomFurniturePlacement,
+    selected: boolean,
+    hovered = false
+  ) {
     const definition = getFurnitureDefinition(item.type);
     const commonProps = {
       position: [0, 0, 0] as [number, number, number],
       rotationY: 0,
       shadowsEnabled,
       selected,
+      hovered,
       blocked: selected && isPlacementBlocked
     };
 
@@ -1415,7 +1582,15 @@ export function RoomView({
   }
 
   return (
-    <div className="canvas-wrap">
+    <div
+      className="canvas-wrap"
+      style={{ cursor: interactionCursor }}
+      onPointerLeave={() => {
+        if (!isDraggingFurniture && !isTransformingFurniture) {
+          setHoveredFurnitureId(null);
+        }
+      }}
+    >
       <Canvas shadows dpr={[1, 1.6]}>
         <color attach="background" args={[isDay ? "#dfeaf6" : "#05070d"]} />
         <PerspectiveCamera
@@ -1495,10 +1670,18 @@ export function RoomView({
             position={item.position}
             rotation={[0, item.rotationY, 0]}
             onPointerDown={(event) => handleFurniturePointerDown(item.id, event)}
-            onPointerMove={handleFurniturePointerMove}
+            onPointerMove={(event) => handleFurniturePointerMove(item.id, event)}
             onPointerUp={handleFurniturePointerUp}
+            onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(item, false)}
+            {renderFurnitureModel(
+              item,
+              false,
+              buildModeEnabled &&
+                hoveredFurnitureId === item.id &&
+                selectedFurnitureId !== item.id &&
+                !isDraggingFurniture
+            )}
           </group>
         ))}
         {buildModeEnabled && selectedFurniture && selectedFurnitureMatrix && !prefersTouchControls ? (
@@ -1523,8 +1706,9 @@ export function RoomView({
           >
             <group
               onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
-              onPointerMove={handleFurniturePointerMove}
+              onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
               onPointerUp={handleFurniturePointerUp}
+              onPointerCancel={handleFurniturePointerUp}
           >
             {renderFurnitureModel(selectedFurniture, true)}
           </group>
@@ -1534,8 +1718,9 @@ export function RoomView({
             position={selectedFurniture.position}
             rotation={[0, selectedFurniture.rotationY, 0]}
             onPointerDown={(event) => handleFurniturePointerDown(selectedFurniture.id, event)}
-            onPointerMove={handleFurniturePointerMove}
+            onPointerMove={(event) => handleFurniturePointerMove(selectedFurniture.id, event)}
             onPointerUp={handleFurniturePointerUp}
+            onPointerCancel={handleFurniturePointerUp}
           >
             {renderFurnitureModel(selectedFurniture, buildModeEnabled)}
           </group>

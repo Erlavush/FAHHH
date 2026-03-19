@@ -5,6 +5,7 @@ interface FurnitureModelProps {
   rotationY?: number;
   shadowsEnabled: boolean;
   selected?: boolean;
+  hovered?: boolean;
   blocked?: boolean;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
 }
@@ -12,14 +13,22 @@ interface FurnitureModelProps {
 function createMaterialProps(
   blocked: boolean,
   selected: boolean,
+  hovered: boolean,
   baseColor: string,
   activeColor: string,
+  hoverColor: string,
   blockedColor: string
 ) {
   return {
-    color: blocked ? blockedColor : selected ? activeColor : baseColor,
-    transparent: selected || blocked,
-    opacity: selected || blocked ? 0.72 : 1
+    color: blocked
+      ? blockedColor
+      : selected
+        ? activeColor
+        : hovered
+          ? hoverColor
+          : baseColor,
+    transparent: selected || blocked || hovered,
+    opacity: selected || blocked ? 0.72 : hovered ? 0.9 : 1
   };
 }
 
@@ -28,12 +37,37 @@ export function BedModel({
   rotationY = 0,
   shadowsEnabled,
   selected = false,
+  hovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
-  const frame = createMaterialProps(blocked, selected, "#af7b54", "#57db8d", "#ef6f7c");
-  const sheet = createMaterialProps(blocked, selected, "#f4e9dc", "#9df2bf", "#f7b0ba");
-  const blanket = createMaterialProps(blocked, selected, "#d1b59e", "#79e2a2", "#d65e6c");
+  const frame = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#af7b54",
+    "#57db8d",
+    "#7bc4f8",
+    "#ef6f7c"
+  );
+  const sheet = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#f4e9dc",
+    "#9df2bf",
+    "#d7efff",
+    "#f7b0ba"
+  );
+  const blanket = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#d1b59e",
+    "#79e2a2",
+    "#a9dafb",
+    "#d65e6c"
+  );
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
@@ -62,13 +96,46 @@ export function DeskModel({
   rotationY = 0,
   shadowsEnabled,
   selected = false,
+  hovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
-  const wood = createMaterialProps(blocked, selected, "#ba865d", "#57db8d", "#ef6f7c");
-  const darkWood = createMaterialProps(blocked, selected, "#8a5a39", "#3fc67c", "#d55a68");
-  const screen = createMaterialProps(blocked, selected, "#3b4e67", "#71e2a3", "#df7c87");
-  const glow = createMaterialProps(blocked, selected, "#97d1ee", "#c0ffe0", "#f7c0c8");
+  const wood = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#ba865d",
+    "#57db8d",
+    "#7bc4f8",
+    "#ef6f7c"
+  );
+  const darkWood = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#8a5a39",
+    "#3fc67c",
+    "#5a9edb",
+    "#d55a68"
+  );
+  const screen = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#3b4e67",
+    "#71e2a3",
+    "#8bcdf9",
+    "#df7c87"
+  );
+  const glow = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#97d1ee",
+    "#c0ffe0",
+    "#ddf3ff",
+    "#f7c0c8"
+  );
 
   const legOffsets: Array<[number, number, number]> = [
     [-1.06, 0.42, -0.42],
@@ -118,11 +185,24 @@ export function RugModel({
   position = [0, 0, 0],
   rotationY = 0,
   selected = false,
+  hovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
-  const topColor = blocked ? "#ef6f7c" : selected ? "#57db8d" : "#d8c5ac";
-  const stripeColor = blocked ? "#f3a0aa" : selected ? "#a4f5c2" : "#f2e8d9";
+  const topColor = blocked
+    ? "#ef6f7c"
+    : selected
+      ? "#57db8d"
+      : hovered
+        ? "#88cffd"
+        : "#d8c5ac";
+  const stripeColor = blocked
+    ? "#f3a0aa"
+    : selected
+      ? "#a4f5c2"
+      : hovered
+        ? "#d9f0ff"
+        : "#f2e8d9";
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
@@ -130,16 +210,16 @@ export function RugModel({
         <boxGeometry args={[3.8, 0.04, 2.6]} />
         <meshStandardMaterial
           color={topColor}
-          transparent={selected || blocked}
-          opacity={selected || blocked ? 0.68 : 1}
+          transparent={selected || blocked || hovered}
+          opacity={selected || blocked ? 0.68 : hovered ? 0.88 : 1}
         />
       </mesh>
       <mesh position={[0, 0.051, 0]}>
         <boxGeometry args={[3.05, 0.01, 1.84]} />
         <meshStandardMaterial
           color={stripeColor}
-          transparent={selected || blocked}
-          opacity={selected || blocked ? 0.8 : 1}
+          transparent={selected || blocked || hovered}
+          opacity={selected || blocked ? 0.8 : hovered ? 0.92 : 1}
         />
       </mesh>
     </group>
@@ -151,12 +231,37 @@ export function WallFrameModel({
   rotationY = 0,
   shadowsEnabled,
   selected = false,
+  hovered = false,
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
-  const frame = createMaterialProps(blocked, selected, "#8b6d53", "#57db8d", "#ef6f7c");
-  const mat = createMaterialProps(blocked, selected, "#f8f2ea", "#bdf6d1", "#f5c0c8");
-  const art = createMaterialProps(blocked, selected, "#c3926b", "#7ee2a4", "#d86a76");
+  const frame = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#8b6d53",
+    "#57db8d",
+    "#7bc4f8",
+    "#ef6f7c"
+  );
+  const mat = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#f8f2ea",
+    "#bdf6d1",
+    "#edf7ff",
+    "#f5c0c8"
+  );
+  const art = createMaterialProps(
+    blocked,
+    selected,
+    hovered,
+    "#c3926b",
+    "#7ee2a4",
+    "#a4d7fb",
+    "#d86a76"
+  );
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
@@ -176,13 +281,13 @@ export function WallFrameModel({
         <boxGeometry args={[0.42, 0.16, 0.02]} />
         <meshStandardMaterial {...frame} />
       </mesh>
-      {selected || blocked ? (
+      {selected || blocked || hovered ? (
         <mesh position={[0, 0, 0.08]}>
           <boxGeometry args={[1.56, 1.2, 0.01]} />
           <meshBasicMaterial
-            color={blocked ? "#ff7b88" : "#5cff98"}
+            color={blocked ? "#ff7b88" : selected ? "#5cff98" : "#7cc8ff"}
             transparent
-            opacity={0.3}
+            opacity={selected || blocked ? 0.3 : 0.18}
           />
         </mesh>
       ) : null}
