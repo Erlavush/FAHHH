@@ -1,6 +1,10 @@
 import { FURNITURE_REGISTRY, type FurniturePlacementSurface, type FurnitureType } from "./furnitureRegistry";
 import { DEFAULT_STARTING_COINS } from "./economy";
 import {
+  createDefaultPcMinigameProgress,
+  type PcMinigameProgress
+} from "./pcMinigame";
+import {
   cloneRoomState,
   createDefaultRoomState,
   ensureRoomStateOwnership,
@@ -15,12 +19,13 @@ export type PersistedFurnitureType = FurnitureType;
 export type PersistedVector3 = Vector3Tuple;
 
 export interface PersistedSandboxState {
-  version: 3;
+  version: 4;
   skinSrc: string | null;
   cameraPosition: PersistedVector3;
   playerPosition: PersistedVector3;
   playerCoins: number;
   roomState: RoomState;
+  pcMinigame: PcMinigameProgress;
 }
 
 const DEV_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox";
@@ -120,6 +125,38 @@ function isValidRoomState(value: unknown): value is RoomState {
     value.furniture.every(isValidFurniturePlacement) &&
     Array.isArray(value.ownedFurniture) &&
     value.ownedFurniture.every(isValidOwnedFurnitureItem)
+  );
+}
+
+function isValidPcMinigameProgress(value: unknown): value is PcMinigameProgress {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "bestScore" in value &&
+    "lastScore" in value &&
+    "gamesPlayed" in value &&
+    "totalCoinsEarned" in value &&
+    "lastRewardCoins" in value &&
+    "lastCompletedAt" in value &&
+    typeof value.bestScore === "number" &&
+    Number.isFinite(value.bestScore) &&
+    value.bestScore >= 0 &&
+    typeof value.lastScore === "number" &&
+    Number.isFinite(value.lastScore) &&
+    value.lastScore >= 0 &&
+    typeof value.gamesPlayed === "number" &&
+    Number.isFinite(value.gamesPlayed) &&
+    value.gamesPlayed >= 0 &&
+    typeof value.totalCoinsEarned === "number" &&
+    Number.isFinite(value.totalCoinsEarned) &&
+    value.totalCoinsEarned >= 0 &&
+    typeof value.lastRewardCoins === "number" &&
+    Number.isFinite(value.lastRewardCoins) &&
+    value.lastRewardCoins >= 0 &&
+    (value.lastCompletedAt === null ||
+      (typeof value.lastCompletedAt === "number" &&
+        Number.isFinite(value.lastCompletedAt) &&
+        value.lastCompletedAt >= 0))
   );
 }
 
@@ -236,12 +273,13 @@ function loadLegacySandboxState(
   roomState.furniture = loadLegacyFurniturePlacements(roomState.furniture);
 
   return {
-    version: 3,
+    version: 4,
     skinSrc: loadPersistedSkin(),
     cameraPosition: loadLegacyVector3(DEV_CAMERA_KEY, fallbackCameraPosition),
     playerPosition: loadLegacyVector3(DEV_PLAYER_KEY, fallbackPlayerPosition),
     playerCoins: DEFAULT_STARTING_COINS,
-    roomState: ensureRoomStateOwnership(roomState)
+    roomState: ensureRoomStateOwnership(roomState),
+    pcMinigame: createDefaultPcMinigameProgress()
   };
 }
 
@@ -260,12 +298,13 @@ export function createDefaultSandboxState(
   playerPosition: PersistedVector3
 ): PersistedSandboxState {
   return {
-    version: 3,
+    version: 4,
     skinSrc: null,
     cameraPosition,
     playerPosition,
     playerCoins: DEFAULT_STARTING_COINS,
-    roomState: createDefaultRoomState()
+    roomState: createDefaultRoomState(),
+    pcMinigame: createDefaultPcMinigameProgress()
   };
 }
 
@@ -295,7 +334,7 @@ export function loadPersistedSandboxState(
       typeof parsedValue !== "object" ||
       parsedValue === null ||
       !("version" in parsedValue) ||
-      (parsedValue.version !== 2 && parsedValue.version !== 3) ||
+      (parsedValue.version !== 2 && parsedValue.version !== 3 && parsedValue.version !== 4) ||
       !("skinSrc" in parsedValue) ||
       !("cameraPosition" in parsedValue) ||
       !("playerPosition" in parsedValue) ||
@@ -314,7 +353,7 @@ export function loadPersistedSandboxState(
 
     if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState)) {
       return {
-        version: 3,
+        version: 4,
         skinSrc: parsedValue.skinSrc,
         cameraPosition: [...fallbackCameraPosition],
         playerPosition: [...fallbackPlayerPosition],
@@ -322,12 +361,23 @@ export function loadPersistedSandboxState(
           "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
             ? Math.floor(parsedValue.playerCoins)
             : DEFAULT_STARTING_COINS,
-        roomState: cloneRoomState(fallbackRoomState)
+        roomState: cloneRoomState(fallbackRoomState),
+        pcMinigame:
+          "pcMinigame" in parsedValue && isValidPcMinigameProgress(parsedValue.pcMinigame)
+            ? {
+                bestScore: Math.floor(parsedValue.pcMinigame.bestScore),
+                lastScore: Math.floor(parsedValue.pcMinigame.lastScore),
+                gamesPlayed: Math.floor(parsedValue.pcMinigame.gamesPlayed),
+                totalCoinsEarned: Math.floor(parsedValue.pcMinigame.totalCoinsEarned),
+                lastRewardCoins: Math.floor(parsedValue.pcMinigame.lastRewardCoins),
+                lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
+              }
+            : createDefaultPcMinigameProgress()
       };
     }
 
     return {
-      version: 3,
+      version: 4,
       skinSrc: parsedValue.skinSrc,
       cameraPosition: [
         parsedValue.cameraPosition[0],
@@ -340,10 +390,23 @@ export function loadPersistedSandboxState(
         clampCoordinate(parsedValue.playerPosition[2])
       ],
       playerCoins:
-        parsedValue.version === 3 && "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
+        (parsedValue.version === 3 || parsedValue.version === 4) &&
+        "playerCoins" in parsedValue &&
+        isValidPlayerCoins(parsedValue.playerCoins)
           ? Math.floor(parsedValue.playerCoins)
           : DEFAULT_STARTING_COINS,
-      roomState: ensureRoomStateOwnership(cloneRoomState(parsedValue.roomState))
+      roomState: ensureRoomStateOwnership(cloneRoomState(parsedValue.roomState)),
+      pcMinigame:
+        "pcMinigame" in parsedValue && isValidPcMinigameProgress(parsedValue.pcMinigame)
+          ? {
+              bestScore: Math.floor(parsedValue.pcMinigame.bestScore),
+              lastScore: Math.floor(parsedValue.pcMinigame.lastScore),
+              gamesPlayed: Math.floor(parsedValue.pcMinigame.gamesPlayed),
+              totalCoinsEarned: Math.floor(parsedValue.pcMinigame.totalCoinsEarned),
+              lastRewardCoins: Math.floor(parsedValue.pcMinigame.lastRewardCoins),
+              lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
+            }
+          : createDefaultPcMinigameProgress()
     };
   } catch {
     return loadLegacySandboxState(

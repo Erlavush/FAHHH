@@ -26,21 +26,61 @@ import {
   Vector3
 } from "three";
 import { ToneMappingMode } from "postprocessing";
-import { ChairModel } from "./ChairModel";
-import { FridgeModel } from "./FridgeModel";
-import { MinecraftPlayer } from "./MinecraftPlayer";
-import { OfficeChairModel, OfficeDeskModel, OfficeWardrobeModel } from "./OfficePackModels";
-import { PosterModel } from "./PosterModel";
-import { SmallTableModel } from "./SmallTableModel";
-import { BookStackModel, VaseModel } from "./SurfaceDecorModels";
-import { WallWindowModel } from "./WallWindowModel";
+import { CameraTracker, RendererExposureController, SmoothZoomController } from "./room-view/CanvasControllers";
 import {
-  BedModel,
-  DeskModel,
-  RugModel,
-  WallFrameModel
-} from "./StarterFurnitureModels";
-import { FloorLampModel } from "./FloorLampModel";
+  BACK_WALL_SURFACE_Z,
+  DESKTOP_COMPOSER_MULTISAMPLING,
+  DESKTOP_MAX_DPR,
+  DESKTOP_MOON_SHADOW_MAP_SIZE,
+  DESKTOP_SUN_SHADOW_MAP_SIZE,
+  DISABLED_MOUSE_BUTTON,
+  FLOOR_GIZMO_SCREEN_SIZE,
+  FREE_MOVE_NUDGE_STEP,
+  GIZMO_LINE_WIDTH,
+  LEFT_WALL_SURFACE_X,
+  MAX_CAMERA_DISTANCE,
+  MIN_CAMERA_DISTANCE,
+  SMOOTH_ZOOM_SENSITIVITY,
+  TOUCH_COMPOSER_MULTISAMPLING,
+  TOUCH_MAX_DPR,
+  TOUCH_MOON_SHADOW_MAP_SIZE,
+  TOUCH_SUN_SHADOW_MAP_SIZE,
+  WALL_GIZMO_SCREEN_SIZE,
+  backWallDragPlane,
+  dragPlaneHitPoint,
+  floorDragPlane,
+  leftWallDragPlane,
+  spawnCandidateOffsets,
+  surfaceSpawnCandidateOffsets,
+  transformDragEuler,
+  transformDragPosition,
+  transformDragQuaternion,
+  transformDragScale
+} from "./room-view/constants";
+import { FloorStage } from "./room-view/FloorStage";
+import { FurnitureVisual } from "./room-view/FurnitureVisual";
+import {
+  clampFurnitureToFloor,
+  clampToFloor,
+  clampWallAxis,
+  clampWallHeight,
+  getActiveAxes,
+  getEffectiveHalfSizes,
+  getGizmoOffset,
+  getInteractionHitboxSize,
+  getPlacementActionOffset,
+  getSurfaceDecorSelectionHitboxSize,
+  hasFixedWallVerticalPlacement,
+  rotateLocalOffset,
+  snapToBlockCenter
+} from "./room-view/helpers";
+import { RoomShell } from "./room-view/RoomShell";
+import {
+  placementListsMatch,
+  placementsMatch
+} from "../lib/roomPlacementEquality";
+import { MinecraftPlayer } from "./MinecraftPlayer";
+
 import {
   getFurnitureCollisionReason,
   type CollisionReason
@@ -83,85 +123,6 @@ import {
   mixNumber
 } from "../lib/worldLighting";
 
-const TILE_SIZE = 1;
-const GRID_SIZE = 10;
-const HALF_FLOOR_SIZE = (GRID_SIZE * TILE_SIZE) / 2;
-const BACK_WALL_SURFACE_Z = -HALF_FLOOR_SIZE + 0.17;
-const LEFT_WALL_SURFACE_X = -HALF_FLOOR_SIZE + 0.17;
-const WALL_CENTER_COORD = -HALF_FLOOR_SIZE - 0.06;
-const WALL_THICKNESS = 0.22;
-const WALL_HEIGHT = 4.4;
-const WALL_BOTTOM_Y = 0;
-const WALL_TOP_Y = WALL_HEIGHT;
-const BASEBOARD_COORD = -HALF_FLOOR_SIZE + 0.07;
-const TRIM_COORD = -HALF_FLOOR_SIZE + 0.08;
-const WALL_SPAN = GRID_SIZE + 0.2;
-const WALL_AXIS_MIN = -WALL_SPAN / 2;
-const WALL_AXIS_MAX = WALL_SPAN / 2;
-const BASEBOARD_SPAN = GRID_SIZE - 0.3;
-const WALL_MIN_Y = 1;
-const WALL_MAX_Y = 2.7;
-const WALL_RAIL_Y = 1.58;
-const WALL_TOP_TRIM_Y = 3.55;
-const MIN_CAMERA_DISTANCE = 5;
-const MAX_CAMERA_DISTANCE = 48;
-const SMOOTH_ZOOM_RESPONSE = 14;
-const SMOOTH_ZOOM_SENSITIVITY = 0.0015;
-const TOUCH_MAX_DPR = 1;
-const DESKTOP_MAX_DPR = 1.5;
-const TOUCH_COMPOSER_MULTISAMPLING = 0;
-const DESKTOP_COMPOSER_MULTISAMPLING = 4;
-const TOUCH_SUN_SHADOW_MAP_SIZE = 1024;
-const DESKTOP_SUN_SHADOW_MAP_SIZE = 1536;
-const TOUCH_MOON_SHADOW_MAP_SIZE = 0;
-const DESKTOP_MOON_SHADOW_MAP_SIZE = 512;
-const FLOOR_GIZMO_SCREEN_SIZE = 108;
-const WALL_GIZMO_SCREEN_SIZE = 94;
-const GIZMO_LINE_WIDTH = 4;
-const FREE_MOVE_NUDGE_STEP = 0.1;
-const DISABLED_MOUSE_BUTTON = -1 as MOUSE;
-const floorDragPlane = new Plane(new Vector3(0, 1, 0), 0);
-const backWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
-  new Vector3(0, 0, 1),
-  new Vector3(0, 0, BACK_WALL_SURFACE_Z)
-);
-const leftWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
-  new Vector3(1, 0, 0),
-  new Vector3(LEFT_WALL_SURFACE_X, 0, 0)
-);
-const dragPlaneHitPoint = new Vector3();
-const transformDragPosition = new Vector3();
-const transformDragQuaternion = new Quaternion();
-const transformDragScale = new Vector3();
-const transformDragEuler = new Euler(0, 0, 0, "YXZ");
-
-const spawnCandidateOffsets: Array<[number, number]> = [
-  [0, 0],
-  [1.5, 0],
-  [-1.5, 0],
-  [0, 1.5],
-  [0, -1.5],
-  [2.5, 1.5],
-  [-2.5, 1.5],
-  [2.5, -1.5],
-  [-2.5, -1.5],
-  [3.5, 0],
-  [-3.5, 0]
-];
-const surfaceSpawnCandidateOffsets: Array<SurfaceLocalOffset> = [
-  [0, 0],
-  [0.5, 0],
-  [-0.5, 0],
-  [0, 0.5],
-  [0, -0.5],
-  [1, 0],
-  [-1, 0],
-  [0.5, 0.5],
-  [-0.5, 0.5],
-  [0.5, -0.5],
-  [-0.5, -0.5]
-];
-
 type PlacementTransform = Pick<
   RoomFurniturePlacement,
   "position" | "rotationY" | "surface" | "anchorFurnitureId" | "surfaceLocalOffset"
@@ -181,789 +142,10 @@ type PlayerInteractionStatus =
   | {
       phase: "approaching" | "active";
       label: string;
+      interactionType: FurnitureInteractionTarget["type"];
+      furnitureId: string;
     }
   | null;
-
-function createWoodFloorTexture(): CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Could not create the wood floor texture.");
-  }
-
-  const plankPalette = ["#8b5e3d", "#6f492f", "#7b5135", "#5f3c28", "#9a6945", "#70482e"];
-  const plankWidth = 32;
-
-  context.fillStyle = "#5a3826";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  for (let column = 0; column < canvas.width; column += plankWidth) {
-    const plankColor = plankPalette[(column / plankWidth) % plankPalette.length];
-    context.fillStyle = plankColor;
-    context.fillRect(column, 0, plankWidth, canvas.height);
-
-    context.fillStyle = "rgba(31, 17, 10, 0.28)";
-    context.fillRect(column, 0, 2, canvas.height);
-    context.fillRect(column + plankWidth - 2, 0, 2, canvas.height);
-
-    for (let row = 0; row < canvas.height; row += 32) {
-      context.fillStyle = "rgba(24, 12, 8, 0.16)";
-      context.fillRect(column, row, plankWidth, 2);
-    }
-
-    for (let grainIndex = 0; grainIndex < 7; grainIndex += 1) {
-      const grainX = column + 5 + grainIndex * 4;
-      context.fillStyle = grainIndex % 2 === 0 ? "rgba(255, 224, 187, 0.08)" : "rgba(38, 20, 12, 0.11)";
-      context.fillRect(grainX, 0, 1, canvas.height);
-    }
-  }
-
-  context.fillStyle = "rgba(255, 239, 211, 0.06)";
-  for (let knotIndex = 0; knotIndex < 10; knotIndex += 1) {
-    const knotX = 18 + knotIndex * 22;
-    const knotY = 20 + (knotIndex % 5) * 38;
-    context.beginPath();
-    context.ellipse(knotX, knotY, 6, 3, 0, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  const texture = new CanvasTexture(canvas);
-  texture.magFilter = NearestFilter;
-  texture.minFilter = NearestFilter;
-  texture.generateMipmaps = false;
-  texture.colorSpace = SRGBColorSpace;
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.repeat.set(2.5, 2.5);
-
-  return texture;
-}
-
-function clampToFloor(value: number): number {
-  return Math.min(HALF_FLOOR_SIZE - 0.08, Math.max(-HALF_FLOOR_SIZE + 0.08, value));
-}
-
-function clampFurnitureToFloor(value: number, halfSize: number): number {
-  return Math.min(HALF_FLOOR_SIZE - halfSize, Math.max(-HALF_FLOOR_SIZE + halfSize, value));
-}
-
-function getEffectiveHalfSizes(type: FurnitureType, rotationY: number): [number, number] {
-  const definition = getFurnitureDefinition(type);
-  const halfWidth = definition.footprintWidth / 2;
-  const halfDepth = definition.footprintDepth / 2;
-  const cos = Math.abs(Math.cos(rotationY));
-  const sin = Math.abs(Math.sin(rotationY));
-
-  return [
-    cos * halfWidth + sin * halfDepth,
-    sin * halfWidth + cos * halfDepth
-  ];
-}
-
-function clampWallAxis(value: number, halfSize: number): number {
-  return Math.min(HALF_FLOOR_SIZE - halfSize - 0.18, Math.max(-HALF_FLOOR_SIZE + halfSize + 0.18, value));
-}
-
-function clampWallHeight(value: number, halfSize: number): number {
-  return Math.min(WALL_MAX_Y - halfSize, Math.max(WALL_MIN_Y + halfSize, value));
-}
-
-function snapToBlockCenter(value: number): number {
-  return Math.round(value - 0.5) + 0.5;
-}
-
-function rotateLocalOffset(
-  offset: [number, number, number],
-  rotationY: number
-): [number, number, number] {
-  const [localX, localY, localZ] = offset;
-  const cos = Math.cos(rotationY);
-  const sin = Math.sin(rotationY);
-
-  return [
-    localX * cos + localZ * sin,
-    localY,
-    localZ * cos - localX * sin
-  ];
-}
-
-function getGizmoOffset(item: RoomFurniturePlacement): [number, number, number] {
-  const actionOffset = getPlacementActionOffset(item);
-
-  if (item.surface === "wall_back") {
-    return [0, Math.max(0.42, actionOffset[1] - 0.72), 0.16];
-  }
-
-  if (item.surface === "wall_left") {
-    return [0.16, Math.max(0.42, actionOffset[1] - 0.72), 0];
-  }
-
-  if (item.surface === "surface") {
-    return [0, Math.max(0.42, actionOffset[1] - 0.34), 0];
-  }
-
-  return [0, Math.max(0.82, actionOffset[1] - 0.6), 0];
-}
-
-function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number, number] {
-  switch (item.type) {
-    case "bed":
-      return [0, 1.5, 0];
-    case "desk":
-      return [0, 2.02, 0];
-    case "chair":
-      return [0, 1.92, 0];
-    case "table":
-      return [0, 1.82, 0];
-    case "fridge":
-      return [0, 2.28, 0];
-    case "wardrobe":
-      return [0, 2.5, 0];
-    case "office_desk":
-      return [0, 1.68, 0];
-    case "office_chair":
-      return [0, 1.48, 0];
-    case "vase":
-      return [0, 1.08, 0];
-    case "books":
-      return [0, 0.86, 0];
-    case "rug":
-      return [0, 0.82, 0];
-    case "poster":
-      return [0, 1.28, 0.14];
-    case "wall_frame":
-      return [0, 1.18, 0.14];
-    default:
-      return item.surface === "floor" ? [0, 1.64, 0] : [0, 1.16, 0.14];
-  }
-}
-
-function getInteractionHitboxSize(
-  item: RoomFurniturePlacement
-): [number, number, number] {
-  const definition = getFurnitureDefinition(item.type);
-
-  switch (item.type) {
-    case "desk":
-      return [definition.footprintWidth + 0.4, 1.55, definition.footprintDepth + 0.72];
-    case "office_desk":
-      return [definition.footprintWidth + 0.35, 1.55, definition.footprintDepth + 0.7];
-    case "chair":
-      return [definition.footprintWidth + 0.52, 1.85, definition.footprintDepth + 0.42];
-    case "office_chair":
-      return [definition.footprintWidth + 0.52, 1.85, definition.footprintDepth + 0.42];
-    case "bed":
-      return [definition.footprintWidth + 0.38, 1.2, definition.footprintDepth + 0.3];
-    default:
-      return [definition.footprintWidth + 0.3, 1.35, definition.footprintDepth + 0.3];
-  }
-}
-
-function getSurfaceDecorSelectionHitboxSize(
-  item: RoomFurniturePlacement
-): [number, number, number] {
-  const definition = getFurnitureDefinition(item.type);
-
-  return [
-    Math.max(0.56, definition.footprintWidth + 0.18),
-    0.88,
-    Math.max(0.56, definition.footprintDepth + 0.18)
-  ];
-}
-
-function hasFixedWallVerticalPlacement(type: FurnitureType): boolean {
-  return getFurnitureDefinition(type).wallOpening?.fixedVertical === true;
-}
-
-function getActiveAxes(item: RoomFurniturePlacement | null): [boolean, boolean, boolean] {
-  if (!item) {
-    return [true, false, true];
-  }
-
-  if (item.surface === "wall_back") {
-    if (hasFixedWallVerticalPlacement(item.type)) {
-      return [true, false, false];
-    }
-
-    return [true, true, false];
-  }
-
-  if (item.surface === "wall_left") {
-    if (hasFixedWallVerticalPlacement(item.type)) {
-      return [false, false, true];
-    }
-
-    return [false, true, true];
-  }
-
-  return [true, false, true];
-}
-
-function placementsMatch(
-  first: RoomFurniturePlacement,
-  second: RoomFurniturePlacement
-): boolean {
-  return (
-    first.id === second.id &&
-    first.type === second.type &&
-    first.surface === second.surface &&
-    first.ownedFurnitureId === second.ownedFurnitureId &&
-    first.anchorFurnitureId === second.anchorFurnitureId &&
-    Math.abs(first.position[0] - second.position[0]) < 0.0001 &&
-    Math.abs(first.position[1] - second.position[1]) < 0.0001 &&
-    Math.abs(first.position[2] - second.position[2]) < 0.0001 &&
-    Math.abs((first.surfaceLocalOffset?.[0] ?? 0) - (second.surfaceLocalOffset?.[0] ?? 0)) <
-      0.0001 &&
-    Math.abs((first.surfaceLocalOffset?.[1] ?? 0) - (second.surfaceLocalOffset?.[1] ?? 0)) <
-      0.0001 &&
-    Math.abs(first.rotationY - second.rotationY) < 0.0001
-  );
-}
-
-function placementListsMatch(
-  first: RoomFurniturePlacement[],
-  second: RoomFurniturePlacement[]
-): boolean {
-  return (
-    first.length === second.length &&
-    first.every((placement, index) => placementsMatch(placement, second[index]))
-  );
-}
-
-interface FloorStageProps {
-  targetPosition: [number, number, number];
-  onFloorMoveCommand: (event: ThreeEvent<MouseEvent>) => void;
-  onFloorPointerMove: (event: ThreeEvent<PointerEvent>) => void;
-  onFloorPointerUp: () => void;
-  surfaceLightAmount: number;
-  checkerEnabled: boolean;
-  floorPrimaryColor: string;
-  floorSecondaryColor: string;
-  shadowsEnabled: boolean;
-}
-
-function FloorStage({
-  targetPosition,
-  onFloorMoveCommand,
-  onFloorPointerMove,
-  onFloorPointerUp,
-  surfaceLightAmount,
-  checkerEnabled,
-  floorPrimaryColor,
-  floorSecondaryColor,
-  shadowsEnabled
-}: FloorStageProps) {
-  const woodTexture = useMemo(() => createWoodFloorTexture(), []);
-  const platformColor = mixColor("#1f1714", "#34261f", surfaceLightAmount);
-  const floorEdgeColor = mixColor("#825f42", "#d6a56d", surfaceLightAmount);
-  const floorLipColor = mixColor("#33241a", "#7a4a2d", surfaceLightAmount);
-  const tiles = useMemo(() => {
-    const nextTiles = [];
-
-    for (let row = 0; row < GRID_SIZE; row += 1) {
-      for (let column = 0; column < GRID_SIZE; column += 1) {
-        const x = (column - (GRID_SIZE - 1) / 2) * TILE_SIZE;
-        const z = (row - (GRID_SIZE - 1) / 2) * TILE_SIZE;
-        const color = checkerEnabled
-          ? (row + column) % 2 === 0
-            ? floorPrimaryColor
-            : floorSecondaryColor
-          : floorPrimaryColor;
-
-        nextTiles.push(
-          <mesh
-            key={`${row}-${column}`}
-            position={[x, -0.5, z]}
-            receiveShadow={shadowsEnabled}
-            castShadow={shadowsEnabled}
-          >
-            <boxGeometry args={[TILE_SIZE, 1, TILE_SIZE]} />
-            <meshStandardMaterial color={color} roughness={0.94} />
-          </mesh>
-        );
-      }
-    }
-
-    return nextTiles;
-  }, [
-    checkerEnabled,
-    floorPrimaryColor,
-    floorSecondaryColor,
-    shadowsEnabled
-  ]);
-
-  return (
-    <group>
-      <mesh position={[0, -0.68, 0]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[GRID_SIZE + 0.62, 0.24, GRID_SIZE + 0.62]} />
-        <meshStandardMaterial color={platformColor} roughness={0.98} />
-      </mesh>
-      {!checkerEnabled ? (
-        <mesh position={[0, -0.5, 0]} receiveShadow={shadowsEnabled} castShadow={shadowsEnabled}>
-          <boxGeometry args={[GRID_SIZE, 1, GRID_SIZE]} />
-          <meshStandardMaterial
-            color={mixColor("#70472f", "#8f5f3f", surfaceLightAmount)}
-            map={woodTexture}
-            roughness={mixNumber(0.88, 0.72, surfaceLightAmount)}
-            metalness={0.03}
-          />
-        </mesh>
-      ) : (
-        <group>{tiles}</group>
-      )}
-      <mesh position={[0, 0.03, -HALF_FLOOR_SIZE + 0.06]} raycast={() => null}>
-        <boxGeometry args={[GRID_SIZE + 0.14, 0.06, 0.12]} />
-        <meshStandardMaterial color={floorEdgeColor} roughness={0.82} />
-      </mesh>
-      <mesh position={[0, 0.03, HALF_FLOOR_SIZE - 0.06]} raycast={() => null}>
-        <boxGeometry args={[GRID_SIZE + 0.14, 0.06, 0.12]} />
-        <meshStandardMaterial color={floorLipColor} roughness={0.86} />
-      </mesh>
-      <mesh position={[-HALF_FLOOR_SIZE + 0.06, 0.03, 0]} raycast={() => null}>
-        <boxGeometry args={[0.12, 0.06, GRID_SIZE + 0.14]} />
-        <meshStandardMaterial color={floorEdgeColor} roughness={0.82} />
-      </mesh>
-      <mesh position={[HALF_FLOOR_SIZE - 0.06, 0.03, 0]} raycast={() => null}>
-        <boxGeometry args={[0.12, 0.06, GRID_SIZE + 0.14]} />
-        <meshStandardMaterial color={floorLipColor} roughness={0.86} />
-      </mesh>
-      <mesh
-        position={[0, 0.015, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        onContextMenu={onFloorMoveCommand}
-        onPointerMove={onFloorPointerMove}
-        onPointerUp={onFloorPointerUp}
-      >
-        <planeGeometry args={[GRID_SIZE, GRID_SIZE]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-      <mesh position={[targetPosition[0], 0.02, targetPosition[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.14, 0.22, 32]} />
-        <meshBasicMaterial color="#5abed0" transparent opacity={0.9} />
-      </mesh>
-    </group>
-  );
-}
-
-function WallInteractionPlane({
-  surface,
-  onWallClick,
-  onWallPointerMove,
-  onWallPointerUp
-}: {
-  surface: "wall_back" | "wall_left";
-  onWallClick: (event: ThreeEvent<MouseEvent>) => void;
-  onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
-  onWallPointerUp: () => void;
-}) {
-  const isLeftWall = surface === "wall_left";
-
-  return (
-    <mesh
-      position={
-        isLeftWall
-          ? [LEFT_WALL_SURFACE_X, WALL_HEIGHT / 2, 0]
-          : [0, WALL_HEIGHT / 2, BACK_WALL_SURFACE_Z]
-      }
-      onClick={onWallClick}
-      onPointerMove={onWallPointerMove}
-      onPointerUp={onWallPointerUp}
-      renderOrder={-1}
-    >
-      <boxGeometry args={isLeftWall ? [0.02, WALL_HEIGHT, WALL_SPAN] : [WALL_SPAN, WALL_HEIGHT, 0.02]} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-    </mesh>
-  );
-}
-
-function WallBand({
-  surface,
-  center,
-  centerY,
-  span,
-  height,
-  color,
-  shadowsEnabled
-}: {
-  surface: "wall_back" | "wall_left";
-  center: number;
-  centerY: number;
-  span: number;
-  height: number;
-  color: string;
-  shadowsEnabled: boolean;
-}) {
-  if (span <= 0.0001 || height <= 0.0001) {
-    return null;
-  }
-
-  const isLeftWall = surface === "wall_left";
-
-  return (
-    <mesh
-      position={
-        isLeftWall
-          ? [WALL_CENTER_COORD, centerY, center]
-          : [center, centerY, WALL_CENTER_COORD]
-      }
-      castShadow={shadowsEnabled}
-      receiveShadow={shadowsEnabled}
-      raycast={() => null}
-    >
-      <boxGeometry args={isLeftWall ? [WALL_THICKNESS, height, span] : [span, height, WALL_THICKNESS]} />
-      <meshStandardMaterial color={color} roughness={0.95} />
-    </mesh>
-  );
-}
-
-function WallRail({
-  surface,
-  center,
-  span,
-  color,
-  shadowsEnabled
-}: {
-  surface: "wall_back" | "wall_left";
-  center: number;
-  span: number;
-  color: string;
-  shadowsEnabled: boolean;
-}) {
-  if (span <= 0.0001) {
-    return null;
-  }
-
-  const isLeftWall = surface === "wall_left";
-
-  return (
-    <mesh
-      position={
-        isLeftWall
-          ? [BASEBOARD_COORD + 0.04, WALL_RAIL_Y, center]
-          : [center, WALL_RAIL_Y, BASEBOARD_COORD + 0.04]
-      }
-      receiveShadow={shadowsEnabled}
-      raycast={() => null}
-    >
-      <boxGeometry args={isLeftWall ? [0.04, 0.08, span] : [span, 0.08, 0.04]} />
-      <meshStandardMaterial color={color} roughness={0.84} />
-    </mesh>
-  );
-}
-
-function RoomShell({
-  surfaceLightAmount,
-  furniture,
-  shadowsEnabled,
-  onWallClick,
-  onWallPointerMove,
-  onWallPointerUp
-}: {
-  surfaceLightAmount: number;
-  furniture: RoomFurniturePlacement[];
-  shadowsEnabled: boolean;
-  onWallClick: (event: ThreeEvent<MouseEvent>) => void;
-  onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
-  onWallPointerUp: () => void;
-}) {
-  const wallColor = mixColor("#28201c", "#eee6db", surfaceLightAmount);
-  const baseboardColor = mixColor("#775b46", "#8b6345", surfaceLightAmount);
-  const trimColor = mixColor("#725a48", "#f5eee3", surfaceLightAmount);
-  const wallRailColor = mixColor("#856652", "#a17856", surfaceLightAmount);
-  const cornerTrimColor = mixColor("#6d5443", "#e8dfd2", surfaceLightAmount);
-  const windowPlacements = useMemo(
-    () =>
-      furniture.filter(
-        (item) =>
-          item.type === "window" &&
-          (item.surface === "wall_back" || item.surface === "wall_left")
-      ),
-    [furniture]
-  );
-  const backWallLayout = useMemo(
-    () =>
-      createWallOpeningLayout(
-        windowPlacements
-          .filter((item) => item.surface === "wall_back")
-          .map((item) => {
-            const definition = getFurnitureDefinition(item.type);
-            return {
-              center: item.position[0],
-              width: definition.wallOpening?.width ?? definition.footprintWidth,
-              centerY: definition.wallOpening?.centerY ?? item.position[1],
-              height: definition.wallOpening?.height ?? definition.footprintDepth
-            };
-          }),
-        {
-          wallMin: WALL_AXIS_MIN,
-          wallMax: WALL_AXIS_MAX,
-          wallBottomY: WALL_BOTTOM_Y,
-          wallTopY: WALL_TOP_Y,
-          railY: WALL_RAIL_Y
-        }
-      ),
-    [windowPlacements]
-  );
-  const leftWallLayout = useMemo(
-    () =>
-      createWallOpeningLayout(
-        windowPlacements
-          .filter((item) => item.surface === "wall_left")
-          .map((item) => {
-            const definition = getFurnitureDefinition(item.type);
-            return {
-              center: item.position[2],
-              width: definition.wallOpening?.width ?? definition.footprintWidth,
-              centerY: definition.wallOpening?.centerY ?? item.position[1],
-              height: definition.wallOpening?.height ?? definition.footprintDepth
-            };
-          }),
-        {
-          wallMin: WALL_AXIS_MIN,
-          wallMax: WALL_AXIS_MAX,
-          wallBottomY: WALL_BOTTOM_Y,
-          wallTopY: WALL_TOP_Y,
-          railY: WALL_RAIL_Y
-        }
-      ),
-    [windowPlacements]
-  );
-
-  return (
-    <group>
-      <WallInteractionPlane
-        surface="wall_left"
-        onWallClick={onWallClick}
-        onWallPointerMove={onWallPointerMove}
-        onWallPointerUp={onWallPointerUp}
-      />
-      <WallInteractionPlane
-        surface="wall_back"
-        onWallClick={onWallClick}
-        onWallPointerMove={onWallPointerMove}
-        onWallPointerUp={onWallPointerUp}
-      />
-
-      <WallBand
-        surface="wall_left"
-        center={0}
-        centerY={leftWallLayout.lowerBandCenterY ?? WALL_HEIGHT / 2}
-        span={WALL_SPAN}
-        height={leftWallLayout.lowerBandHeight}
-        color={wallColor}
-        shadowsEnabled={shadowsEnabled}
-      />
-      {leftWallLayout.middleSegments.map((segment) => (
-        <WallBand
-          key={`left-middle-${segment.center}-${segment.span}`}
-          surface="wall_left"
-          center={segment.center}
-          centerY={leftWallLayout.openingBandCenterY ?? 0}
-          span={segment.span}
-          height={leftWallLayout.openingBandHeight}
-          color={wallColor}
-          shadowsEnabled={shadowsEnabled}
-        />
-      ))}
-      <WallBand
-        surface="wall_left"
-        center={0}
-        centerY={leftWallLayout.upperBandCenterY ?? WALL_HEIGHT / 2}
-        span={WALL_SPAN}
-        height={leftWallLayout.upperBandHeight}
-        color={wallColor}
-        shadowsEnabled={shadowsEnabled}
-      />
-
-      <WallBand
-        surface="wall_back"
-        center={0}
-        centerY={backWallLayout.lowerBandCenterY ?? WALL_HEIGHT / 2}
-        span={WALL_SPAN}
-        height={backWallLayout.lowerBandHeight}
-        color={wallColor}
-        shadowsEnabled={shadowsEnabled}
-      />
-      {backWallLayout.middleSegments.map((segment) => (
-        <WallBand
-          key={`back-middle-${segment.center}-${segment.span}`}
-          surface="wall_back"
-          center={segment.center}
-          centerY={backWallLayout.openingBandCenterY ?? 0}
-          span={segment.span}
-          height={backWallLayout.openingBandHeight}
-          color={wallColor}
-          shadowsEnabled={shadowsEnabled}
-        />
-      ))}
-      <WallBand
-        surface="wall_back"
-        center={0}
-        centerY={backWallLayout.upperBandCenterY ?? WALL_HEIGHT / 2}
-        span={WALL_SPAN}
-        height={backWallLayout.upperBandHeight}
-        color={wallColor}
-        shadowsEnabled={shadowsEnabled}
-      />
-
-      <mesh position={[WALL_CENTER_COORD + 0.11, WALL_HEIGHT / 2, WALL_CENTER_COORD + 0.11]} raycast={() => null}>
-        <boxGeometry args={[0.12, WALL_HEIGHT, 0.12]} />
-        <meshStandardMaterial color={cornerTrimColor} roughness={0.88} />
-      </mesh>
-
-      <mesh position={[BASEBOARD_COORD, 0.12, 0]} receiveShadow={shadowsEnabled} raycast={() => null}>
-        <boxGeometry args={[0.12, 0.24, BASEBOARD_SPAN]} />
-        <meshStandardMaterial color={baseboardColor} roughness={0.86} />
-      </mesh>
-      <mesh position={[0, 0.12, BASEBOARD_COORD]} receiveShadow={shadowsEnabled} raycast={() => null}>
-        <boxGeometry args={[BASEBOARD_SPAN, 0.24, 0.12]} />
-        <meshStandardMaterial color={baseboardColor} roughness={0.86} />
-      </mesh>
-
-      <mesh position={[TRIM_COORD, WALL_TOP_TRIM_Y, 0]} receiveShadow={shadowsEnabled} raycast={() => null}>
-        <boxGeometry args={[0.08, 0.18, BASEBOARD_SPAN]} />
-        <meshStandardMaterial color={trimColor} roughness={0.88} />
-      </mesh>
-      <mesh position={[0, WALL_TOP_TRIM_Y, TRIM_COORD]} receiveShadow={shadowsEnabled} raycast={() => null}>
-        <boxGeometry args={[BASEBOARD_SPAN, 0.18, 0.08]} />
-        <meshStandardMaterial color={trimColor} roughness={0.88} />
-      </mesh>
-
-      {leftWallLayout.railSegments.map((segment) => (
-        <WallRail
-          key={`left-rail-${segment.center}-${segment.span}`}
-          surface="wall_left"
-          center={segment.center}
-          span={segment.span}
-          color={wallRailColor}
-          shadowsEnabled={shadowsEnabled}
-        />
-      ))}
-      {backWallLayout.railSegments.map((segment) => (
-        <WallRail
-          key={`back-rail-${segment.center}-${segment.span}`}
-          surface="wall_back"
-          center={segment.center}
-          span={segment.span}
-          color={wallRailColor}
-          shadowsEnabled={shadowsEnabled}
-        />
-      ))}
-
-    </group>
-  );
-}
-
-interface RoomViewProps {
-  buildModeEnabled: boolean;
-  gridSnapEnabled: boolean;
-  spawnRequest: {
-    requestId: number;
-    type: FurnitureType;
-    ownedFurnitureId: string;
-  } | null;
-  cameraResetToken: number;
-  standRequestToken: number;
-  initialCameraPosition: Vector3Tuple;
-  initialPlayerPosition: Vector3Tuple;
-  initialFurniturePlacements: RoomFurniturePlacement[];
-  skinSrc: string | null;
-  worldTimeMinutes: number;
-  sunEnabled: boolean;
-  shadowsEnabled: boolean;
-  fogEnabled: boolean;
-  fogDensity: number;
-  ambientMultiplier: number;
-  sunIntensityMultiplier: number;
-  brightness: number;
-  saturation: number;
-  contrast: number;
-  onCameraPositionChange: (position: Vector3Tuple) => void;
-  onPlayerPositionChange: (position: Vector3Tuple) => void;
-  onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
-  onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
-  onInteractionStateChange: (status: PlayerInteractionStatus) => void;
-}
-
-function CameraTracker({
-  onCameraPositionChange
-}: {
-  onCameraPositionChange: (position: Vector3Tuple) => void;
-}) {
-  const lastSentTime = useRef(0);
-
-  useFrame((state) => {
-    if (state.clock.elapsedTime - lastSentTime.current < 0.1) {
-      return;
-    }
-
-    lastSentTime.current = state.clock.elapsedTime;
-    onCameraPositionChange([
-      state.camera.position.x,
-      state.camera.position.y,
-      state.camera.position.z
-    ]);
-  });
-
-  return null;
-}
-
-function SmoothZoomController({
-  cameraRef,
-  orbitControlsRef,
-  zoomTargetDistanceRef
-}: {
-  cameraRef: React.MutableRefObject<ThreePerspectiveCamera | null>;
-  orbitControlsRef: React.MutableRefObject<any>;
-  zoomTargetDistanceRef: React.MutableRefObject<number | null>;
-}) {
-  const cameraOffset = useMemo(() => new Vector3(), []);
-
-  useFrame((_, delta) => {
-    const camera = cameraRef.current;
-    const controls = orbitControlsRef.current;
-    const targetDistance = zoomTargetDistanceRef.current;
-
-    if (!camera || !controls || targetDistance === null) {
-      return;
-    }
-
-    cameraOffset.copy(camera.position).sub(controls.target);
-    const currentDistance = cameraOffset.length();
-
-    if (currentDistance <= 0.0001) {
-      return;
-    }
-
-    const smoothingFactor = 1 - Math.exp(-delta * SMOOTH_ZOOM_RESPONSE);
-    const nextDistance = currentDistance + (targetDistance - currentDistance) * smoothingFactor;
-
-    if (Math.abs(nextDistance - currentDistance) < 0.0001) {
-      return;
-    }
-
-    cameraOffset.multiplyScalar(nextDistance / currentDistance);
-    camera.position.copy(controls.target).add(cameraOffset);
-    controls.update();
-  });
-
-  return null;
-}
-
-function RendererExposureController({ exposure }: { exposure: number }) {
-  const { gl, invalidate } = useThree();
-
-  useLayoutEffect(() => {
-    gl.toneMapping = NoToneMapping;
-    gl.toneMappingExposure = exposure;
-    invalidate();
-  }, [exposure, gl, invalidate]);
-
-  return null;
-}
 
 function PlacementActions({
   position,
@@ -1071,7 +253,7 @@ function PlacementActions({
           disabled={confirmDisabled}
           aria-label="Confirm placement"
         >
-          ✓
+          ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“
         </button>
       </div>
     </Html>
@@ -1121,20 +303,20 @@ function EditDock({
       <div className="edit-dock__actions">
         {canRotate && (
           <>
-            <button className="edit-dock__icon-btn" onClick={onRotateLeft} title="Rotate Left" type="button">⟲</button>
-            <button className="edit-dock__icon-btn" onClick={onRotateRight} title="Rotate Right" type="button">⟳</button>
+            <button className="edit-dock__icon-btn" onClick={onRotateLeft} title="Rotate Left" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â²</button>
+            <button className="edit-dock__icon-btn" onClick={onRotateRight} title="Rotate Right" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³</button>
             <div className="edit-dock__divider" />
           </>
         )}
 
-        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">←</button>
+        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â</button>
         {canNudgeVertical ? (
           <>
-            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">↑</button>
-            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">↓</button>
+            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</button>
+            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</button>
           </>
         ) : null}
-        <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">→</button>
+        <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</button>
 
         {canSwapWall && (
           <>
@@ -1152,6 +334,36 @@ function EditDock({
   );
 }
 
+interface RoomViewProps {
+  buildModeEnabled: boolean;
+  gridSnapEnabled: boolean;
+  spawnRequest: {
+    requestId: number;
+    type: FurnitureType;
+    ownedFurnitureId: string;
+  } | null;
+  cameraResetToken: number;
+  standRequestToken: number;
+  initialCameraPosition: Vector3Tuple;
+  initialPlayerPosition: Vector3Tuple;
+  initialFurniturePlacements: RoomFurniturePlacement[];
+  skinSrc: string | null;
+  worldTimeMinutes: number;
+  sunEnabled: boolean;
+  shadowsEnabled: boolean;
+  fogEnabled: boolean;
+  fogDensity: number;
+  ambientMultiplier: number;
+  sunIntensityMultiplier: number;
+  brightness: number;
+  saturation: number;
+  contrast: number;
+  onCameraPositionChange: (position: Vector3Tuple) => void;
+  onPlayerPositionChange: (position: Vector3Tuple) => void;
+  onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
+  onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
+  onInteractionStateChange: (status: PlayerInteractionStatus) => void;
+}
 export function RoomView({
   buildModeEnabled,
   gridSnapEnabled,
@@ -1328,14 +540,18 @@ export function RoomView({
     if (activeInteraction) {
       return {
         phase: "active",
-        label: activeInteraction.furnitureLabel
+        label: activeInteraction.furnitureLabel,
+        interactionType: activeInteraction.type,
+        furnitureId: activeInteraction.furnitureId
       };
     }
 
     if (pendingInteraction) {
       return {
         phase: "approaching",
-        label: pendingInteraction.furnitureLabel
+        label: pendingInteraction.furnitureLabel,
+        interactionType: pendingInteraction.type,
+        furnitureId: pendingInteraction.furnitureId
       };
     }
 
@@ -2702,59 +1918,6 @@ export function RoomView({
     finishFurnitureEditingSession(selectedFurnitureId, false);
   }
 
-  function renderFurnitureModel(
-    item: RoomFurniturePlacement,
-    selected: boolean,
-    hovered = false,
-    interactionHovered = false
-  ) {
-    const definition = getFurnitureDefinition(item.type);
-    const commonProps = {
-      position: [0, 0, 0] as [number, number, number],
-      rotationY: 0,
-      shadowsEnabled,
-      selected,
-      hovered,
-      interactionHovered,
-      blocked: selected && isPlacementBlocked
-    };
-
-    switch (definition.modelKey) {
-      case "bed":
-        return <BedModel {...commonProps} />;
-      case "desk":
-        return <DeskModel {...commonProps} />;
-      case "chair":
-        return <ChairModel {...commonProps} />;
-      case "small_table":
-        return <SmallTableModel {...commonProps} />;
-      case "fridge":
-        return <FridgeModel {...commonProps} />;
-      case "wardrobe":
-        return <OfficeWardrobeModel {...commonProps} />;
-      case "office_desk":
-        return <OfficeDeskModel {...commonProps} />;
-      case "office_chair":
-        return <OfficeChairModel {...commonProps} />;
-      case "window":
-        return <WallWindowModel {...commonProps} daylightAmount={windowSurfaceLightAmount} />;
-      case "vase":
-        return <VaseModel {...commonProps} />;
-      case "books":
-        return <BookStackModel {...commonProps} />;
-      case "poster":
-        return <PosterModel {...commonProps} />;
-      case "wall_frame":
-        return <WallFrameModel {...commonProps} />;
-      case "rug":
-        return <RugModel {...commonProps} />;
-      case "floor_lamp":
-        return <FloorLampModel {...commonProps} nightFactor={lightingState.nightFactor} />;
-      default:
-        return null;
-    }
-  }
-
   function renderInteractionProxy(item: RoomFurniturePlacement) {
     const definition = getFurnitureDefinition(item.type);
 
@@ -2957,7 +2120,7 @@ export function RoomView({
           skinSrc={skinSrc}
           targetPosition={targetPosition}
           interaction={playerInteractionPose}
-          onPositionChange={(position) => {
+          onPositionChange={(position: Vector3Tuple) => {
             setPlayerWorldPosition(position);
             onPlayerPositionChange(position);
           }}
@@ -2977,15 +2140,21 @@ export function RoomView({
             onPointerUp={handleFurniturePointerUp}
             onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(
-              item,
-              false,
-              buildModeEnabled &&
+            <FurnitureVisual
+              item={item}
+              shadowsEnabled={shadowsEnabled}
+              selected={false}
+              hovered={
+                buildModeEnabled &&
                 hoveredFurnitureId === item.id &&
                 selectedFurnitureId !== item.id &&
-                !isDraggingFurniture,
-              !buildModeEnabled && hoveredInteractableFurnitureId === item.id
-            )}
+                !isDraggingFurniture
+              }
+              interactionHovered={!buildModeEnabled && hoveredInteractableFurnitureId === item.id}
+              blocked={false}
+              windowSurfaceLightAmount={windowSurfaceLightAmount}
+              nightFactor={lightingState.nightFactor}
+            />
             {renderSurfaceDecorSelectionProxy(item)}
             {renderInteractionProxy(item)}
           </group>
@@ -3023,12 +2192,16 @@ export function RoomView({
               onPointerUp={handleFurniturePointerUp}
               onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(
-              selectedFurniture,
-              true,
-              false,
-              !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
-            )}
+            <FurnitureVisual
+              item={selectedFurniture}
+              shadowsEnabled={shadowsEnabled}
+              selected={true}
+              hovered={false}
+              interactionHovered={!buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id}
+              blocked={isPlacementBlocked}
+              windowSurfaceLightAmount={windowSurfaceLightAmount}
+              nightFactor={lightingState.nightFactor}
+            />
             {renderSurfaceDecorSelectionProxy(selectedFurniture)}
             {renderInteractionProxy(selectedFurniture)}
           </group>
@@ -3044,12 +2217,16 @@ export function RoomView({
             onPointerUp={handleFurniturePointerUp}
             onPointerCancel={handleFurniturePointerUp}
           >
-            {renderFurnitureModel(
-              selectedFurniture,
-              buildModeEnabled,
-              false,
-              !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id
-            )}
+            <FurnitureVisual
+              item={selectedFurniture}
+              shadowsEnabled={shadowsEnabled}
+              selected={buildModeEnabled}
+              hovered={false}
+              interactionHovered={!buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id}
+              blocked={buildModeEnabled && isPlacementBlocked}
+              windowSurfaceLightAmount={windowSurfaceLightAmount}
+              nightFactor={lightingState.nightFactor}
+            />
             {renderSurfaceDecorSelectionProxy(selectedFurniture)}
             {renderInteractionProxy(selectedFurniture)}
           </group>

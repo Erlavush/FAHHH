@@ -17,6 +17,7 @@ What already works in the live runtime:
 - a preview studio for generating thumbnail images
 - buyable wall windows that open real holes in the back and left walls
 - a real-time world clock with a single cinematic lighting pipeline, blue sky backdrop, and dev controls for locking and scrubbing time
+- a desk PC minigame earn loop with saved best score and cooldown tracking
 - local persistence for room state, player position, camera, coins, and skin
 
 ## Final Game Direction
@@ -38,9 +39,12 @@ The final game direction is still `Risk It All`:
 - [AI handoff](/Z:/FAHHHH/docs/AI_HANDOFF.md): current source of truth for another AI or collaborator
 - [Current systems](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md): gameplay/runtime behavior that exists now
 - [Architecture](/Z:/FAHHHH/docs/ARCHITECTURE.md): file ownership and system boundaries
+- [Codebase map](/Z:/FAHHHH/docs/CODEBASE_MAP.md): fastest navigation guide for the current folder layout
 - [Roadmap](/Z:/FAHHHH/docs/ROADMAP.md): implemented foundation vs next priorities
 - [Game overview](/Z:/FAHHHH/docs/GAME_OVERVIEW.md): long-term product vision
 - [Diagrams](/Z:/FAHHHH/docs/DIAGRAMS.md): runtime and roadmap diagrams
+- [MCP setup](/Z:/FAHHHH/docs/MCP_SETUP.md): recommended AI-tooling stack for this repo
+- [llms.txt](/Z:/FAHHHH/llms.txt): repo-root AI navigation summary
 
 ## Current Runtime Truth
 

@@ -26,10 +26,11 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  Sandbox["PersistedSandboxState v3"] --> Skin["skinSrc"]
+  Sandbox["PersistedSandboxState v4"] --> Skin["skinSrc"]
   Sandbox --> Camera["cameraPosition"]
   Sandbox --> Player["playerPosition"]
   Sandbox --> Coins["playerCoins"]
+  Sandbox --> Pc["pcMinigameProgress"]
   Sandbox --> Room["RoomState"]
 
   Room --> Meta["RoomMetadata"]
@@ -120,11 +121,11 @@ flowchart TD
   Current --> Inventory["Ownership + coins + previews"]
   Current --> Clock["World clock + lighting"]
   Current --> Windows["Buyable windows + wall openings"]
+  Current --> Activities["PC minigame"]
 
   Future["Future Jam Game"] --> Pair["Auth + pairing"]
   Future --> Shared["Shared room sync"]
   Future --> Progress["Level + streak + quests"]
-  Future --> Activities["PC minigame"]
   Future --> Personal["Custom frames + pets"]
   Future --> Breakup["Breakup reset"]
 

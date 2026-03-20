@@ -1,4 +1,4 @@
-# AI Handoff
+  # AI Handoff
 
 ## Read This First
 
@@ -7,6 +7,7 @@ As of the current codebase state, the active product is a `local solo sandbox` t
 - registry-driven furniture placement
 - inventory ownership
 - coin-based buying and selling
+- a desk PC minigame earn loop
 - buyable wall windows with real wall openings
 - preview-studio-generated shop thumbnails
 - a real-time world clock with sun/moon lighting
@@ -57,6 +58,14 @@ These files define the actual running sandbox and should be treated as the curre
 - Selling bought furniture refunds full price for now.
 - Starter furniture can be removed but does not mint coins.
 - Current starting balance is `180` coins.
+- The first live earn loop now comes from the desk PC minigame.
+
+### PC Minigame
+
+- `use_pc` desk interactions now open the `Pixel Gigs` overlay once the player reaches the desk seat.
+- Runs last `25` seconds and reward coins based on score.
+- Completed runs trigger a real-time cooldown before the next attempt.
+- Best score, last result, total earned coins, and cooldown timestamp are persisted locally.
 
 ### Catalog and UX
 
@@ -161,10 +170,11 @@ Important current facts:
 - player position
 - player coins
 - room state
+- PC minigame progress
 
 Important current facts:
 
-- persisted sandbox schema is currently `version: 3`
+- persisted sandbox schema is currently `version: 4`
 - legacy furniture-only saves are migrated forward
 - outdated local layouts reset to the current fallback room if the layout version is older
 
@@ -214,6 +224,7 @@ Current automated coverage exists for:
 - furniture registry completeness
 - invite-code utilities
 - room-state helpers
+- PC minigame rules
 - starter-room legacy helpers
 - surface decor
 - wall opening segmentation
@@ -226,6 +237,7 @@ The active sandbox systems are primarily covered by:
 - [furnitureInteractions.test.ts](/Z:/FAHHHH/tests/furnitureInteractions.test.ts)
 - [furnitureRegistry.test.ts](/Z:/FAHHHH/tests/furnitureRegistry.test.ts)
 - [roomState.test.ts](/Z:/FAHHHH/tests/roomState.test.ts)
+- [pcMinigame.test.ts](/Z:/FAHHHH/tests/pcMinigame.test.ts)
 - [surfaceDecor.test.ts](/Z:/FAHHHH/tests/surfaceDecor.test.ts)
 - [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
 - [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
@@ -265,8 +277,9 @@ Interpretation:
 ## Current Known Gaps
 
 - No multiplayer runtime is wired into the active app shell yet.
-- No real earning loop exists yet beyond buying/selling logic.
-- No levels, streak, quests, minigames, pets, or breakup state are in the active runtime.
+- Only one local earn loop exists so far: the desk PC minigame.
+- No levels, streak, quests, pets, or breakup state are in the active runtime yet.
+- Only one minigame exists so far: the desk PC minigame.
 - Many shop previews are still placeholders.
 - Visual polish is still in progress, especially for art-set cohesion and advanced lighting quality.
 
@@ -275,7 +288,7 @@ Interpretation:
 If continuing from the current codebase, the highest-value next layers are:
 
 1. Define and persist progression data beyond coins.
-2. Add one real coin earn loop, likely a PC minigame or a daily quest.
+2. Add a second real coin earn loop, likely a daily quest or another PC activity.
 3. Add editable/custom frames.
 4. Add one pet implementation.
 5. Reconcile multiplayer/auth/pairing with the current room-state model.

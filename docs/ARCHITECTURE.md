@@ -12,6 +12,7 @@
 - skin import
 - preview studio visibility and selection
 - coin balance
+- PC minigame progress and reward handling
 - persisted room state
 - local vs accelerated world clock selection
 - locked time controls
@@ -34,6 +35,7 @@
 - player approach / active interaction state
 - camera target reporting
 - world clock to lighting-state conversion
+- furniture interaction activation (`sit`, `lie`, `use_pc`)
 - room shell, walls, and windows
 - wrapper-level sky backdrop + fog tint
 - single cinematic post-processing stack
@@ -116,7 +118,19 @@ It currently defines:
 - starting coin balance
 - sell-price behavior
 
-The economy layer is present, but the earn-loop layer is not yet implemented.
+The economy layer is present, and the first earn-loop layer now comes from the desk PC minigame.
+
+### PC Minigame
+
+[pcMinigame.ts](/Z:/FAHHHH/src/lib/pcMinigame.ts) owns the first live earn-loop rules.
+
+It currently defines:
+
+- session length
+- cooldown timing
+- reward scaling
+- saved progress shape
+- result application helpers
 
 ## Placement and Editing Subsystems
 

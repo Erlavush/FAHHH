@@ -11,7 +11,8 @@
 - window furniture with real wall openings
 - preview studio for shop thumbnails
 - real-time sun/moon world clock
-- local persistence for room, skin, camera, position, and coins
+- desk PC minigame earn loop
+- local persistence for room, skin, camera, position, coins, and PC minigame progress
 
 ### Still Missing
 
@@ -20,7 +21,7 @@
 - levels
 - streaks
 - quests
-- minigames
+- additional minigames
 - pets
 - breakup/reset game logic
 
@@ -144,6 +145,21 @@ Rules:
 - a chair must exist in the desk's use zone
 - both `chair` and `office_chair` count
 - desk and office desk can differ in seat placement/orientation
+- an active desk use session opens the `Pixel Gigs` PC minigame overlay
+
+## PC Minigame
+
+The first real coin earn loop now lives on the desk PC interaction.
+
+Current behavior:
+
+- right-click a desk or office desk in play mode
+- the player walks into the desk use position and sits
+- the `Pixel Gigs` overlay opens only while the `use_pc` interaction is active
+- each run lasts `25` seconds
+- results reward coins based on score
+- finished runs trigger a real-time cooldown before the next run
+- best score, last result, total earned coins, and cooldown timestamp persist locally
 
 ## Current Furniture Catalog
 
@@ -306,16 +322,17 @@ Persisted fields:
 - `playerPosition`
 - `playerCoins`
 - `roomState`
+- `pcMinigame`
 
 Important current facts:
 
-- save schema version is `3`
+- save schema version is `4`
 - older saves are normalized forward
 - outdated room layouts are reset to the current fallback starter room
 
 ## Test Coverage
 
-There are 10 test files in [tests](/Z:/FAHHHH/tests):
+There are 11 test files in [tests](/Z:/FAHHHH/tests):
 
 - [economy.test.ts](/Z:/FAHHHH/tests/economy.test.ts)
 - [furnitureCollision.test.ts](/Z:/FAHHHH/tests/furnitureCollision.test.ts)
@@ -327,6 +344,7 @@ There are 10 test files in [tests](/Z:/FAHHHH/tests):
 - [surfaceDecor.test.ts](/Z:/FAHHHH/tests/surfaceDecor.test.ts)
 - [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
 - [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
+- [pcMinigame.test.ts](/Z:/FAHHHH/tests/pcMinigame.test.ts)
 
 Important interpretation:
 

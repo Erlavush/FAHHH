@@ -55,6 +55,7 @@ The repo has moved beyond the earliest empty-room prototype, but it is still a `
 - registry-driven furniture system
 - inventory ownership and stored-items flow
 - coin-based buying and selling
+- desk PC minigame earn loop
 - buyable wall windows with real wall openings
 - world clock with real-time sun/moon lighting controls
 - preview studio for shop thumbnails
@@ -65,7 +66,7 @@ The repo has moved beyond the earliest empty-room prototype, but it is still a `
 - pairing into one shared room
 - shared room sync and partner presence
 - level and couple streak
-- minigame and daily quest earn loops
+- daily quest and additional minigame earn loops
 - editable couple-photo frames
 - pets
 - breakup reset gameplay

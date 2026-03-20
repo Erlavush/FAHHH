@@ -16,6 +16,7 @@
 - buyable wall windows with real wall openings
 - real-time world clock with sun/moon lighting controls
 - smooth camera zoom
+- desk PC minigame earn loop
 
 ### Still Missing From the Jam Game
 
@@ -23,8 +24,7 @@
 - live partner presence
 - player level
 - couple streak
-- coin earn loops
-- PC minigame
+- second coin earn loop
 - daily quests
 - editable photo frames
 - pets
@@ -35,10 +35,10 @@
 ### Track 1: Core Gameplay Progression
 
 1. Add a canonical `player progression` layer on top of the current sandbox save.
-2. Add one real `coin earn loop`, either:
-   - one desk PC minigame
+2. Add the second real `coin earn loop`, likely:
    - one daily quest loop
-3. Add the second loop after the first one is stable.
+   - one additional PC activity
+3. Add the second loop after it is stable.
 4. Add level and couple-streak state once earning/spending is no longer one-sided.
 
 ### Track 2: Personalization
@@ -60,7 +60,7 @@
 If the goal is `gameplay progress`, do this next:
 
 1. progression schema
-2. one earn loop
+2. second earn loop
 3. level + streak
 
 If the goal is `visual progress`, do this next:

@@ -1,0 +1,68 @@
+# Risk It All: Cozy Couple Room
+> Browser-first cozy couple-room game foundation built with React, Vite, React Three Fiber, and Firebase-ready skeletons. The active runtime today is a local single-room sandbox, not the older multiplayer backend path.
+
+## Canonical Docs
+- [README](README.md): project overview, setup, and current runtime summary.
+- [AI handoff](docs/AI_HANDOFF.md): current runtime truth, implemented systems, and regression guardrails.
+- [Codebase map](docs/CODEBASE_MAP.md): fastest folder-by-folder navigation after the refactor.
+- [Current systems](docs/CURRENT_SYSTEMS.md): gameplay and runtime behavior that exists now.
+- [Architecture](docs/ARCHITECTURE.md): file ownership, boundaries, and system responsibilities.
+- [MCP setup](docs/MCP_SETUP.md): recommended MCP stack for this repo.
+
+## Active Runtime Entry Points
+- [src/App.tsx](src/App.tsx): top-level sandbox orchestrator.
+- [src/components/RoomView.tsx](src/components/RoomView.tsx): live 3D scene/runtime controller.
+- [src/app](src/app): app-shell components and hooks extracted from App.
+- [src/components/room-view](src/components/room-view): scene-support modules extracted from RoomView.
+- [src/lib/roomState.ts](src/lib/roomState.ts): active room schema and starter layout.
+- [src/lib/furnitureRegistry.ts](src/lib/furnitureRegistry.ts): canonical furniture catalog.
+- [src/lib/devLocalState.ts](src/lib/devLocalState.ts): local persistence and migration.
+- [src/lib/economy.ts](src/lib/economy.ts): buy and sell rules.
+- [src/lib/pcMinigame.ts](src/lib/pcMinigame.ts): desk PC minigame rules and rewards.
+- [src/lib/worldLighting.ts](src/lib/worldLighting.ts): world-clock lighting calculations.
+
+## Navigation Heuristics
+- For toolbar, inventory, and app-shell UI changes, start in `src/app`.
+- For 3D scene, interaction, camera, and placement behavior, start in `src/components/RoomView.tsx` and then inspect `src/components/room-view`.
+- For rules, persistence, room schema, economy, or furniture metadata, start in `src/lib`.
+- For new furniture, update the registry first, then rendering, then tests.
+
+## Important Invariants
+- Preserve the split between `ownedFurniture` and placed `furniture`.
+- Keep registry-driven metadata as the source of truth for furniture behavior.
+- Preserve `anchorFurnitureId` and `surfaceLocalOffset` for surface decor.
+- Do not replace the active sandbox schema in `roomState.ts` with the older backend-oriented `types.ts` shape.
+- Starter furniture can be removed, but it must not mint sell coins.
+- Window furniture must keep wall-opening behavior.
+
+## Tech Stack
+- React 18.3
+- Vite 6
+- TypeScript 5.7
+- three 0.173
+- @react-three/fiber 8.17
+- @react-three/drei 9.122
+- @react-three/postprocessing 2.19
+- postprocessing 6.38
+- leva 0.10
+- Vitest 3
+
+## Commands
+- `cmd /c npm install`
+- `cmd /c npm run dev`
+- `cmd /c npm test`
+- `cmd /c npm run build`
+
+## Test Entry Points
+- [tests/economy.test.ts](tests/economy.test.ts)
+- [tests/furnitureCollision.test.ts](tests/furnitureCollision.test.ts)
+- [tests/furnitureInteractions.test.ts](tests/furnitureInteractions.test.ts)
+- [tests/furnitureRegistry.test.ts](tests/furnitureRegistry.test.ts)
+- [tests/pcMinigame.test.ts](tests/pcMinigame.test.ts)
+- [tests/roomState.test.ts](tests/roomState.test.ts)
+- [tests/surfaceDecor.test.ts](tests/surfaceDecor.test.ts)
+- [tests/wallOpenings.test.ts](tests/wallOpenings.test.ts)
+- [tests/worldLighting.test.ts](tests/worldLighting.test.ts)
+
+## Legacy Boundary
+The active runtime is the local sandbox path centered on `App.tsx`, `RoomView.tsx`, `furnitureRegistry.ts`, `roomState.ts`, and `devLocalState.ts`. Older Firebase/auth/pairing and couple-room files still exist, but they are not the current runtime entry path.
