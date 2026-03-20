@@ -172,6 +172,7 @@ Rules:
 
 - Small Table Set
 - Floor Rug
+- Floor Lamp
 
 ## Starter Room Snapshot
 
@@ -259,8 +260,14 @@ World settings currently include:
 - fog density
 - ambient multiplier
 - sun intensity multiplier
+- brightness
 - saturation
 - contrast
+
+Current note:
+
+- the scene now uses one cinematic lighting path
+- there is no render-mode toggle in the dev panel right now
 
 ### Lighting Stack
 
@@ -268,7 +275,11 @@ The scene currently uses:
 
 - moving sun directional light
 - moving moon directional light
+- visible moon body
+- warm ambient fill light
 - hemisphere fill light
+- transparent canvas over a blue time-of-day backdrop gradient
+- fog tinted from the same time-of-day sky blend
 - ACES tone mapping
 - N8AO
 - bloom
@@ -280,6 +291,8 @@ Current note:
 
 - fake per-window ray-light decals have been removed
 - lighting now comes from the global world clock rig
+- floating cube wall lights have been removed
+- warm practical night fill now comes from floor-lamp furniture plus the shared room lighting rig
 - the visual look is still stylized and still being polished
 
 ## Persistence
@@ -302,7 +315,7 @@ Important current facts:
 
 ## Test Coverage
 
-There are 9 test files in [tests](/Z:/FAHHHH/tests):
+There are 10 test files in [tests](/Z:/FAHHHH/tests):
 
 - [economy.test.ts](/Z:/FAHHHH/tests/economy.test.ts)
 - [furnitureCollision.test.ts](/Z:/FAHHHH/tests/furnitureCollision.test.ts)
@@ -313,6 +326,7 @@ There are 9 test files in [tests](/Z:/FAHHHH/tests):
 - [starterRoom.test.ts](/Z:/FAHHHH/tests/starterRoom.test.ts)
 - [surfaceDecor.test.ts](/Z:/FAHHHH/tests/surfaceDecor.test.ts)
 - [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
+- [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
 
 Important interpretation:
 

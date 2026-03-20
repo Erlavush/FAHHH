@@ -16,7 +16,7 @@ What already works in the live runtime:
 - a redesigned room inventory/shop panel with previews and item descriptions
 - a preview studio for generating thumbnail images
 - buyable wall windows that open real holes in the back and left walls
-- a real-time sun/moon lighting clock with dev controls for locking and scrubbing time
+- a real-time world clock with a single cinematic lighting pipeline, blue sky backdrop, and dev controls for locking and scrubbing time
 - local persistence for room state, player position, camera, coins, and skin
 
 ## Final Game Direction

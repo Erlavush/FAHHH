@@ -35,7 +35,8 @@
 - camera target reporting
 - world clock to lighting-state conversion
 - room shell, walls, and windows
-- post-processing
+- wrapper-level sky backdrop + fog tint
+- single cinematic post-processing stack
 - smooth wheel zoom controller
 
 ### Preview Studio
@@ -205,7 +206,8 @@ Instead:
   - sun position
   - moon position
   - directional-light intensities
-  - sky color
+  - wrapper-level backdrop gradient
+  - fog tint
   - hemisphere colors
   - exposure
   - AO
@@ -226,6 +228,11 @@ The current post stack in [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx)
 - Brightness/Contrast
 
 Tone mapping is ACES Filmic.
+
+Important current note:
+
+- this is the only active render path right now
+- the visible blue sky background lives on the room wrapper behind a transparent canvas so post-processing cannot wash it out to white
 
 ## UI and Flow Architecture
 
@@ -268,4 +275,5 @@ Do not restore multiplayer by forcing the current sandbox back into those older 
 - Do not break `anchorFurnitureId` + `surfaceLocalOffset` rules for surface decor.
 - Do not reintroduce hardcoded shell-only windows as the main system.
 - Do not replace the current world-clock lighting with ad hoc per-item lighting hacks.
+- Do not reintroduce floating cube wall lights as the default room-lighting solution.
 - Do not treat the legacy backend types as the active room-builder model.

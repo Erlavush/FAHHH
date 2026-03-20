@@ -42,8 +42,6 @@ type PlayerInteractionStatus =
     }
   | null;
 
-type RenderMode = "cinematic" | "basic";
-
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
   return { default: module.RoomView };
@@ -202,7 +200,6 @@ const LEVA_SETTINGS_KEY = "cozy-room-leva-settings";
 interface LevaSettings {
   minecraftTimeMinutes?: number;
   useMinecraftTimeToggle?: boolean;
-  renderMode?: RenderMode;
   sunEnabled?: boolean;
   shadowsEnabled?: boolean;
   fogEnabled?: boolean;
@@ -258,7 +255,6 @@ function App() {
 
   const [
     {
-      renderMode,
       sunEnabled,
       shadowsEnabled,
       fogEnabled,
@@ -287,14 +283,6 @@ function App() {
         value: useMinecraftTime,
         label: "Use Minecraft Time",
         onChange: (v: boolean) => setUseMinecraftTime(v)
-      },
-      renderMode: {
-        value: savedSettings.renderMode ?? "basic",
-        label: "Render Mode",
-        options: {
-          Basic: "basic",
-          Cinematic: "cinematic"
-        }
       },
       minecraftTime24h: {
         value: (minecraftTimeMinutes / 60) % 24,
@@ -363,7 +351,6 @@ function App() {
     }),
     []
   );
-  const normalizedRenderMode: RenderMode = renderMode === "cinematic" ? "cinematic" : "basic";
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
   const [playerCoins, setPlayerCoins] = useState(initialSandboxState.playerCoins);
@@ -422,7 +409,6 @@ function App() {
       localClock: localTimeLabel,
       worldClock: worldTimeLabel,
       useMinecraftTimeToggle: useMinecraftTime,
-      renderMode: normalizedRenderMode,
       minecraftTime24h: (minecraftTimeMinutes / 60) % 24,
       lockTimeOfDay: timeLocked,
       lockedTime24h: minutesToControlHours(lockedTimeMinutes)
@@ -431,7 +417,6 @@ function App() {
     localTimeLabel,
     lockedTimeMinutes,
     minecraftTimeMinutes,
-    normalizedRenderMode,
     setWorldSettings,
     timeLocked,
     worldTimeLabel,
@@ -444,7 +429,6 @@ function App() {
       window.localStorage.setItem(LEVA_SETTINGS_KEY, JSON.stringify({
         minecraftTimeMinutes,
         useMinecraftTimeToggle: useMinecraftTime,
-        renderMode: normalizedRenderMode,
         sunEnabled,
         shadowsEnabled,
         fogEnabled,
@@ -456,7 +440,7 @@ function App() {
         contrast
       }));
     } catch {}
-  }, [minecraftTimeMinutes, useMinecraftTime, normalizedRenderMode, sunEnabled, shadowsEnabled, fogEnabled, fogDensity, ambientMultiplier, sunIntensityMultiplier, brightness, saturation, contrast]);
+  }, [minecraftTimeMinutes, useMinecraftTime, sunEnabled, shadowsEnabled, fogEnabled, fogDensity, ambientMultiplier, sunIntensityMultiplier, brightness, saturation, contrast]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -1162,7 +1146,6 @@ function App() {
           initialFurniturePlacements={roomState.furniture}
           skinSrc={skinSrc}
           worldTimeMinutes={worldTimeMinutes}
-          renderMode={normalizedRenderMode}
           sunEnabled={sunEnabled}
           shadowsEnabled={shadowsEnabled}
           fogEnabled={fogEnabled}

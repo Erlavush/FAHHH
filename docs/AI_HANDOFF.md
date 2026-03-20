@@ -81,10 +81,12 @@ These files define the actual running sandbox and should be treated as the curre
   - local machine time
   - accelerated in-world `Minecraft Time`
   - a user-locked inspection time
-- The sun and moon are rendered as actual scene bodies.
+- The moon is rendered as a visible scene body, while the room's daytime sky look comes from a wrapper-level blue backdrop gradient behind the transparent canvas.
 - Directional sun and moon lights move from southwest to northeast across the room.
-- Lighting state also drives sky color, tone mapping exposure, hemisphere colors, AO, bloom, and vignette.
+- Lighting state also drives the backdrop gradient, fog tint, tone mapping exposure, hemisphere colors, AO, bloom, and vignette.
 - Fake window ray decals are gone; the scene is now driven by the global clock/lighting rig.
+- The three floating cube wall lights have been removed; warm night ambience now comes from floor-lamp furniture plus the shared room lighting rig.
+- There is no render-mode toggle right now; the active scene path is a single cinematic lighting/post-processing pipeline.
 
 ## Current Top-Level UI
 
@@ -126,7 +128,7 @@ The Leva dev panel currently exposes:
 
 It currently defines:
 
-- 14 furniture types
+- 15 furniture types
 - price
 - category
 - model key
@@ -193,6 +195,7 @@ Important current facts:
 
 - table
 - rug
+- floor lamp
 
 ## Visual and Asset Notes
 
@@ -214,6 +217,7 @@ Current automated coverage exists for:
 - starter-room legacy helpers
 - surface decor
 - wall opening segmentation
+- world-lighting transitions
 
 The active sandbox systems are primarily covered by:
 
@@ -224,6 +228,7 @@ The active sandbox systems are primarily covered by:
 - [roomState.test.ts](/Z:/FAHHHH/tests/roomState.test.ts)
 - [surfaceDecor.test.ts](/Z:/FAHHHH/tests/surfaceDecor.test.ts)
 - [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
+- [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
 
 Most recent known health in this repo state:
 

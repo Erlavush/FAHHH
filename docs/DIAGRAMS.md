@@ -78,15 +78,17 @@ flowchart TD
   Clock["World Time Minutes"] --> Lighting["getWorldLightingState(...)"]
   Lighting --> Sun["Sun position + intensity"]
   Lighting --> Moon["Moon position + intensity"]
-  Lighting --> Sky["Sky color + exposure"]
+  Lighting --> Backdrop["Backdrop gradient + fog tint + exposure"]
   Lighting --> Hemi["Hemisphere colors"]
-  Lighting --> Post["AO + Bloom + Vignette + Color"]
+  Lighting --> Lamps["Practical lamp contribution"]
+  Lighting --> Post["Cinematic post stack<br/>AO + Bloom + Vignette + Color"]
   Lighting --> Windows["Window day/night presentation"]
 
   Sun --> Scene["RoomView scene lighting"]
   Moon --> Scene
-  Sky --> Scene
+  Backdrop --> Scene
   Hemi --> Scene
+  Lamps --> Scene
   Post --> Scene
   Windows --> Scene
 ```

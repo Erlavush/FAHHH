@@ -11,7 +11,6 @@ import {
 } from "@react-three/postprocessing";
 import { type WheelEvent as ReactWheelEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  ACESFilmicToneMapping,
   CanvasTexture,
   Euler,
   Matrix4,
@@ -184,7 +183,6 @@ type PlayerInteractionStatus =
       label: string;
     }
   | null;
-type RenderMode = "cinematic" | "basic";
 
 function createWoodFloorTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -656,48 +654,10 @@ function WallRail({
   );
 }
 
-function CubeLamp({
-  position,
-  nightFactor
-}: {
-  position: [number, number, number];
-  nightFactor: number;
-}) {
-  const glowColor = mixColor("#ffd79f", "#ffd394", nightFactor);
-  const bulbColor = mixColor("#fff5e3", "#ffe7bc", nightFactor);
-
-  return (
-    <group position={position}>
-      <mesh raycast={() => null}>
-        <boxGeometry args={[0.32, 0.32, 0.32]} />
-        <meshStandardMaterial
-          color={bulbColor}
-          emissive={glowColor}
-          emissiveIntensity={mixNumber(0.08, 2.35, nightFactor)}
-          roughness={0.18}
-          metalness={0.02}
-          toneMapped={false}
-        />
-      </mesh>
-      <pointLight
-        position={[0, 0, 0]}
-        color="#FF9944"
-        intensity={mixNumber(0.05, 0.8, nightFactor)}
-        distance={5}
-        decay={2}
-        castShadow={false}
-        shadow-mapSize={[512, 512]}
-        shadow-radius={6}
-      />
-    </group>
-  );
-}
-
 function RoomShell({
   surfaceLightAmount,
   furniture,
   shadowsEnabled,
-  nightFactor,
   onWallClick,
   onWallPointerMove,
   onWallPointerUp
@@ -705,7 +665,6 @@ function RoomShell({
   surfaceLightAmount: number;
   furniture: RoomFurniturePlacement[];
   shadowsEnabled: boolean;
-  nightFactor: number;
   onWallClick: (event: ThreeEvent<MouseEvent>) => void;
   onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onWallPointerUp: () => void;
@@ -894,9 +853,6 @@ function RoomShell({
         />
       ))}
 
-      <CubeLamp position={[WALL_CENTER_COORD + 0.2, 2.42, -1.85]} nightFactor={nightFactor} />
-      <CubeLamp position={[-1.55, 2.54, WALL_CENTER_COORD + 0.2]} nightFactor={nightFactor} />
-      <CubeLamp position={[2.55, 2.54, WALL_CENTER_COORD + 0.2]} nightFactor={nightFactor} />
     </group>
   );
 }
@@ -916,7 +872,6 @@ interface RoomViewProps {
   initialFurniturePlacements: RoomFurniturePlacement[];
   skinSrc: string | null;
   worldTimeMinutes: number;
-  renderMode: RenderMode;
   sunEnabled: boolean;
   shadowsEnabled: boolean;
   fogEnabled: boolean;
@@ -998,20 +953,14 @@ function SmoothZoomController({
   return null;
 }
 
-function RendererExposureController({
-  exposure,
-  useRendererToneMapping
-}: {
-  exposure: number;
-  useRendererToneMapping: boolean;
-}) {
+function RendererExposureController({ exposure }: { exposure: number }) {
   const { gl, invalidate } = useThree();
 
   useLayoutEffect(() => {
-    gl.toneMapping = useRendererToneMapping ? ACESFilmicToneMapping : NoToneMapping;
+    gl.toneMapping = NoToneMapping;
     gl.toneMappingExposure = exposure;
     invalidate();
-  }, [exposure, gl, invalidate, useRendererToneMapping]);
+  }, [exposure, gl, invalidate]);
 
   return null;
 }
@@ -1214,7 +1163,6 @@ export function RoomView({
   initialFurniturePlacements,
   skinSrc,
   worldTimeMinutes,
-  renderMode,
   sunEnabled,
   shadowsEnabled,
   fogEnabled,
@@ -1272,7 +1220,6 @@ export function RoomView({
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
   const lightingState = useMemo(() => getWorldLightingState(worldTimeMinutes), [worldTimeMinutes]);
-  const isBasicRenderMode = renderMode === "basic";
   const floorLampCount = useMemo(
     () => furniture.filter((item) => item.type === "floor_lamp").length,
     [furniture]
@@ -1301,11 +1248,8 @@ export function RoomView({
     0.45
   )} 60%, ${skyGradientBottomColor} 100%)`;
   const sceneFogColor = mixColor(skyGradientTopColor, skyGradientBottomColor, 0.68);
-  const sceneToneMappingExposure = isBasicRenderMode
-    ? mixNumber(0.28, 0.4, lightingState.daylightAmount) +
-      twilightSafetyAmount * 0.03 +
-      practicalLampFactor * 0.12
-    : lightingState.toneMappingExposure + practicalLampFactor * 0.16;
+  const sceneToneMappingExposure =
+    lightingState.toneMappingExposure + practicalLampFactor * 0.16;
   const composerAoIntensity = lightingState.aoIntensity * mixNumber(0.08, 1, 1 - twilightSafetyAmount);
   const composerBloomIntensity =
     lightingState.bloomIntensity * mixNumber(0.6, 1, 1 - twilightSafetyAmount);
@@ -1316,9 +1260,6 @@ export function RoomView({
   const shouldApplyHueSaturation = Math.abs(saturation - 1) > 0.001;
   const shouldApplyBrightnessContrast =
     Math.abs(composerBrightness) > 0.001 || Math.abs(composerContrast) > 0.001;
-  const shouldUseBasicColorComposer =
-    isBasicRenderMode && (shouldApplyHueSaturation || shouldApplyBrightnessContrast);
-  const shouldUseRendererToneMapping = isBasicRenderMode && !shouldUseBasicColorComposer;
   const canvasDpr = prefersTouchControls ? TOUCH_MAX_DPR : DESKTOP_MAX_DPR;
   const composerMultisampling = prefersTouchControls
     ? TOUCH_COMPOSER_MULTISAMPLING
@@ -1332,17 +1273,10 @@ export function RoomView({
   const shouldUseAmbientOcclusion = !prefersTouchControls && composerAoIntensity > 0.02;
   const shouldUseBloom = composerBloomIntensity > 0.02;
   const hemisphereLightIntensity = (
-    isBasicRenderMode
-      ? mixNumber(0.18, 0.3, lightingState.daylightAmount) +
-        lightingState.twilightFillAmount * 0.12 +
-        practicalLampFactor * 0.12
-      : mixNumber(0.22, 0.38, lightingState.daylightAmount) +
-        lightingState.twilightFillAmount * 0.2 +
-        practicalLampFactor * 0.16
+    mixNumber(0.22, 0.38, lightingState.daylightAmount) +
+    lightingState.twilightFillAmount * 0.2 +
+    practicalLampFactor * 0.16
   ) * ambientMultiplier;
-  const moonFillIntensity = isBasicRenderMode
-    ? lightingState.moonIntensity * 0.55 + lightingState.nightFactor * 0.025
-    : lightingState.moonIntensity;
   const syncZoomTargetToCamera = useCallback(() => {
     const camera = cameraRef.current;
     const controls = orbitControlsRef.current;
@@ -2894,7 +2828,6 @@ export function RoomView({
       >
         <RendererExposureController
           exposure={sceneToneMappingExposure}
-          useRendererToneMapping={shouldUseRendererToneMapping}
         />
         <fogExp2 attach="fog" color={sceneFogColor} density={fogEnabled ? fogDensity : 0} />
         <PerspectiveCamera
@@ -2927,16 +2860,14 @@ export function RoomView({
           orbitControlsRef={orbitControlsRef}
           zoomTargetDistanceRef={zoomTargetDistanceRef}
         />
-        {!isBasicRenderMode ? (
-          <ambientLight
-            intensity={
-              lightingState.nightFactor * 0.08 +
-              lightingState.twilightAmount * 0.12 +
-              practicalLampFactor * 0.1
-            }
-            color="#ffd7b0"
-          />
-        ) : null}
+        <ambientLight
+          intensity={
+            lightingState.nightFactor * 0.08 +
+            lightingState.twilightAmount * 0.12 +
+            practicalLampFactor * 0.1
+          }
+          color="#ffd7b0"
+        />
         <hemisphereLight
           intensity={hemisphereLightIntensity}
           groundColor={mixColor(
@@ -2960,81 +2891,52 @@ export function RoomView({
           />
         ) : null}
         {sunEnabled ? (
-          isBasicRenderMode ? (
-            <>
-              <directionalLight
-                castShadow={
-                  shadowsEnabled &&
-                  lightingState.sunIntensity > 0.08 &&
-                  lightingState.solarAltitude > 0.18
-                }
-                intensity={lightingState.sunIntensity * sunIntensityMultiplier}
-                color={lightingState.sunColor}
-                position={lightingState.sunPosition}
-                shadow-mapSize-width={sunShadowMapSize}
-                shadow-mapSize-height={sunShadowMapSize}
-                shadow-bias={-0.00028}
-                shadow-normalBias={mixNumber(0.01, 0.03, lightingState.daylightAmount)}
-                shadow-radius={mixNumber(4.4, 3.2, lightingState.daylightAmount)}
-              >
-                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
-              </directionalLight>
-              <directionalLight
-                castShadow={false}
-                intensity={moonFillIntensity}
+          <>
+            <mesh position={lightingState.moonPosition} raycast={() => null}>
+              <sphereGeometry args={[0.48, 10, 10]} />
+              <meshBasicMaterial
                 color={lightingState.moonColor}
-                position={lightingState.moonPosition}
+                toneMapped={false}
+                transparent
+                opacity={clamp01(lightingState.nightFactor)}
               />
-            </>
-          ) : (
-            <>
-              <mesh position={lightingState.moonPosition} raycast={() => null}>
-                <sphereGeometry args={[0.48, 10, 10]} />
-                <meshBasicMaterial
-                  color={lightingState.moonColor}
-                  toneMapped={false}
-                  transparent
-                  opacity={clamp01(lightingState.nightFactor)}
-                />
-              </mesh>
-              <directionalLight
-                castShadow={
-                  shadowsEnabled &&
-                  lightingState.sunIntensity > 0.08 &&
-                  lightingState.solarAltitude > 0.18
-                }
-                intensity={lightingState.sunIntensity * sunIntensityMultiplier}
-                color={lightingState.sunColor}
-                position={lightingState.sunPosition}
-                shadow-mapSize-width={sunShadowMapSize}
-                shadow-mapSize-height={sunShadowMapSize}
-                shadow-bias={-0.00028}
-                shadow-normalBias={mixNumber(0.01, 0.03, lightingState.daylightAmount)}
-                shadow-radius={mixNumber(4.4, 3.2, lightingState.daylightAmount)}
-              >
-                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
-              </directionalLight>
-              <directionalLight
-                castShadow={false}
-                intensity={lightingState.moonIntensity}
-                color={lightingState.moonColor}
-                position={lightingState.moonPosition}
-                shadow-mapSize-width={moonShadowMapSize}
-                shadow-mapSize-height={moonShadowMapSize}
-                shadow-bias={-0.00018}
-                shadow-normalBias={0.012}
-                shadow-radius={4.8}
-              >
-                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
-              </directionalLight>
-            </>
-          )
+            </mesh>
+            <directionalLight
+              castShadow={
+                shadowsEnabled &&
+                lightingState.sunIntensity > 0.08 &&
+                lightingState.solarAltitude > 0.18
+              }
+              intensity={lightingState.sunIntensity * sunIntensityMultiplier}
+              color={lightingState.sunColor}
+              position={lightingState.sunPosition}
+              shadow-mapSize-width={sunShadowMapSize}
+              shadow-mapSize-height={sunShadowMapSize}
+              shadow-bias={-0.00028}
+              shadow-normalBias={mixNumber(0.01, 0.03, lightingState.daylightAmount)}
+              shadow-radius={mixNumber(4.4, 3.2, lightingState.daylightAmount)}
+            >
+              <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
+            </directionalLight>
+            <directionalLight
+              castShadow={false}
+              intensity={lightingState.moonIntensity}
+              color={lightingState.moonColor}
+              position={lightingState.moonPosition}
+              shadow-mapSize-width={moonShadowMapSize}
+              shadow-mapSize-height={moonShadowMapSize}
+              shadow-bias={-0.00018}
+              shadow-normalBias={0.012}
+              shadow-radius={4.8}
+            >
+              <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
+            </directionalLight>
+          </>
         ) : null}
         <RoomShell
           surfaceLightAmount={roomSurfaceLightAmount}
           furniture={furniture}
           shadowsEnabled={shadowsEnabled}
-          nightFactor={lightingState.lampNightFactor}
           onWallClick={handleWallClick}
           onWallPointerMove={handleSurfacePointerMove}
           onWallPointerUp={handleSurfacePointerUp}
@@ -3165,50 +3067,38 @@ export function RoomView({
             confirmDisabled={isPlacementBlocked}
           />
         ) : null}
-        {shouldUseBasicColorComposer ? (
-          <EffectComposer multisampling={0}>
-            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-            {shouldApplyHueSaturation ? <HueSaturation hue={0} saturation={saturation - 1} /> : <></>}
-            {shouldApplyBrightnessContrast ? (
-              <BrightnessContrast brightness={composerBrightness} contrast={composerContrast} />
-            ) : (
-              <></>
-            )}
-          </EffectComposer>
-        ) : !isBasicRenderMode ? (
-          <EffectComposer multisampling={composerMultisampling}>
-            {shouldUseAmbientOcclusion ? (
-              <N8AO
-                aoRadius={lightingState.aoRadius}
-                intensity={composerAoIntensity}
-                color="#000000"
-              />
-            ) : (
-              <></>
-            )}
-            {shouldUseBloom ? (
-              <Bloom
-                luminanceThreshold={lightingState.bloomThreshold}
-                mipmapBlur
-                intensity={composerBloomIntensity}
-              />
-            ) : (
-              <></>
-            )}
-            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-            <Vignette
-              eskil={false}
-              offset={lightingState.vignetteOffset}
-              darkness={composerVignetteDarkness}
+        <EffectComposer multisampling={composerMultisampling}>
+          {shouldUseAmbientOcclusion ? (
+            <N8AO
+              aoRadius={lightingState.aoRadius}
+              intensity={composerAoIntensity}
+              color="#000000"
             />
-            {shouldApplyHueSaturation ? <HueSaturation hue={0} saturation={saturation - 1} /> : <></>}
-            {shouldApplyBrightnessContrast ? (
-              <BrightnessContrast brightness={composerBrightness} contrast={composerContrast} />
-            ) : (
-              <></>
-            )}
-          </EffectComposer>
-        ) : null}
+          ) : (
+            <></>
+          )}
+          {shouldUseBloom ? (
+            <Bloom
+              luminanceThreshold={lightingState.bloomThreshold}
+              mipmapBlur
+              intensity={composerBloomIntensity}
+            />
+          ) : (
+            <></>
+          )}
+          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+          <Vignette
+            eskil={false}
+            offset={lightingState.vignetteOffset}
+            darkness={composerVignetteDarkness}
+          />
+          {shouldApplyHueSaturation ? <HueSaturation hue={0} saturation={saturation - 1} /> : <></>}
+          {shouldApplyBrightnessContrast ? (
+            <BrightnessContrast brightness={composerBrightness} contrast={composerContrast} />
+          ) : (
+            <></>
+          )}
+        </EffectComposer>
         <CameraTracker onCameraPositionChange={onCameraPositionChange} />
       </Canvas>
       {buildModeEnabled && selectedFurniture ? (
