@@ -11,6 +11,7 @@ export interface FurnitureInteractionTarget {
   furnitureLabel: string;
   position: Vector3Tuple;
   rotationY: number;
+  poseOffset?: Vector3Tuple;
   chairFurnitureId?: string;
 }
 
@@ -136,28 +137,19 @@ function getDeskUseTarget(
   };
 }
 
-export function getFurnitureInteractionTarget(
+function createDirectInteractionTarget(
   placement: RoomFurniturePlacement,
-  furniturePlacements: RoomFurniturePlacement[] = [placement]
-): FurnitureInteractionTarget | null {
+  localOffset: Vector3Tuple,
+  poseOffset?: Vector3Tuple
+): FurnitureInteractionTarget {
   const definition = getFurnitureDefinition(placement.type);
-
-  if (!definition.interactionType) {
-    return null;
-  }
-
-  if (definition.interactionType === "use_pc") {
-    return getDeskUseTarget(placement, furniturePlacements);
-  }
-
-  if (!definition.interactionOffset) {
-    return null;
-  }
-
-  const rotatedOffset = rotateLocalOffset(definition.interactionOffset, placement.rotationY);
+  const rotatedOffset = rotateLocalOffset(localOffset, placement.rotationY);
+  const interactionRotationY = normalizeAngle(
+    placement.rotationY + (definition.interactionRotationOffsetY ?? 0)
+  );
 
   return {
-    type: definition.interactionType,
+    type: definition.interactionType!,
     furnitureId: placement.id,
     furnitureLabel: definition.label,
     position: [
@@ -165,6 +157,49 @@ export function getFurnitureInteractionTarget(
       placement.position[1] + rotatedOffset[1],
       placement.position[2] + rotatedOffset[2]
     ],
-    rotationY: placement.rotationY
+    rotationY: interactionRotationY,
+    poseOffset
   };
+}
+
+export function getFurnitureInteractionTargets(
+  placement: RoomFurniturePlacement,
+  furniturePlacements: RoomFurniturePlacement[] = [placement]
+): FurnitureInteractionTarget[] {
+  const definition = getFurnitureDefinition(placement.type);
+
+  if (!definition.interactionType) {
+    return [];
+  }
+
+  if (definition.interactionType === "use_pc") {
+    const deskTarget = getDeskUseTarget(placement, furniturePlacements);
+    return deskTarget ? [deskTarget] : [];
+  }
+
+  if (!definition.interactionOffset) {
+    return [];
+  }
+
+  const primaryTarget = createDirectInteractionTarget(
+    placement,
+    definition.interactionOffset,
+    definition.interactionPoseOffset
+  );
+  const secondaryTarget = definition.interactionSecondaryOffset
+    ? createDirectInteractionTarget(
+        placement,
+        definition.interactionSecondaryOffset,
+        definition.interactionSecondaryPoseOffset ?? definition.interactionPoseOffset
+      )
+    : null;
+
+  return secondaryTarget ? [primaryTarget, secondaryTarget] : [primaryTarget];
+}
+
+export function getFurnitureInteractionTarget(
+  placement: RoomFurniturePlacement,
+  furniturePlacements: RoomFurniturePlacement[] = [placement]
+): FurnitureInteractionTarget | null {
+  return getFurnitureInteractionTargets(placement, furniturePlacements)[0] ?? null;
 }

@@ -83,6 +83,21 @@ function makePoster(
   };
 }
 
+function makeWindow(
+  id: string,
+  position: [number, number, number],
+  surface: "wall_back" | "wall_left" = "wall_back"
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "window",
+    surface,
+    position,
+    rotationY: surface === "wall_left" ? Math.PI / 2 : 0,
+    ownedFurnitureId: createOwnedFurnitureId(id)
+  };
+}
+
 function makeVase(
   id: string,
   position: [number, number, number],
@@ -166,6 +181,22 @@ describe("furnitureCollision", () => {
     const otherFurniture = [makePoster("poster-2", [-7.83, 1.8, 0.2], "wall_left")];
 
     expect(getFurnitureCollisionReason(selectedPoster, otherFurniture, farAwayPlayer)).toBeNull();
+  });
+
+  it("blocks windows from overlapping other wall decor on the same wall", () => {
+    const selectedWindow = makeWindow("window-1", [-1.5, 1.82, -4.83], "wall_back");
+    const otherFurniture = [makePoster("poster-2", [-1.2, 1.9, -4.83], "wall_back")];
+
+    expect(getFurnitureCollisionReason(selectedWindow, otherFurniture, farAwayPlayer)).toBe(
+      "furniture_overlap"
+    );
+  });
+
+  it("allows windows on different walls without false overlap", () => {
+    const selectedWindow = makeWindow("window-1", [-1.5, 1.82, -4.83], "wall_back");
+    const otherFurniture = [makeWindow("window-2", [-4.83, 1.82, -1.4], "wall_left")];
+
+    expect(getFurnitureCollisionReason(selectedWindow, otherFurniture, farAwayPlayer)).toBeNull();
   });
 
   it("blocks overlapping surface decor on the same host", () => {

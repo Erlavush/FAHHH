@@ -1,4 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
+import { createCozyMaterialProps } from "./furnitureMaterials";
 
 interface ChairModelProps {
   position?: [number, number, number];
@@ -21,6 +22,7 @@ export function ChairModel({
   blocked = false,
   onPointerDown
 }: ChairModelProps) {
+  const materialState = { blocked, selected, hovered, interactionHovered };
   const legOffsets: Array<[number, number, number]> = [
     [-0.24, 0.24, -0.24],
     [0.24, 0.24, -0.24],
@@ -33,38 +35,25 @@ export function ChairModel({
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.52, 0]}>
         <boxGeometry args={[0.78, 0.1, 0.78]} />
         <meshStandardMaterial
-          color={
-            blocked
-              ? "#ef6f7c"
-              : selected
-                ? "#57db8d"
-                : hovered
-                  ? "#7bc4f8"
-                  : interactionHovered
-                    ? "#7bc4f8"
-                    : "#c68857"
-          }
-          transparent={selected || blocked || hovered || interactionHovered}
-          opacity={selected || blocked ? 0.72 : hovered ? 0.9 : interactionHovered ? 0.8 : 1}
+          {...createCozyMaterialProps(materialState, {
+            baseColor: "#9b6b45",
+            roughness: 0.9,
+            metalness: 0.03
+          })}
         />
       </mesh>
 
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.96, -0.25]}>
         <boxGeometry args={[0.78, 0.8, 0.1]} />
         <meshStandardMaterial
-          color={
-            blocked
-              ? "#dd5a67"
-              : selected
-                ? "#49c87d"
-                : hovered
-                  ? "#5ca8e6"
-                  : interactionHovered
-                    ? "#5ca8e6"
-                    : "#b47548"
-          }
-          transparent={selected || blocked || hovered || interactionHovered}
-          opacity={selected || blocked ? 0.72 : hovered ? 0.9 : interactionHovered ? 0.8 : 1}
+          {...createCozyMaterialProps(materialState, {
+            baseColor: "#7c5339",
+            activeColor: "#49c87d",
+            hoverColor: "#5ca8e6",
+            blockedColor: "#dd5a67",
+            roughness: 0.92,
+            metalness: 0.02
+          })}
         />
       </mesh>
 
@@ -77,19 +66,14 @@ export function ChairModel({
         >
           <boxGeometry args={[0.12, 0.48, 0.12]} />
           <meshStandardMaterial
-            color={
-              blocked
-                ? "#c94c58"
-                : selected
-                  ? "#3bad68"
-                  : hovered
-                    ? "#4f92ca"
-                    : interactionHovered
-                      ? "#4f92ca"
-                      : "#99643f"
-            }
-            transparent={selected || blocked || hovered || interactionHovered}
-            opacity={selected || blocked ? 0.72 : hovered ? 0.9 : interactionHovered ? 0.8 : 1}
+            {...createCozyMaterialProps(materialState, {
+              baseColor: "#5f3d2a",
+              activeColor: "#3bad68",
+              hoverColor: "#4f92ca",
+              blockedColor: "#c94c58",
+              roughness: 0.94,
+              metalness: 0.02
+            })}
           />
         </mesh>
       ))}
@@ -97,19 +81,15 @@ export function ChairModel({
       <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.44, 0]}>
         <boxGeometry args={[0.64, 0.04, 0.64]} />
         <meshStandardMaterial
-          color={
-            blocked
-              ? "#f19ba4"
-              : selected
-                ? "#8ef0b0"
-                : hovered
-                  ? "#d8efff"
-                  : interactionHovered
-                    ? "#d8efff"
-                    : "#d9b38a"
-          }
-          transparent={selected || blocked || hovered || interactionHovered}
-          opacity={selected || blocked ? 0.72 : hovered ? 0.92 : interactionHovered ? 0.8 : 1}
+          {...createCozyMaterialProps(materialState, {
+            baseColor: "#c7af95",
+            activeColor: "#8ef0b0",
+            hoverColor: "#d8efff",
+            blockedColor: "#f19ba4",
+            roughness: 0.98,
+            metalness: 0.01,
+            hoveredOpacity: 0.92
+          })}
         />
       </mesh>
 

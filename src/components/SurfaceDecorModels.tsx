@@ -1,4 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
+import { createCozyMaterialProps } from "./furnitureMaterials";
 
 interface SurfaceDecorModelProps {
   position?: [number, number, number];
@@ -21,17 +22,20 @@ function createDecorMaterial(
   hoverColor: string,
   blockedColor: string
 ) {
-  return {
-    color: blocked
-      ? blockedColor
-      : selected
-        ? activeColor
-        : hovered || interactionHovered
-          ? hoverColor
-          : baseColor,
-    transparent: selected || blocked || hovered || interactionHovered,
-    opacity: selected || blocked ? 0.76 : hovered ? 0.92 : interactionHovered ? 0.84 : 1
-  };
+  return createCozyMaterialProps(
+    { blocked, selected, hovered, interactionHovered },
+    {
+      baseColor,
+      activeColor,
+      hoverColor,
+      blockedColor,
+      selectedOpacity: 0.76,
+      hoveredOpacity: 0.92,
+      interactionOpacity: 0.84,
+      roughness: 0.9,
+      metalness: 0.02
+    }
+  );
 }
 
 export function VaseModel({
@@ -49,7 +53,7 @@ export function VaseModel({
     selected,
     hovered,
     interactionHovered,
-    "#f6efe6",
+    "#efe6d9",
     "#7fe6ab",
     "#dcefff",
     "#f4a4ae"
@@ -59,7 +63,7 @@ export function VaseModel({
     selected,
     hovered,
     interactionHovered,
-    "#83b46e",
+    "#6c8e57",
     "#4cd884",
     "#8ccfb0",
     "#d76876"
@@ -69,7 +73,7 @@ export function VaseModel({
     selected,
     hovered,
     interactionHovered,
-    "#efb6c9",
+    "#d9aa9b",
     "#8bf0bb",
     "#f5dff1",
     "#f08293"
@@ -131,7 +135,7 @@ export function BookStackModel({
     selected,
     hovered,
     interactionHovered,
-    "#6f8cab",
+    "#6a7d5d",
     "#6fe19d",
     "#a6d6fb",
     "#eb818d"
@@ -141,7 +145,7 @@ export function BookStackModel({
     selected,
     hovered,
     interactionHovered,
-    "#c4a56d",
+    "#b58a55",
     "#82ebb1",
     "#d5ebff",
     "#f1959f"
@@ -151,7 +155,7 @@ export function BookStackModel({
     selected,
     hovered,
     interactionHovered,
-    "#efe5d4",
+    "#ece0cf",
     "#b6f7d0",
     "#f4fbff",
     "#f5bec6"

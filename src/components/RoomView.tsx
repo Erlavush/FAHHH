@@ -1,26 +1,32 @@
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Html, OrbitControls, PerspectiveCamera, PivotControls } from "@react-three/drei";
+import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  ACESFilmicToneMapping,
   CanvasTexture,
   Euler,
   Matrix4,
   MOUSE,
   NearestFilter,
+  Object3D,
   Plane,
   PerspectiveCamera as ThreePerspectiveCamera,
   Quaternion,
   Ray,
+  RepeatWrapping,
   SRGBColorSpace,
+  SpotLight as ThreeSpotLight,
   Vector3
 } from "three";
 import { ChairModel } from "./ChairModel";
 import { FridgeModel } from "./FridgeModel";
 import { MinecraftPlayer } from "./MinecraftPlayer";
-import { OfficeChairModel, OfficeDeskModel } from "./OfficePackModels";
+import { OfficeChairModel, OfficeDeskModel, OfficeWardrobeModel } from "./OfficePackModels";
 import { PosterModel } from "./PosterModel";
 import { SmallTableModel } from "./SmallTableModel";
 import { BookStackModel, VaseModel } from "./SurfaceDecorModels";
+import { WallWindowModel } from "./WallWindowModel";
 import {
   BedModel,
   DeskModel,
@@ -61,6 +67,7 @@ import {
   syncAnchoredSurfaceDecor,
   type SurfaceLocalOffset
 } from "../lib/surfaceDecor";
+import { createWallOpeningLayout } from "../lib/wallOpenings";
 
 const TILE_SIZE = 1;
 const GRID_SIZE = 10;
@@ -68,14 +75,20 @@ const HALF_FLOOR_SIZE = (GRID_SIZE * TILE_SIZE) / 2;
 const BACK_WALL_SURFACE_Z = -HALF_FLOOR_SIZE + 0.17;
 const LEFT_WALL_SURFACE_X = -HALF_FLOOR_SIZE + 0.17;
 const WALL_CENTER_COORD = -HALF_FLOOR_SIZE - 0.06;
+const WALL_THICKNESS = 0.22;
+const WALL_HEIGHT = 4.4;
+const WALL_BOTTOM_Y = 0;
+const WALL_TOP_Y = WALL_HEIGHT;
 const BASEBOARD_COORD = -HALF_FLOOR_SIZE + 0.07;
 const TRIM_COORD = -HALF_FLOOR_SIZE + 0.08;
 const WALL_SPAN = GRID_SIZE + 0.2;
+const WALL_AXIS_MIN = -WALL_SPAN / 2;
+const WALL_AXIS_MAX = WALL_SPAN / 2;
 const BASEBOARD_SPAN = GRID_SIZE - 0.3;
-const SHADE_PANEL_SPAN = Math.max(2.5, GRID_SIZE * 0.26);
-const SHADE_PANEL_CENTER = -HALF_FLOOR_SIZE + 1.7;
 const WALL_MIN_Y = 1;
 const WALL_MAX_Y = 2.7;
+const WALL_RAIL_Y = 1.58;
+const WALL_TOP_TRIM_Y = 3.55;
 const FLOOR_GIZMO_SCREEN_SIZE = 108;
 const WALL_GIZMO_SCREEN_SIZE = 94;
 const GIZMO_LINE_WIDTH = 4;
@@ -145,38 +158,112 @@ type PlayerInteractionStatus =
     }
   | null;
 
-function createConcreteTexture(): CanvasTexture {
+function createWoodFloorTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = 16;
-  canvas.height = 16;
+  canvas.width = 256;
+  canvas.height = 256;
   const context = canvas.getContext("2d");
 
   if (!context) {
-    throw new Error("Could not create the concrete texture.");
+    throw new Error("Could not create the wood floor texture.");
   }
 
-  context.fillStyle = "#e7e7e7";
-  context.fillRect(0, 0, 16, 16);
+  const plankPalette = ["#8b5e3d", "#6f492f", "#7b5135", "#5f3c28", "#9a6945", "#70482e"];
+  const plankWidth = 32;
 
-  const accents = [
-    { x: 1, y: 2, color: "#d9d9d9" },
-    { x: 4, y: 1, color: "#f5f5f5" },
-    { x: 7, y: 3, color: "#dbdbdb" },
-    { x: 11, y: 2, color: "#f0f0f0" },
-    { x: 13, y: 5, color: "#d5d5d5" },
-    { x: 3, y: 7, color: "#f4f4f4" },
-    { x: 6, y: 8, color: "#d7d7d7" },
-    { x: 10, y: 9, color: "#eeeeee" },
-    { x: 14, y: 11, color: "#d9d9d9" },
-    { x: 2, y: 12, color: "#f2f2f2" },
-    { x: 8, y: 13, color: "#dadada" },
-    { x: 12, y: 14, color: "#f8f8f8" }
-  ];
+  context.fillStyle = "#5a3826";
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
-  accents.forEach((accent) => {
-    context.fillStyle = accent.color;
-    context.fillRect(accent.x, accent.y, 1, 1);
-  });
+  for (let column = 0; column < canvas.width; column += plankWidth) {
+    const plankColor = plankPalette[(column / plankWidth) % plankPalette.length];
+    context.fillStyle = plankColor;
+    context.fillRect(column, 0, plankWidth, canvas.height);
+
+    context.fillStyle = "rgba(31, 17, 10, 0.28)";
+    context.fillRect(column, 0, 2, canvas.height);
+    context.fillRect(column + plankWidth - 2, 0, 2, canvas.height);
+
+    for (let row = 0; row < canvas.height; row += 32) {
+      context.fillStyle = "rgba(24, 12, 8, 0.16)";
+      context.fillRect(column, row, plankWidth, 2);
+    }
+
+    for (let grainIndex = 0; grainIndex < 7; grainIndex += 1) {
+      const grainX = column + 5 + grainIndex * 4;
+      context.fillStyle = grainIndex % 2 === 0 ? "rgba(255, 224, 187, 0.08)" : "rgba(38, 20, 12, 0.11)";
+      context.fillRect(grainX, 0, 1, canvas.height);
+    }
+  }
+
+  context.fillStyle = "rgba(255, 239, 211, 0.06)";
+  for (let knotIndex = 0; knotIndex < 10; knotIndex += 1) {
+    const knotX = 18 + knotIndex * 22;
+    const knotY = 20 + (knotIndex % 5) * 38;
+    context.beginPath();
+    context.ellipse(knotX, knotY, 6, 3, 0, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  const texture = new CanvasTexture(canvas);
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
+  texture.generateMipmaps = false;
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(2.5, 2.5);
+
+  return texture;
+}
+
+function createSunlightPatchTexture(): CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Could not create the sunlight patch texture.");
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.filter = "blur(18px)";
+
+  const beamGradient = context.createLinearGradient(256, 16, 256, 246);
+  beamGradient.addColorStop(0, "rgba(255, 249, 232, 0.92)");
+  beamGradient.addColorStop(0.24, "rgba(255, 233, 189, 0.58)");
+  beamGradient.addColorStop(0.58, "rgba(255, 206, 134, 0.22)");
+  beamGradient.addColorStop(1, "rgba(255, 186, 108, 0)");
+  context.fillStyle = beamGradient;
+  context.beginPath();
+  context.moveTo(178, 24);
+  context.lineTo(334, 24);
+  context.lineTo(434, 236);
+  context.lineTo(78, 236);
+  context.closePath();
+  context.fill();
+
+  context.filter = "blur(10px)";
+  const coreGradient = context.createLinearGradient(256, 20, 256, 228);
+  coreGradient.addColorStop(0, "rgba(255, 255, 244, 0.82)");
+  coreGradient.addColorStop(0.22, "rgba(255, 241, 206, 0.42)");
+  coreGradient.addColorStop(1, "rgba(255, 241, 206, 0)");
+  context.fillStyle = coreGradient;
+  context.beginPath();
+  context.moveTo(226, 18);
+  context.lineTo(286, 18);
+  context.lineTo(338, 222);
+  context.lineTo(174, 222);
+  context.closePath();
+  context.fill();
+
+  context.filter = "none";
+  const streakGradient = context.createLinearGradient(256, 0, 256, 236);
+  streakGradient.addColorStop(0, "rgba(255, 255, 255, 0.24)");
+  streakGradient.addColorStop(0.5, "rgba(255, 240, 206, 0.08)");
+  streakGradient.addColorStop(1, "rgba(255, 240, 206, 0)");
+  context.fillStyle = streakGradient;
+  context.fillRect(244, 26, 24, 184);
 
   const texture = new CanvasTexture(canvas);
   texture.magFilter = NearestFilter;
@@ -265,6 +352,8 @@ function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number
       return [0, 1.82, 0];
     case "fridge":
       return [0, 2.28, 0];
+    case "wardrobe":
+      return [0, 2.5, 0];
     case "office_desk":
       return [0, 1.68, 0];
     case "office_chair":
@@ -317,12 +406,28 @@ function getSurfaceDecorSelectionHitboxSize(
   ];
 }
 
-function getActiveAxes(surface: FurniturePlacementSurface): [boolean, boolean, boolean] {
-  if (surface === "wall_back") {
+function hasFixedWallVerticalPlacement(type: FurnitureType): boolean {
+  return getFurnitureDefinition(type).wallOpening?.fixedVertical === true;
+}
+
+function getActiveAxes(item: RoomFurniturePlacement | null): [boolean, boolean, boolean] {
+  if (!item) {
+    return [true, false, true];
+  }
+
+  if (item.surface === "wall_back") {
+    if (hasFixedWallVerticalPlacement(item.type)) {
+      return [true, false, false];
+    }
+
     return [true, true, false];
   }
 
-  if (surface === "wall_left") {
+  if (item.surface === "wall_left") {
+    if (hasFixedWallVerticalPlacement(item.type)) {
+      return [false, false, true];
+    }
+
     return [false, true, true];
   }
 
@@ -365,6 +470,7 @@ interface FloorStageProps {
   onFloorMoveCommand: (event: ThreeEvent<MouseEvent>) => void;
   onFloorPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onFloorPointerUp: () => void;
+  isDay: boolean;
   checkerEnabled: boolean;
   floorPrimaryColor: string;
   floorSecondaryColor: string;
@@ -376,12 +482,16 @@ function FloorStage({
   onFloorMoveCommand,
   onFloorPointerMove,
   onFloorPointerUp,
+  isDay,
   checkerEnabled,
   floorPrimaryColor,
   floorSecondaryColor,
   shadowsEnabled
 }: FloorStageProps) {
-  const concreteTexture = useMemo(() => createConcreteTexture(), []);
+  const woodTexture = useMemo(() => createWoodFloorTexture(), []);
+  const platformColor = isDay ? "#34261f" : "#1f1714";
+  const floorEdgeColor = isDay ? "#d6a56d" : "#825f42";
+  const floorLipColor = isDay ? "#7a4a2d" : "#33241a";
   const tiles = useMemo(() => {
     const nextTiles = [];
 
@@ -401,12 +511,9 @@ function FloorStage({
             position={[x, -0.5, z]}
             receiveShadow={shadowsEnabled}
             castShadow={shadowsEnabled}
-            onContextMenu={onFloorMoveCommand}
-            onPointerMove={onFloorPointerMove}
-            onPointerUp={onFloorPointerUp}
           >
             <boxGeometry args={[TILE_SIZE, 1, TILE_SIZE]} />
-            <meshStandardMaterial color={color} map={concreteTexture} />
+            <meshStandardMaterial color={color} roughness={0.94} />
           </mesh>
         );
       }
@@ -415,18 +522,56 @@ function FloorStage({
     return nextTiles;
   }, [
     checkerEnabled,
-    concreteTexture,
     floorPrimaryColor,
     floorSecondaryColor,
-    onFloorMoveCommand,
-    onFloorPointerMove,
-    onFloorPointerUp,
     shadowsEnabled
   ]);
 
   return (
     <group>
-      <group>{tiles}</group>
+      <mesh position={[0, -0.68, 0]} receiveShadow={shadowsEnabled}>
+        <boxGeometry args={[GRID_SIZE + 0.62, 0.24, GRID_SIZE + 0.62]} />
+        <meshStandardMaterial color={platformColor} roughness={0.98} />
+      </mesh>
+      {!checkerEnabled ? (
+        <mesh position={[0, -0.5, 0]} receiveShadow={shadowsEnabled} castShadow={shadowsEnabled}>
+          <boxGeometry args={[GRID_SIZE, 1, GRID_SIZE]} />
+          <meshStandardMaterial
+            color={isDay ? "#8f5f3f" : "#70472f"}
+            map={woodTexture}
+            roughness={isDay ? 0.72 : 0.88}
+            metalness={0.03}
+          />
+        </mesh>
+      ) : (
+        <group>{tiles}</group>
+      )}
+      <mesh position={[0, 0.03, -HALF_FLOOR_SIZE + 0.06]} raycast={() => null}>
+        <boxGeometry args={[GRID_SIZE + 0.14, 0.06, 0.12]} />
+        <meshStandardMaterial color={floorEdgeColor} roughness={0.82} />
+      </mesh>
+      <mesh position={[0, 0.03, HALF_FLOOR_SIZE - 0.06]} raycast={() => null}>
+        <boxGeometry args={[GRID_SIZE + 0.14, 0.06, 0.12]} />
+        <meshStandardMaterial color={floorLipColor} roughness={0.86} />
+      </mesh>
+      <mesh position={[-HALF_FLOOR_SIZE + 0.06, 0.03, 0]} raycast={() => null}>
+        <boxGeometry args={[0.12, 0.06, GRID_SIZE + 0.14]} />
+        <meshStandardMaterial color={floorEdgeColor} roughness={0.82} />
+      </mesh>
+      <mesh position={[HALF_FLOOR_SIZE - 0.06, 0.03, 0]} raycast={() => null}>
+        <boxGeometry args={[0.12, 0.06, GRID_SIZE + 0.14]} />
+        <meshStandardMaterial color={floorLipColor} roughness={0.86} />
+      </mesh>
+      <mesh
+        position={[0, 0.015, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        onContextMenu={onFloorMoveCommand}
+        onPointerMove={onFloorPointerMove}
+        onPointerUp={onFloorPointerUp}
+      >
+        <planeGeometry args={[GRID_SIZE, GRID_SIZE]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       <mesh position={[targetPosition[0], 0.02, targetPosition[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.14, 0.22, 32]} />
         <meshBasicMaterial color="#5abed0" transparent opacity={0.9} />
@@ -435,76 +580,480 @@ function FloorStage({
   );
 }
 
+function getWindowLightingProfile(isDay: boolean) {
+  if (isDay) {
+    return {
+      patchOpacity: 0.42,
+      spotlightColor: "#ffe5bd",
+      spotlightIntensity: 1.35,
+      spotlightDistance: 9,
+      spotlightAngle: 0.42,
+      spotlightPenumbra: 0.95,
+      patchRoll: 0.14
+    };
+  }
+
+  return {
+    patchOpacity: 0,
+    spotlightColor: "#000000",
+    spotlightIntensity: 0,
+    spotlightDistance: 0,
+    spotlightAngle: 0.38,
+    spotlightPenumbra: 0.92,
+    patchRoll: 0
+  };
+}
+
+function WallInteractionPlane({
+  surface,
+  onWallClick,
+  onWallPointerMove,
+  onWallPointerUp
+}: {
+  surface: "wall_back" | "wall_left";
+  onWallClick: (event: ThreeEvent<MouseEvent>) => void;
+  onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
+  onWallPointerUp: () => void;
+}) {
+  const isLeftWall = surface === "wall_left";
+
+  return (
+    <mesh
+      position={
+        isLeftWall
+          ? [LEFT_WALL_SURFACE_X, WALL_HEIGHT / 2, 0]
+          : [0, WALL_HEIGHT / 2, BACK_WALL_SURFACE_Z]
+      }
+      onClick={onWallClick}
+      onPointerMove={onWallPointerMove}
+      onPointerUp={onWallPointerUp}
+      renderOrder={-1}
+    >
+      <boxGeometry args={isLeftWall ? [0.02, WALL_HEIGHT, WALL_SPAN] : [WALL_SPAN, WALL_HEIGHT, 0.02]} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
+
+function WallBand({
+  surface,
+  center,
+  centerY,
+  span,
+  height,
+  color,
+  shadowsEnabled
+}: {
+  surface: "wall_back" | "wall_left";
+  center: number;
+  centerY: number;
+  span: number;
+  height: number;
+  color: string;
+  shadowsEnabled: boolean;
+}) {
+  if (span <= 0.0001 || height <= 0.0001) {
+    return null;
+  }
+
+  const isLeftWall = surface === "wall_left";
+
+  return (
+    <mesh
+      position={
+        isLeftWall
+          ? [WALL_CENTER_COORD, centerY, center]
+          : [center, centerY, WALL_CENTER_COORD]
+      }
+      castShadow={shadowsEnabled}
+      receiveShadow={shadowsEnabled}
+      raycast={() => null}
+    >
+      <boxGeometry args={isLeftWall ? [WALL_THICKNESS, height, span] : [span, height, WALL_THICKNESS]} />
+      <meshStandardMaterial color={color} roughness={0.95} />
+    </mesh>
+  );
+}
+
+function WallRail({
+  surface,
+  center,
+  span,
+  color,
+  shadowsEnabled
+}: {
+  surface: "wall_back" | "wall_left";
+  center: number;
+  span: number;
+  color: string;
+  shadowsEnabled: boolean;
+}) {
+  if (span <= 0.0001) {
+    return null;
+  }
+
+  const isLeftWall = surface === "wall_left";
+
+  return (
+    <mesh
+      position={
+        isLeftWall
+          ? [BASEBOARD_COORD + 0.04, WALL_RAIL_Y, center]
+          : [center, WALL_RAIL_Y, BASEBOARD_COORD + 0.04]
+      }
+      receiveShadow={shadowsEnabled}
+      raycast={() => null}
+    >
+      <boxGeometry args={isLeftWall ? [0.04, 0.08, span] : [span, 0.08, 0.04]} />
+      <meshStandardMaterial color={color} roughness={0.84} />
+    </mesh>
+  );
+}
+
+function WindowSunlightPatch({
+  placement,
+  isDay,
+  sunEnabled
+}: {
+  placement: RoomFurniturePlacement;
+  isDay: boolean;
+  sunEnabled: boolean;
+}) {
+  const definition = getFurnitureDefinition(placement.type);
+  const sunlightPatch = definition.sunlightPatch;
+  const patchTexture = useMemo(() => createSunlightPatchTexture(), []);
+  const lightingProfile = getWindowLightingProfile(isDay);
+  const spotlightRef = useRef<ThreeSpotLight | null>(null);
+  const spotlightTargetRef = useRef<Object3D | null>(null);
+
+  useEffect(() => {
+    if (!isDay || !sunEnabled || !spotlightRef.current || !spotlightTargetRef.current) {
+      return;
+    }
+
+    spotlightRef.current.target = spotlightTargetRef.current;
+  }, [isDay, sunEnabled, placement.position, placement.surface]);
+
+  if (!sunlightPatch || !isDay || !sunEnabled) {
+    return null;
+  }
+
+  const isLeftWall = placement.surface === "wall_left";
+  const patchRotation: [number, number, number] = isLeftWall
+    ? [-Math.PI / 2, Math.PI / 2, -lightingProfile.patchRoll]
+    : [-Math.PI / 2, 0, lightingProfile.patchRoll];
+  const patchPosition: [number, number, number] = isLeftWall
+    ? [
+        LEFT_WALL_SURFACE_X + sunlightPatch.offsetFromWall + sunlightPatch.depth * 0.42,
+        0.028,
+        placement.position[2] - 0.12
+      ]
+    : [
+        placement.position[0] + 0.12,
+        0.028,
+        BACK_WALL_SURFACE_Z + sunlightPatch.offsetFromWall + sunlightPatch.depth * 0.42
+      ];
+  const spotlightOrigin: [number, number, number] = isLeftWall
+    ? [LEFT_WALL_SURFACE_X - 0.46, placement.position[1] + 0.1, placement.position[2] - 0.02]
+    : [placement.position[0] + 0.04, placement.position[1] + 0.1, BACK_WALL_SURFACE_Z - 0.46];
+  const spotlightTarget: [number, number, number] = isLeftWall
+    ? [LEFT_WALL_SURFACE_X + 1.6, 0.02, placement.position[2] + 0.18]
+    : [placement.position[0] + 0.24, 0.02, BACK_WALL_SURFACE_Z + 1.7];
+
+  return (
+    <group>
+      <mesh
+        position={patchPosition}
+        rotation={patchRotation}
+        raycast={() => null}
+        renderOrder={1}
+      >
+        <planeGeometry args={[sunlightPatch.width * 1.15, sunlightPatch.depth]} />
+        <meshBasicMaterial
+          map={patchTexture}
+          transparent
+          opacity={lightingProfile.patchOpacity}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <spotLight
+        ref={spotlightRef}
+        color={lightingProfile.spotlightColor}
+        intensity={lightingProfile.spotlightIntensity}
+        distance={lightingProfile.spotlightDistance}
+        angle={lightingProfile.spotlightAngle}
+        penumbra={lightingProfile.spotlightPenumbra}
+        decay={1.8}
+        position={spotlightOrigin}
+      />
+      <object3D ref={spotlightTargetRef} position={spotlightTarget} />
+    </group>
+  );
+}
+
+function CubeLamp({
+  position,
+  isDay
+}: {
+  position: [number, number, number];
+  isDay: boolean;
+}) {
+  const glowColor = isDay ? "#ffd290" : "#ffd394";
+  const bulbColor = isDay ? "#fff0d2" : "#ffe7bc";
+
+  return (
+    <group position={position}>
+      <mesh raycast={() => null}>
+        <boxGeometry args={[0.32, 0.32, 0.32]} />
+        <meshStandardMaterial
+          color={bulbColor}
+          emissive={glowColor}
+          emissiveIntensity={isDay ? 1.25 : 2.35}
+          roughness={0.18}
+          metalness={0.02}
+          toneMapped={false}
+        />
+      </mesh>
+      <pointLight
+        position={[0, 0, 0]}
+        color={glowColor}
+        intensity={isDay ? 0.82 : 1.95}
+        distance={isDay ? 6.8 : 6.1}
+        decay={2}
+      />
+    </group>
+  );
+}
+
 function RoomShell({
   isDay,
+  sunEnabled,
+  furniture,
   shadowsEnabled,
   onWallClick,
   onWallPointerMove,
   onWallPointerUp
 }: {
   isDay: boolean;
+  sunEnabled: boolean;
+  furniture: RoomFurniturePlacement[];
   shadowsEnabled: boolean;
   onWallClick: (event: ThreeEvent<MouseEvent>) => void;
   onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onWallPointerUp: () => void;
 }) {
-  const wallColor = isDay ? "#f6efe5" : "#20242f";
-  const wallShade = isDay ? "#eadfce" : "#181c25";
-  const baseboardColor = isDay ? "#d2b59a" : "#434b5e";
-  const trimColor = isDay ? "#fff8f0" : "#2a3040";
+  const wallColor = isDay ? "#ddd5ca" : "#2d2826";
+  const baseboardColor = isDay ? "#855c3f" : "#5d4535";
+  const trimColor = isDay ? "#efe8dc" : "#4b3a2e";
+  const wallRailColor = isDay ? "#9c7654" : "#6a5140";
+  const cornerTrimColor = isDay ? "#e6ddd0" : "#5a4436";
+  const windowPlacements = useMemo(
+    () =>
+      furniture.filter(
+        (item) =>
+          item.type === "window" &&
+          (item.surface === "wall_back" || item.surface === "wall_left")
+      ),
+    [furniture]
+  );
+  const backWallLayout = useMemo(
+    () =>
+      createWallOpeningLayout(
+        windowPlacements
+          .filter((item) => item.surface === "wall_back")
+          .map((item) => {
+            const definition = getFurnitureDefinition(item.type);
+            return {
+              center: item.position[0],
+              width: definition.wallOpening?.width ?? definition.footprintWidth,
+              centerY: definition.wallOpening?.centerY ?? item.position[1],
+              height: definition.wallOpening?.height ?? definition.footprintDepth
+            };
+          }),
+        {
+          wallMin: WALL_AXIS_MIN,
+          wallMax: WALL_AXIS_MAX,
+          wallBottomY: WALL_BOTTOM_Y,
+          wallTopY: WALL_TOP_Y,
+          railY: WALL_RAIL_Y
+        }
+      ),
+    [windowPlacements]
+  );
+  const leftWallLayout = useMemo(
+    () =>
+      createWallOpeningLayout(
+        windowPlacements
+          .filter((item) => item.surface === "wall_left")
+          .map((item) => {
+            const definition = getFurnitureDefinition(item.type);
+            return {
+              center: item.position[2],
+              width: definition.wallOpening?.width ?? definition.footprintWidth,
+              centerY: definition.wallOpening?.centerY ?? item.position[1],
+              height: definition.wallOpening?.height ?? definition.footprintDepth
+            };
+          }),
+        {
+          wallMin: WALL_AXIS_MIN,
+          wallMax: WALL_AXIS_MAX,
+          wallBottomY: WALL_BOTTOM_Y,
+          wallTopY: WALL_TOP_Y,
+          railY: WALL_RAIL_Y
+        }
+      ),
+    [windowPlacements]
+  );
 
   return (
     <group>
-      <mesh
-        position={[WALL_CENTER_COORD, 2.2, 0]}
-        castShadow={shadowsEnabled}
-        receiveShadow={shadowsEnabled}
-        onClick={onWallClick}
-        onPointerMove={onWallPointerMove}
-        onPointerUp={onWallPointerUp}
-      >
-        <boxGeometry args={[0.22, 4.4, WALL_SPAN]} />
-        <meshStandardMaterial color={wallColor} />
-      </mesh>
-      <mesh
-        position={[0, 2.2, WALL_CENTER_COORD]}
-        castShadow={shadowsEnabled}
-        receiveShadow={shadowsEnabled}
-        onClick={onWallClick}
-        onPointerMove={onWallPointerMove}
-        onPointerUp={onWallPointerUp}
-      >
-        <boxGeometry args={[WALL_SPAN, 4.4, 0.22]} />
-        <meshStandardMaterial color={wallColor} />
+      <WallInteractionPlane
+        surface="wall_left"
+        onWallClick={onWallClick}
+        onWallPointerMove={onWallPointerMove}
+        onWallPointerUp={onWallPointerUp}
+      />
+      <WallInteractionPlane
+        surface="wall_back"
+        onWallClick={onWallClick}
+        onWallPointerMove={onWallPointerMove}
+        onWallPointerUp={onWallPointerUp}
+      />
+
+      <WallBand
+        surface="wall_left"
+        center={0}
+        centerY={leftWallLayout.lowerBandCenterY ?? WALL_HEIGHT / 2}
+        span={WALL_SPAN}
+        height={leftWallLayout.lowerBandHeight}
+        color={wallColor}
+        shadowsEnabled={shadowsEnabled}
+      />
+      {leftWallLayout.middleSegments.map((segment) => (
+        <WallBand
+          key={`left-middle-${segment.center}-${segment.span}`}
+          surface="wall_left"
+          center={segment.center}
+          centerY={leftWallLayout.openingBandCenterY ?? 0}
+          span={segment.span}
+          height={leftWallLayout.openingBandHeight}
+          color={wallColor}
+          shadowsEnabled={shadowsEnabled}
+        />
+      ))}
+      <WallBand
+        surface="wall_left"
+        center={0}
+        centerY={leftWallLayout.upperBandCenterY ?? WALL_HEIGHT / 2}
+        span={WALL_SPAN}
+        height={leftWallLayout.upperBandHeight}
+        color={wallColor}
+        shadowsEnabled={shadowsEnabled}
+      />
+
+      <WallBand
+        surface="wall_back"
+        center={0}
+        centerY={backWallLayout.lowerBandCenterY ?? WALL_HEIGHT / 2}
+        span={WALL_SPAN}
+        height={backWallLayout.lowerBandHeight}
+        color={wallColor}
+        shadowsEnabled={shadowsEnabled}
+      />
+      {backWallLayout.middleSegments.map((segment) => (
+        <WallBand
+          key={`back-middle-${segment.center}-${segment.span}`}
+          surface="wall_back"
+          center={segment.center}
+          centerY={backWallLayout.openingBandCenterY ?? 0}
+          span={segment.span}
+          height={backWallLayout.openingBandHeight}
+          color={wallColor}
+          shadowsEnabled={shadowsEnabled}
+        />
+      ))}
+      <WallBand
+        surface="wall_back"
+        center={0}
+        centerY={backWallLayout.upperBandCenterY ?? WALL_HEIGHT / 2}
+        span={WALL_SPAN}
+        height={backWallLayout.upperBandHeight}
+        color={wallColor}
+        shadowsEnabled={shadowsEnabled}
+      />
+
+      <mesh position={[WALL_CENTER_COORD + 0.11, WALL_HEIGHT / 2, WALL_CENTER_COORD + 0.11]} raycast={() => null}>
+        <boxGeometry args={[0.12, WALL_HEIGHT, 0.12]} />
+        <meshStandardMaterial color={cornerTrimColor} roughness={0.88} />
       </mesh>
 
-      <mesh position={[BASEBOARD_COORD, 0.12, 0]} receiveShadow={shadowsEnabled}>
+      <mesh position={[BASEBOARD_COORD, 0.12, 0]} receiveShadow={shadowsEnabled} raycast={() => null}>
         <boxGeometry args={[0.12, 0.24, BASEBOARD_SPAN]} />
-        <meshStandardMaterial color={baseboardColor} />
+        <meshStandardMaterial color={baseboardColor} roughness={0.86} />
       </mesh>
-      <mesh position={[0, 0.12, BASEBOARD_COORD]} receiveShadow={shadowsEnabled}>
+      <mesh position={[0, 0.12, BASEBOARD_COORD]} receiveShadow={shadowsEnabled} raycast={() => null}>
         <boxGeometry args={[BASEBOARD_SPAN, 0.24, 0.12]} />
-        <meshStandardMaterial color={baseboardColor} />
+        <meshStandardMaterial color={baseboardColor} roughness={0.86} />
       </mesh>
 
-      <mesh position={[TRIM_COORD, 3.55, 0]} receiveShadow={shadowsEnabled}>
+      <mesh position={[TRIM_COORD, WALL_TOP_TRIM_Y, 0]} receiveShadow={shadowsEnabled} raycast={() => null}>
         <boxGeometry args={[0.08, 0.18, BASEBOARD_SPAN]} />
-        <meshStandardMaterial color={trimColor} />
+        <meshStandardMaterial color={trimColor} roughness={0.88} />
       </mesh>
-      <mesh position={[0, 3.55, TRIM_COORD]} receiveShadow={shadowsEnabled}>
+      <mesh position={[0, WALL_TOP_TRIM_Y, TRIM_COORD]} receiveShadow={shadowsEnabled} raycast={() => null}>
         <boxGeometry args={[BASEBOARD_SPAN, 0.18, 0.08]} />
-        <meshStandardMaterial color={trimColor} />
+        <meshStandardMaterial color={trimColor} roughness={0.88} />
       </mesh>
 
-      <mesh position={[-HALF_FLOOR_SIZE + 0.12, 1.24, SHADE_PANEL_CENTER]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[0.08, 1.95, SHADE_PANEL_SPAN]} />
-        <meshStandardMaterial color={wallShade} />
-      </mesh>
-      <mesh position={[SHADE_PANEL_CENTER, 1.24, -HALF_FLOOR_SIZE + 0.12]} receiveShadow={shadowsEnabled}>
-        <boxGeometry args={[SHADE_PANEL_SPAN, 1.95, 0.08]} />
-        <meshStandardMaterial color={wallShade} />
-      </mesh>
+      {leftWallLayout.railSegments.map((segment) => (
+        <WallRail
+          key={`left-rail-${segment.center}-${segment.span}`}
+          surface="wall_left"
+          center={segment.center}
+          span={segment.span}
+          color={wallRailColor}
+          shadowsEnabled={shadowsEnabled}
+        />
+      ))}
+      {backWallLayout.railSegments.map((segment) => (
+        <WallRail
+          key={`back-rail-${segment.center}-${segment.span}`}
+          surface="wall_back"
+          center={segment.center}
+          span={segment.span}
+          color={wallRailColor}
+          shadowsEnabled={shadowsEnabled}
+        />
+      ))}
+
+      {windowPlacements.map((placement) => (
+        <WindowSunlightPatch
+          key={`sun-${placement.id}`}
+          placement={placement}
+          isDay={isDay}
+          sunEnabled={sunEnabled}
+        />
+      ))}
+
+      <CubeLamp position={[2.7, 3.15, -3.92]} isDay={isDay} />
+      <CubeLamp position={[-3.12, 2.48, -3.95]} isDay={isDay} />
     </group>
+  );
+}
+
+function NightPostEffects() {
+  return (
+    <EffectComposer multisampling={0}>
+      <Bloom
+        intensity={0.58}
+        luminanceThreshold={0.36}
+        luminanceSmoothing={0.2}
+        radius={0.64}
+        mipmapBlur
+      />
+      <Vignette eskil={false} offset={0.18} darkness={0.4} />
+    </EffectComposer>
   );
 }
 
@@ -533,33 +1082,6 @@ interface RoomViewProps {
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
-}
-
-function StarField() {
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 48 }, (_, index) => {
-        const angle = index * 0.61;
-        const x = Math.cos(angle * 1.7) * (9 + (index % 6));
-        const y = 5 + (index % 7) * 0.55;
-        const z = Math.sin(angle * 1.2) * (9 + ((index + 3) % 5));
-        const scale = 0.04 + (index % 3) * 0.015;
-
-        return { x, y, z, scale };
-      }),
-    []
-  );
-
-  return (
-    <group>
-      {stars.map((star, index) => (
-        <mesh key={index} position={[star.x, star.y, star.z]}>
-          <sphereGeometry args={[star.scale, 6, 6]} />
-          <meshBasicMaterial color="#f7fbff" />
-        </mesh>
-      ))}
-    </group>
-  );
 }
 
 function CameraTracker({
@@ -704,6 +1226,7 @@ function EditDock({
   blocked,
   canRotate,
   canSwapWall,
+  canNudgeVertical,
   onNudgeNegativeHorizontal,
   onNudgePositiveHorizontal,
   onNudgeNegativeVertical,
@@ -718,6 +1241,7 @@ function EditDock({
   blocked: boolean;
   canRotate: boolean;
   canSwapWall: boolean;
+  canNudgeVertical: boolean;
   onNudgeNegativeHorizontal: () => void;
   onNudgePositiveHorizontal: () => void;
   onNudgeNegativeVertical: () => void;
@@ -746,8 +1270,12 @@ function EditDock({
         )}
 
         <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">←</button>
-        <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">↑</button>
-        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">↓</button>
+        {canNudgeVertical ? (
+          <>
+            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">↑</button>
+            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">↓</button>
+          </>
+        ) : null}
         <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">→</button>
 
         {canSwapWall && (
@@ -829,6 +1357,7 @@ export function RoomView({
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
   const isDay = timeOfDay === "day";
+  const enableNightPostEffects = !isDay && !prefersTouchControls;
   const selectedFurniture = useMemo(
     () => findFurniturePlacement(furniture, selectedFurnitureId),
     [furniture, selectedFurnitureId]
@@ -887,7 +1416,8 @@ export function RoomView({
     ? {
         type: activeInteraction.type,
         position: activeInteraction.position,
-        rotationY: activeInteraction.rotationY
+        rotationY: activeInteraction.rotationY,
+        poseOffset: activeInteraction.poseOffset
       }
     : null;
   const interactionCursor = useMemo(() => {
@@ -1435,15 +1965,20 @@ export function RoomView({
   ): PlacementTransform {
     const definition = getFurnitureDefinition(furnitureType);
     const halfWidth = definition.footprintWidth / 2;
-    const halfHeight = definition.footprintDepth / 2;
     const nextHorizontal = gridSnapEnabled ? snapToBlockCenter(horizontal) : horizontal;
-    const nextVertical = gridSnapEnabled ? snapToBlockCenter(vertical) : vertical;
+    const nextVertical = definition.wallOpening?.fixedVertical
+      ? definition.wallOpening.centerY
+      : gridSnapEnabled
+        ? snapToBlockCenter(vertical)
+        : vertical;
 
     if (surface === "wall_back") {
       return {
         position: [
           clampWallAxis(nextHorizontal, halfWidth),
-          clampWallHeight(nextVertical, halfHeight),
+          definition.wallOpening?.fixedVertical
+            ? nextVertical
+            : clampWallHeight(nextVertical, definition.footprintDepth / 2),
           BACK_WALL_SURFACE_Z
         ],
         rotationY: getSurfaceRotationY(furnitureType, surface),
@@ -1454,7 +1989,9 @@ export function RoomView({
     return {
       position: [
         LEFT_WALL_SURFACE_X,
-        clampWallHeight(nextVertical, halfHeight),
+        definition.wallOpening?.fixedVertical
+          ? nextVertical
+          : clampWallHeight(nextVertical, definition.footprintDepth / 2),
         clampWallAxis(nextHorizontal, halfWidth)
       ],
       rotationY: getSurfaceRotationY(furnitureType, surface),
@@ -1617,31 +2154,14 @@ export function RoomView({
     }
 
     if (definition.surface === "wall") {
-      const halfWidth = definition.footprintWidth / 2;
-      const halfHeight = definition.footprintDepth / 2;
-      let nextVertical = gridSnapEnabled ? snapToBlockCenter(hitPoint.y) : hitPoint.y;
-      nextVertical = clampWallHeight(nextVertical, halfHeight);
-
       const leftWallDist = Math.abs(hitPoint.x - LEFT_WALL_SURFACE_X);
       const backWallDist = Math.abs(hitPoint.z - BACK_WALL_SURFACE_Z);
 
       if (leftWallDist < backWallDist) {
-        let nextHorizontal = gridSnapEnabled ? snapToBlockCenter(hitPoint.z) : hitPoint.z;
-        nextHorizontal = clampWallAxis(nextHorizontal, halfWidth);
-        return {
-          position: [LEFT_WALL_SURFACE_X, nextVertical, nextHorizontal],
-          rotationY: getSurfaceRotationY(furnitureType, "wall_left"),
-          surface: "wall_left"
-        };
+        return resolveWallPlacement("wall_left", hitPoint.z, hitPoint.y, furnitureType);
       }
 
-      let nextHorizontal = gridSnapEnabled ? snapToBlockCenter(hitPoint.x) : hitPoint.x;
-      nextHorizontal = clampWallAxis(nextHorizontal, halfWidth);
-      return {
-        position: [nextHorizontal, nextVertical, BACK_WALL_SURFACE_Z],
-        rotationY: getSurfaceRotationY(furnitureType, "wall_back"),
-        surface: "wall_back"
-      };
+      return resolveWallPlacement("wall_back", hitPoint.x, hitPoint.y, furnitureType);
     }
 
     const halfWidth = definition.footprintWidth / 2;
@@ -2124,6 +2644,10 @@ export function RoomView({
       return;
     }
 
+    if (hasFixedWallVerticalPlacement(selectedFurniture.type)) {
+      return;
+    }
+
     updateFurnitureItem(selectedFurnitureId, (item) => ({
       ...item,
       ...resolveWallPlacement(
@@ -2252,10 +2776,14 @@ export function RoomView({
         return <SmallTableModel {...commonProps} />;
       case "fridge":
         return <FridgeModel {...commonProps} />;
+      case "wardrobe":
+        return <OfficeWardrobeModel {...commonProps} />;
       case "office_desk":
         return <OfficeDeskModel {...commonProps} />;
       case "office_chair":
         return <OfficeChairModel {...commonProps} />;
+      case "window":
+        return <WallWindowModel {...commonProps} isDay={isDay} />;
       case "vase":
         return <VaseModel {...commonProps} />;
       case "books":
@@ -2329,13 +2857,21 @@ export function RoomView({
         setHoveredInteractableFurnitureId(null);
       }}
     >
-      <Canvas shadows dpr={[1, 1.6]}>
-        <color attach="background" args={[isDay ? "#dfeaf6" : "#05070d"]} />
+      <Canvas
+        shadows
+        dpr={[1, 1.6]}
+        gl={{
+          antialias: !prefersTouchControls,
+          toneMapping: ACESFilmicToneMapping,
+          toneMappingExposure: isDay ? 1.08 : 1.08
+        }}
+      >
+        <color attach="background" args={[isDay ? "#8a96a8" : "#10151c"]} />
         <PerspectiveCamera
           ref={cameraRef}
           makeDefault
           position={initialCameraPositionRef.current}
-          fov={26}
+          fov={24}
           onUpdate={(camera) => camera.lookAt(0, 0.9, 0)}
         />
         <OrbitControls
@@ -2356,25 +2892,35 @@ export function RoomView({
             RIGHT: DISABLED_MOUSE_BUTTON
           }}
         />
-        <ambientLight intensity={isDay ? 1.4 : 0.22} color={isDay ? "#fff8f0" : "#8fa4c9"} />
+        <ambientLight intensity={isDay ? 0.34 : 0.18} color={isDay ? "#f6f2ea" : "#8f9ebb"} />
         <hemisphereLight
-          intensity={isDay ? 0.75 : 0.18}
-          groundColor={isDay ? "#b8c6d4" : "#0f1420"}
-          color={isDay ? "#f7fbff" : "#5e7399"}
+          intensity={isDay ? 0.16 : 0.2}
+          groundColor={isDay ? "#4d3324" : "#241915"}
+          color={isDay ? "#f5efe4" : "#4f617b"}
         />
         {sunEnabled ? (
           <directionalLight
             castShadow={shadowsEnabled}
-            intensity={isDay ? 1.6 : 0.35}
-            color={isDay ? "#fff2d8" : "#98b7ff"}
-            position={isDay ? [5, 8, 4] : [3, 6, 5]}
-            shadow-mapSize-width={1024}
-            shadow-mapSize-height={1024}
+            intensity={isDay ? 1.18 : 0.16}
+            color={isDay ? "#ffe3bc" : "#92aedd"}
+            position={isDay ? [-6.8, 8.2, -7.4] : [2.6, 5.4, 3.2]}
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-bias={-0.0003}
+            shadow-normalBias={isDay ? 0.022 : 0.01}
           />
         ) : null}
-        {!isDay ? <StarField /> : null}
+        {isDay ? (
+          <directionalLight
+            intensity={0.06}
+            color="#ffffff"
+            position={[4.8, 5.6, 4.4]}
+          />
+        ) : null}
         <RoomShell
           isDay={isDay}
+          sunEnabled={sunEnabled}
+          furniture={furniture}
           shadowsEnabled={shadowsEnabled}
           onWallClick={handleWallClick}
           onWallPointerMove={handleSurfacePointerMove}
@@ -2385,6 +2931,7 @@ export function RoomView({
           onFloorMoveCommand={handleFloorMoveCommand}
           onFloorPointerMove={handleSurfacePointerMove}
           onFloorPointerUp={handleSurfacePointerUp}
+          isDay={isDay}
           checkerEnabled={checkerEnabled}
           floorPrimaryColor={floorPrimaryColor}
           floorSecondaryColor={floorSecondaryColor}
@@ -2433,7 +2980,7 @@ export function RoomView({
             matrix={selectedFurnitureMatrix}
             autoTransform={false}
             offset={getGizmoOffset(selectedFurniture)}
-            activeAxes={getActiveAxes(selectedSurface)}
+            activeAxes={getActiveAxes(selectedFurniture)}
             disableRotations={
               selectedSurface !== "floor" && selectedSurface !== "surface"
             }
@@ -2505,6 +3052,7 @@ export function RoomView({
             confirmDisabled={isPlacementBlocked}
           />
         ) : null}
+        {enableNightPostEffects ? <NightPostEffects /> : null}
         <CameraTracker onCameraPositionChange={onCameraPositionChange} />
       </Canvas>
       {buildModeEnabled && selectedFurniture ? (
@@ -2526,6 +3074,11 @@ export function RoomView({
           canSwapWall={
             selectedFurniture.surface === "wall_back" ||
             selectedFurniture.surface === "wall_left"
+          }
+          canNudgeVertical={
+            selectedFurniture.surface === "floor" ||
+            selectedFurniture.surface === "surface" ||
+            !hasFixedWallVerticalPlacement(selectedFurniture.type)
           }
           onNudgeNegativeHorizontal={() => handleNudgeSelectedFurniture(-1)}
           onNudgePositiveHorizontal={() => handleNudgeSelectedFurniture(1)}

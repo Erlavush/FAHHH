@@ -43,7 +43,7 @@ export interface RoomState {
   ownedFurniture: OwnedFurnitureItem[];
 }
 
-export const DEFAULT_ROOM_LAYOUT_VERSION = 3;
+export const DEFAULT_ROOM_LAYOUT_VERSION = 6;
 
 function createStarterOwnedFurnitureId(placementId: string): string {
   return `owned-${placementId}`;
@@ -58,55 +58,107 @@ const STARTER_FURNITURE: RoomFurniturePlacement[] = [
     id: "starter-rug",
     type: "rug",
     surface: "floor",
-    position: [0.1, 0, 1.25],
-    rotationY: 0,
+    position: [0.90239343789169, 0, -2.0892200149118043],
+    rotationY: 0.04,
     ownedFurnitureId: createStarterOwnedFurnitureId("starter-rug")
   },
   {
     id: "starter-bed",
     type: "bed",
     surface: "floor",
-    position: [3.05, 0, -2.75],
-    rotationY: 0,
+    position: [-3.5, 0, -3],
+    rotationY: -Math.PI,
     ownedFurnitureId: createStarterOwnedFurnitureId("starter-bed")
   },
   {
-    id: "starter-desk",
-    type: "desk",
+    id: "starter-office-desk",
+    type: "office_desk",
     surface: "floor",
-    position: [-3.2, 0, -4.15],
-    rotationY: 0,
-    ownedFurnitureId: createStarterOwnedFurnitureId("starter-desk")
+    position: [0.820371944155216, 0, -3.945468746280867],
+    rotationY: Math.PI,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-office-desk")
   },
   {
-    id: "starter-chair",
-    type: "chair",
+    id: "starter-office-chair",
+    type: "office_chair",
     surface: "floor",
-    position: [-3.2, 0, -2.85],
+    position: [0.8693564446235946, 0, -2.8945023264269345],
     rotationY: Math.PI,
-    ownedFurnitureId: createStarterOwnedFurnitureId("starter-chair")
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-office-chair")
+  },
+  {
+    id: "starter-wardrobe",
+    type: "wardrobe",
+    surface: "floor",
+    position: [3.5, 0, -4.55],
+    rotationY: 0,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-wardrobe")
   },
   {
     id: "starter-table",
     type: "table",
     surface: "floor",
-    position: [2.65, 0, 2.2],
+    position: [-4.494208426940746, 0, 0.26593734925809187],
     rotationY: Math.PI / 2,
     ownedFurnitureId: createStarterOwnedFurnitureId("starter-table")
   },
   {
+    id: "starter-books",
+    type: "books",
+    surface: "surface",
+    position: [1.4703719441552159, 0.84, -4.045468746280867],
+    rotationY: 0,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-books"),
+    anchorFurnitureId: "starter-office-desk",
+    surfaceLocalOffset: [-0.65, 0.1]
+  },
+  {
+    id: "starter-vase",
+    type: "vase",
+    surface: "surface",
+    position: [-4.494208426940746, 0.81, 0.26593734925809187],
+    rotationY: 0,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-vase"),
+    anchorFurnitureId: "starter-table",
+    surfaceLocalOffset: [0, 0]
+  },
+  {
+    id: "starter-window-left",
+    type: "window",
+    surface: "wall_left",
+    position: [-4.83, 1.82, -2.8],
+    rotationY: Math.PI / 2,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-window-left")
+  },
+  {
+    id: "starter-window-back-left",
+    type: "window",
+    surface: "wall_back",
+    position: [-3.25, 1.82, -4.83],
+    rotationY: 0,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-window-back-left")
+  },
+  {
+    id: "starter-window-back-right",
+    type: "window",
+    surface: "wall_back",
+    position: [1.05, 1.82, -4.83],
+    rotationY: 0,
+    ownedFurnitureId: createStarterOwnedFurnitureId("starter-window-back-right")
+  },
+  {
     id: "starter-poster",
     type: "poster",
-    surface: "wall_back",
-    position: [2.95, 1.95, -4.83],
-    rotationY: 0,
+    surface: "wall_left",
+    position: [-4.83, 2, 1.5],
+    rotationY: Math.PI / 2,
     ownedFurnitureId: createStarterOwnedFurnitureId("starter-poster")
   },
   {
     id: "starter-wall-frame",
     type: "wall_frame",
     surface: "wall_left",
-    position: [-4.83, 1.75, 1.55],
+    position: [-4.83, 1.74, -0.9],
     rotationY: Math.PI / 2,
     ownedFurnitureId: createStarterOwnedFurnitureId("starter-wall-frame")
   }

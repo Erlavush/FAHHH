@@ -4,25 +4,20 @@ import { useEffect, useMemo } from "react";
 import {
   Box3,
   Color,
-  DoubleSide,
-  FrontSide,
   Group,
   Material,
   Mesh,
   MeshStandardMaterial,
-  Object3D,
   Vector3
 } from "three";
 
-export const PACK_MODEL_PATH = "/models/fnaf-minecraft-pizzeria-mini-pack/source/demopack.gltf";
-
-type PreparedPackAsset = {
+type PreparedGlbAsset = {
   root: Group;
   materials: Material[];
 };
 
-export interface PackAssetModelProps {
-  nodeNames: string[];
+export interface GlbAssetModelProps {
+  modelPath: string;
   targetSize: {
     width: number;
     height: number;
@@ -31,6 +26,7 @@ export interface PackAssetModelProps {
   overlaySize: [number, number, number];
   ringSize?: [number, number];
   modelOffset?: [number, number, number];
+  modelRotationY?: number;
   position?: [number, number, number];
   rotationY?: number;
   shadowsEnabled: boolean;
@@ -38,32 +34,31 @@ export interface PackAssetModelProps {
   hovered?: boolean;
   interactionHovered?: boolean;
   blocked?: boolean;
+  flatShading?: boolean;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
   fallbackColor?: string;
-  doubleSided?: boolean;
 }
 
-function cloneMaterial(material: Material): Material {
+function cloneMaterial(material: Material, flatShading: boolean): Material {
   const nextMaterial = material.clone();
 
   if (nextMaterial instanceof MeshStandardMaterial) {
     nextMaterial.roughness = Math.max(nextMaterial.roughness, 0.72);
     nextMaterial.metalness = Math.min(nextMaterial.metalness, 0.1);
-    nextMaterial.color.offsetHSL(0.01, -0.04, 0.02);
+    nextMaterial.color.offsetHSL(0.01, -0.02, 0.015);
+    nextMaterial.flatShading = flatShading;
+    nextMaterial.needsUpdate = true;
   }
 
   return nextMaterial;
 }
 
-function preparePackAssetObject(
-  sourceNodes: Object3D[],
-  targetSize: PackAssetModelProps["targetSize"]
-): PreparedPackAsset {
-  const rootSource = new Group();
-  sourceNodes.forEach((sourceNode) => {
-    rootSource.add(sourceNode.clone(true));
-  });
-
+function prepareGlbAssetObject(
+  sourceGroup: Group,
+  targetSize: GlbAssetModelProps["targetSize"],
+  flatShading: boolean
+): PreparedGlbAsset {
+  const rootSource = sourceGroup.clone(true);
   const materials: Material[] = [];
 
   rootSource.traverse((child) => {
@@ -73,14 +68,14 @@ function preparePackAssetObject(
 
     if (Array.isArray(child.material)) {
       child.material = child.material.map((material) => {
-        const nextMaterial = cloneMaterial(material);
+        const nextMaterial = cloneMaterial(material, flatShading);
         materials.push(nextMaterial);
         return nextMaterial;
       });
       return;
     }
 
-    const nextMaterial = cloneMaterial(child.material);
+    const nextMaterial = cloneMaterial(child.material, flatShading);
     materials.push(nextMaterial);
     child.material = nextMaterial;
   });
@@ -109,12 +104,13 @@ function preparePackAssetObject(
   return { root, materials };
 }
 
-export function PackAssetModel({
-  nodeNames,
+export function GlbAssetModel({
+  modelPath,
   targetSize,
   overlaySize,
-  ringSize = [0.5, 0.64],
+  ringSize = [0.6, 0.9],
   modelOffset = [0, 0, 0],
+  modelRotationY = 0,
   position = [0, 0, 0],
   rotationY = 0,
   shadowsEnabled,
@@ -122,29 +118,17 @@ export function PackAssetModel({
   hovered = false,
   interactionHovered = false,
   blocked = false,
+  flatShading = false,
   onPointerDown,
-  fallbackColor = "#d9dee8",
-  doubleSided = false
-}: PackAssetModelProps) {
-  const gltf = useGLTF(PACK_MODEL_PATH);
-  const nodeSignature = nodeNames.join("|");
-  const preparedAsset = useMemo(() => {
-    const sourceNodes = nodeNames
-      .map((nodeName) => gltf.scene.getObjectByName(nodeName))
-      .filter((node): node is Object3D => node !== undefined);
-
-    if (sourceNodes.length !== nodeNames.length) {
-      return null;
-    }
-
-    return preparePackAssetObject(sourceNodes, targetSize);
-  }, [gltf.scene, nodeSignature, targetSize.width, targetSize.height, targetSize.depth]);
+  fallbackColor = "#d9dee8"
+}: GlbAssetModelProps) {
+  const gltf = useGLTF(modelPath);
+  const preparedAsset = useMemo(
+    () => prepareGlbAssetObject(gltf.scene, targetSize, flatShading),
+    [flatShading, gltf.scene, targetSize.depth, targetSize.height, targetSize.width]
+  );
 
   useEffect(() => {
-    if (!preparedAsset) {
-      return;
-    }
-
     preparedAsset.root.traverse((child) => {
       if (child instanceof Mesh) {
         child.castShadow = shadowsEnabled;
@@ -154,21 +138,6 @@ export function PackAssetModel({
   }, [preparedAsset, shadowsEnabled]);
 
   useEffect(() => {
-    if (!preparedAsset) {
-      return;
-    }
-
-    preparedAsset.materials.forEach((material) => {
-      material.side = doubleSided ? DoubleSide : FrontSide;
-      material.needsUpdate = true;
-    });
-  }, [doubleSided, preparedAsset]);
-
-  useEffect(() => {
-    if (!preparedAsset) {
-      return;
-    }
-
     const tintColor = blocked
       ? new Color("#ff7b88")
       : selected
@@ -176,23 +145,23 @@ export function PackAssetModel({
         : hovered || interactionHovered
           ? new Color("#7cc8ff")
           : null;
-    const opacity = blocked || selected ? 0.78 : hovered ? 0.9 : interactionHovered ? 0.8 : 1;
+    const opacity = blocked || selected ? 0.8 : hovered ? 0.92 : interactionHovered ? 0.84 : 1;
 
     preparedAsset.materials.forEach((material) => {
-      material.transparent = opacity < 0.999;
-      material.opacity = opacity;
-      material.depthWrite = opacity >= 0.999;
+      material.transparent = false;
+      material.opacity = 1;
+      material.depthWrite = true;
 
       if (material instanceof MeshStandardMaterial) {
         material.emissive.copy(tintColor ?? new Color("#000000"));
         material.emissiveIntensity = tintColor
           ? blocked
-            ? 0.42
+            ? 0.28
             : selected
-              ? 0.28
+              ? 0.18
               : hovered
-                ? 0.2
-                : 0.14
+                ? 0.12
+                : 0.08
           : 0;
       }
 
@@ -203,7 +172,7 @@ export function PackAssetModel({
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
       {preparedAsset ? (
-        <group position={modelOffset}>
+        <group position={modelOffset} rotation={[0, modelRotationY, 0]}>
           <primitive object={preparedAsset.root} />
         </group>
       ) : (
@@ -241,5 +210,3 @@ export function PackAssetModel({
     </group>
   );
 }
-
-useGLTF.preload(PACK_MODEL_PATH);

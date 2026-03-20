@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getFurnitureInteractionTarget } from "../src/lib/furnitureInteractions";
+import {
+  getFurnitureInteractionTarget,
+  getFurnitureInteractionTargets
+} from "../src/lib/furnitureInteractions";
 import type { RoomFurniturePlacement } from "../src/lib/roomState";
 
 function normalizeAngle(angle: number): number {
@@ -60,8 +63,33 @@ describe("furniture interactions", () => {
     const target = getFurnitureInteractionTarget(bed);
 
     expect(target?.type).toBe("lie");
-    expect(target?.position[0]).toBeCloseTo(2);
+    expect(target?.position[0]).toBeCloseTo(1.38);
     expect(target?.position[2]).toBeCloseTo(-0.8);
+    expect(target?.poseOffset).toEqual([0, 0.84, 1]);
+    expect(
+      Math.abs(shortestAngleDistance(target?.rotationY ?? 0, Math.PI))
+    ).toBeLessThan(0.005);
+  });
+
+  it("provides mirrored bed-side targets so the bed is ready for two players", () => {
+    const bed: RoomFurniturePlacement = {
+      id: "bed-a",
+      type: "bed",
+      surface: "floor",
+      position: [2, 0, -1],
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("bed-a")
+    };
+
+    const targets = getFurnitureInteractionTargets(bed);
+
+    expect(targets).toHaveLength(2);
+    expect(targets[0]?.position[0]).toBeCloseTo(1.38);
+    expect(targets[1]?.position[0]).toBeCloseTo(2);
+    expect(targets[0]?.position[2]).toBeCloseTo(-0.8);
+    expect(targets[1]?.position[2]).toBeCloseTo(-0.5);
+    expect(targets[0]?.poseOffset).toEqual([0, 0.84, 1]);
+    expect(targets[1]?.poseOffset).toEqual([0, 0.84, 1]);
   });
 
   it("returns a pc-use target for a desk when a chair overlaps the front zone", () => {

@@ -45,6 +45,7 @@ interface MinecraftPlayerProps {
         type: "sit" | "lie" | "use_pc";
         position: [number, number, number];
         rotationY: number;
+        poseOffset?: [number, number, number];
       }
     | null;
   onPositionChange: (position: [number, number, number]) => void;
@@ -457,6 +458,9 @@ export function MinecraftPlayer({
     const isSitting = interaction?.type === "sit" && interactionReady;
     const isLying = interaction?.type === "lie" && interactionReady;
     const isUsingPc = interaction?.type === "use_pc" && interactionReady;
+    const liePoseOffset = interaction?.type === "lie"
+      ? interaction.poseOffset ?? [0, 0.84, 0]
+      : null;
 
     if (interaction?.type === "lie") {
       if (interactionReady) {
@@ -503,7 +507,11 @@ export function MinecraftPlayer({
     root.position.y = targetPosition[1];
 
     if (isLying) {
-      pose.position.set(0, 0.84, 0);
+      pose.position.set(
+        liePoseOffset?.[0] ?? 0,
+        liePoseOffset?.[1] ?? 0.84,
+        liePoseOffset?.[2] ?? 0
+      );
       pose.rotation.set(-Math.PI / 2, 0, 0);
 
       body.position.set(0, 1.125, 0);

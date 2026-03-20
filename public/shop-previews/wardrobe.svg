@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Wardrobe preview">
+  <defs>
+    <linearGradient id="wardrobe-bg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#2a2f3d"/>
+      <stop offset="100%" stop-color="#151922"/>
+    </linearGradient>
+    <linearGradient id="wardrobe-wood" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#b88d66"/>
+      <stop offset="100%" stop-color="#8a6448"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#wardrobe-bg)"/>
+  <g transform="translate(30 18)">
+    <rect x="6" y="4" width="56" height="88" rx="3" fill="#694d39"/>
+    <rect x="10" y="8" width="24" height="80" rx="2" fill="url(#wardrobe-wood)"/>
+    <rect x="34" y="8" width="24" height="80" rx="2" fill="#a97d5a"/>
+    <rect x="33" y="8" width="2" height="80" fill="#5e4432"/>
+    <rect x="17" y="38" width="2.5" height="12" rx="1.2" fill="#e6d6bf"/>
+    <rect x="49" y="38" width="2.5" height="12" rx="1.2" fill="#e6d6bf"/>
+    <rect x="12" y="0" width="44" height="6" rx="2" fill="#c39d79"/>
+    <rect x="12" y="92" width="44" height="5" rx="2" fill="#73513a"/>
+  </g>
+</svg>

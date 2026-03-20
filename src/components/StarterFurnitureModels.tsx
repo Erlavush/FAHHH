@@ -1,4 +1,6 @@
 import type { ThreeEvent } from "@react-three/fiber";
+import { GlbAssetModel } from "./GlbAssetModel";
+import { createCozyMaterialProps } from "./furnitureMaterials";
 
 interface FurnitureModelProps {
   position?: [number, number, number];
@@ -19,21 +21,35 @@ function createMaterialProps(
   baseColor: string,
   activeColor: string,
   hoverColor: string,
-  blockedColor: string
+  blockedColor: string,
+  options?: {
+    roughness?: number;
+    metalness?: number;
+    opacity?: number;
+    selectedOpacity?: number;
+    hoveredOpacity?: number;
+    interactionOpacity?: number;
+    blockedOpacity?: number;
+    emissiveColor?: string;
+    activeEmissiveColor?: string;
+    hoverEmissiveColor?: string;
+    blockedEmissiveColor?: string;
+    emissiveIntensity?: number;
+    activeEmissiveIntensity?: number;
+    hoverEmissiveIntensity?: number;
+    blockedEmissiveIntensity?: number;
+  }
 ) {
-  return {
-    color: blocked
-      ? blockedColor
-      : selected
-        ? activeColor
-        : hovered
-          ? hoverColor
-          : interactionHovered
-            ? hoverColor
-          : baseColor,
-    transparent: selected || blocked || hovered || interactionHovered,
-    opacity: selected || blocked ? 0.72 : hovered ? 0.9 : interactionHovered ? 0.8 : 1
-  };
+  return createCozyMaterialProps(
+    { blocked, selected, hovered, interactionHovered },
+    {
+      baseColor,
+      activeColor,
+      hoverColor,
+      blockedColor,
+      ...options
+    }
+  );
 }
 
 export function BedModel({
@@ -46,56 +62,28 @@ export function BedModel({
   blocked = false,
   onPointerDown
 }: FurnitureModelProps) {
-  const frame = createMaterialProps(
-    blocked,
-    selected,
-    hovered,
-    interactionHovered,
-    "#af7b54",
-    "#57db8d",
-    "#7bc4f8",
-    "#ef6f7c"
-  );
-  const sheet = createMaterialProps(
-    blocked,
-    selected,
-    hovered,
-    interactionHovered,
-    "#f4e9dc",
-    "#9df2bf",
-    "#d7efff",
-    "#f7b0ba"
-  );
-  const blanket = createMaterialProps(
-    blocked,
-    selected,
-    hovered,
-    interactionHovered,
-    "#d1b59e",
-    "#79e2a2",
-    "#a9dafb",
-    "#d65e6c"
-  );
-
   return (
-    <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.32, 0]}>
-        <boxGeometry args={[2.82, 0.28, 3.82]} />
-        <meshStandardMaterial {...frame} />
-      </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.54, -0.12]}>
-        <boxGeometry args={[2.56, 0.18, 2.96]} />
-        <meshStandardMaterial {...sheet} />
-      </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.66, 0.86]}>
-        <boxGeometry args={[2.46, 0.08, 1.28]} />
-        <meshStandardMaterial {...blanket} />
-      </mesh>
-      <mesh castShadow={shadowsEnabled} receiveShadow={shadowsEnabled} position={[0, 0.68, -1.42]}>
-        <boxGeometry args={[2.36, 0.26, 0.56]} />
-        <meshStandardMaterial {...frame} />
-      </mesh>
-    </group>
+    <GlbAssetModel
+      blocked={blocked}
+      fallbackColor="#ebe6e2"
+      flatShading
+      hovered={hovered}
+      interactionHovered={interactionHovered}
+      modelPath="/models/custom/bed.glb"
+      modelRotationY={Math.PI}
+      onPointerDown={onPointerDown}
+      overlaySize={[2.98, 1.46, 3.98]}
+      position={position}
+      ringSize={[1.15, 1.64]}
+      rotationY={rotationY}
+      selected={selected}
+      shadowsEnabled={shadowsEnabled}
+      targetSize={{
+        width: 2.84,
+        height: 1.4,
+        depth: 3.86
+      }}
+    />
   );
 }
 
@@ -114,40 +102,64 @@ export function DeskModel({
     selected,
     hovered,
     interactionHovered,
-    "#ba865d",
+    "#8a5d3d",
     "#57db8d",
     "#7bc4f8",
-    "#ef6f7c"
+    "#ef6f7c",
+    {
+      roughness: 0.88,
+      metalness: 0.03
+    }
   );
   const darkWood = createMaterialProps(
     blocked,
     selected,
     hovered,
     interactionHovered,
-    "#8a5a39",
+    "#5b3a28",
     "#3fc67c",
     "#5a9edb",
-    "#d55a68"
+    "#d55a68",
+    {
+      roughness: 0.9,
+      metalness: 0.02
+    }
   );
   const screen = createMaterialProps(
     blocked,
     selected,
     hovered,
     interactionHovered,
-    "#3b4e67",
+    "#31414b",
     "#71e2a3",
     "#8bcdf9",
-    "#df7c87"
+    "#df7c87",
+    {
+      roughness: 0.26,
+      metalness: 0.16
+    }
   );
   const glow = createMaterialProps(
     blocked,
     selected,
     hovered,
     interactionHovered,
-    "#97d1ee",
+    "#c9e3eb",
     "#c0ffe0",
     "#ddf3ff",
-    "#f7c0c8"
+    "#f7c0c8",
+    {
+      roughness: 0.18,
+      metalness: 0.08,
+      emissiveColor: "#8fbac7",
+      emissiveIntensity: 0.34,
+      activeEmissiveColor: "#baf3d0",
+      activeEmissiveIntensity: 0.42,
+      hoverEmissiveColor: "#d8f3ff",
+      hoverEmissiveIntensity: 0.42,
+      blockedEmissiveColor: "#d87f89",
+      blockedEmissiveIntensity: 0.14
+    }
   );
 
   const legOffsets: Array<[number, number, number]> = [
@@ -227,17 +239,31 @@ export function RugModel({
       <mesh position={[0, 0.03, 0]}>
         <boxGeometry args={[3.8, 0.04, 2.6]} />
         <meshStandardMaterial
-          color={topColor}
-          transparent={selected || blocked || hovered || interactionHovered}
-          opacity={selected || blocked ? 0.68 : hovered ? 0.88 : interactionHovered ? 0.8 : 1}
+          {...createCozyMaterialProps(
+            { blocked, selected, hovered, interactionHovered },
+            {
+              baseColor: topColor,
+              roughness: 0.98,
+              metalness: 0,
+              selectedOpacity: 0.68,
+              hoveredOpacity: 0.88
+            }
+          )}
         />
       </mesh>
       <mesh position={[0, 0.051, 0]}>
         <boxGeometry args={[3.05, 0.01, 1.84]} />
         <meshStandardMaterial
-          color={stripeColor}
-          transparent={selected || blocked || hovered || interactionHovered}
-          opacity={selected || blocked ? 0.8 : hovered ? 0.92 : interactionHovered ? 0.8 : 1}
+          {...createCozyMaterialProps(
+            { blocked, selected, hovered, interactionHovered },
+            {
+              baseColor: stripeColor,
+              roughness: 0.99,
+              metalness: 0,
+              selectedOpacity: 0.8,
+              hoveredOpacity: 0.92
+            }
+          )}
         />
       </mesh>
     </group>
@@ -259,30 +285,42 @@ export function WallFrameModel({
     selected,
     hovered,
     interactionHovered,
-    "#8b6d53",
+    "#6b4a34",
     "#57db8d",
     "#7bc4f8",
-    "#ef6f7c"
+    "#ef6f7c",
+    {
+      roughness: 0.88,
+      metalness: 0.03
+    }
   );
   const mat = createMaterialProps(
     blocked,
     selected,
     hovered,
     interactionHovered,
-    "#f8f2ea",
+    "#f2eadf",
     "#bdf6d1",
     "#edf7ff",
-    "#f5c0c8"
+    "#f5c0c8",
+    {
+      roughness: 0.97,
+      metalness: 0.01
+    }
   );
   const art = createMaterialProps(
     blocked,
     selected,
     hovered,
     interactionHovered,
-    "#c3926b",
+    "#b28662",
     "#7ee2a4",
     "#a4d7fb",
-    "#d86a76"
+    "#d86a76",
+    {
+      roughness: 0.9,
+      metalness: 0.02
+    }
   );
 
   return (

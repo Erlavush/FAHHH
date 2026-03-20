@@ -17,9 +17,15 @@ describe("roomState", () => {
       expect.arrayContaining([
         "starter-rug",
         "starter-bed",
-        "starter-desk",
-        "starter-chair",
+        "starter-office-desk",
+        "starter-office-chair",
+        "starter-wardrobe",
         "starter-table",
+        "starter-books",
+        "starter-vase",
+        "starter-window-left",
+        "starter-window-back-left",
+        "starter-window-back-right",
         "starter-poster",
         "starter-wall-frame"
       ])
@@ -32,17 +38,25 @@ describe("roomState", () => {
         )
       )
     ).toBe(true);
+    expect(
+      roomState.furniture
+        .filter((item) => item.surface === "surface")
+        .every((item) => typeof item.anchorFurnitureId === "string" && item.surfaceLocalOffset)
+    ).toBe(true);
   });
 
   it("assigns sensible default surfaces when creating furniture instances", () => {
     const chair = createFurniturePlacement("chair", [0, 0, 0]);
     const poster = createFurniturePlacement("poster", [0, 1.8, -7.83]);
+    const window = createFurniturePlacement("window", [0, 1.82, -4.83]);
     const vase = createFurniturePlacement("vase", [0, 0.94, 0]);
 
     expect(chair.surface).toBe("floor");
     expect(chair.rotationY).toBe(0);
     expect(poster.surface).toBe("wall_back");
     expect(poster.rotationY).toBe(0);
+    expect(window.surface).toBe("wall_back");
+    expect(window.rotationY).toBe(0);
     expect(vase.surface).toBe("surface");
     expect(vase.rotationY).toBe(0);
   });
