@@ -2,6 +2,7 @@ import { OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { ChairModel } from "./ChairModel";
+import { FloorLampModel } from "./FloorLampModel";
 import { FridgeModel } from "./FridgeModel";
 import { OfficeChairModel, OfficeDeskModel, OfficeWardrobeModel } from "./OfficePackModels";
 import { PosterModel } from "./PosterModel";
@@ -55,6 +56,7 @@ const PREVIEW_MODEL_FRAMES: Record<
   wardrobe: { width: 1.42, height: 2.35, depth: 0.82, targetY: 1.14 },
   office_desk: { width: 2.85, height: 1.45, depth: 0.95, targetY: 0.72 },
   office_chair: { width: 0.92, height: 1.18, depth: 0.92, targetY: 0.66 },
+  floor_lamp: { width: 0.78, height: 2.12, depth: 0.78, targetY: 0.94 },
   window: { width: 1.82, height: 2.18, depth: 0.38, targetY: 1.02 },
   vase: { width: 0.36, height: 0.84, depth: 0.36, targetY: 0.38 },
   books: { width: 0.58, height: 0.32, depth: 0.38, targetY: 0.16 },
@@ -136,8 +138,10 @@ function renderPreviewFurnitureModel(type: FurnitureType) {
       return <OfficeDeskModel {...commonProps} />;
     case "office_chair":
       return <OfficeChairModel {...commonProps} />;
+    case "floor_lamp":
+      return <FloorLampModel {...commonProps} nightFactor={1} />;
     case "window":
-      return <WallWindowModel {...commonProps} isDay />;
+      return <WallWindowModel {...commonProps} daylightAmount={1} />;
     case "vase":
       return <VaseModel {...commonProps} />;
     case "books":

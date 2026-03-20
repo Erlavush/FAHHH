@@ -20,7 +20,7 @@ import {
   type Vector3Tuple
 } from "./lib/roomState";
 import { getOwnedFurnitureSellPrice } from "./lib/economy";
-import { useControls, folder, Leva } from "leva";
+import { button, useControls, folder, Leva } from "leva";
 
 type FurnitureSpawnRequest = {
   requestId: number;
@@ -42,6 +42,8 @@ type PlayerInteractionStatus =
     }
   | null;
 
+type RenderMode = "cinematic" | "basic";
+
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
   return { default: module.RoomView };
@@ -54,6 +56,32 @@ const FurniturePreviewStudio = lazy(async () => {
 
 const DEFAULT_CAMERA_POSITION: Vector3Tuple = [11.8, 9.6, 11.2];
 const DEFAULT_PLAYER_POSITION: Vector3Tuple = [0, 0, 0.85];
+const MINUTES_PER_DAY = 24 * 60;
+
+function wrapClockMinutes(minutes: number): number {
+  const wrappedMinutes = minutes % MINUTES_PER_DAY;
+  return wrappedMinutes < 0 ? wrappedMinutes + MINUTES_PER_DAY : wrappedMinutes;
+}
+
+function getLocalClockMinutes(date = new Date()): number {
+  return date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60;
+}
+
+function minutesToControlHours(minutes: number): number {
+  return wrapClockMinutes(Math.round(minutes)) / 60;
+}
+
+function controlHoursToMinutes(hours: number): number {
+  return wrapClockMinutes(Math.round(hours * 60));
+}
+
+function formatClock24h(minutes: number): string {
+  const normalizedMinutes = wrapClockMinutes(Math.round(minutes));
+  const hours = Math.floor(normalizedMinutes / 60);
+  const remainingMinutes = normalizedMinutes % 60;
+
+  return `${hours.toString().padStart(2, "0")}:${remainingMinutes.toString().padStart(2, "0")}`;
+}
 
 type FurniturePreviewThumbProps = {
   label: string;
@@ -169,6 +197,34 @@ function FurnitureInfoControl({
   );
 }
 
+const LEVA_SETTINGS_KEY = "cozy-room-leva-settings";
+
+interface LevaSettings {
+  minecraftTimeMinutes?: number;
+  useMinecraftTimeToggle?: boolean;
+  renderMode?: RenderMode;
+  sunEnabled?: boolean;
+  shadowsEnabled?: boolean;
+  fogEnabled?: boolean;
+  fogDensity?: number;
+  ambientMultiplier?: number;
+  sunIntensityMultiplier?: number;
+  brightness?: number;
+  saturation?: number;
+  contrast?: number;
+}
+
+function getInitialLevaSettings(): LevaSettings {
+  if (typeof window === "undefined" || typeof window.localStorage === "undefined") return {};
+  try {
+    const data = window.localStorage.getItem(LEVA_SETTINGS_KEY);
+    return data ? (JSON.parse(data) as LevaSettings) : {};
+  } catch {
+    return {};
+  }
+}
+const savedSettings = getInitialLevaSettings();
+
 function App() {
   const initialSandboxState = useMemo(
     () =>
@@ -189,17 +245,125 @@ function App() {
   const [previewStudioSelectedType, setPreviewStudioSelectedType] = useState<FurnitureType>("bed");
   const [openFurnitureInfoKey, setOpenFurnitureInfoKey] = useState<string | null>(null);
   const [hoverPreviewEnabled, setHoverPreviewEnabled] = useState(false);
+  const [realTimeMinutes, setRealTimeMinutes] = useState(() => getLocalClockMinutes());
+  const [minecraftTimeMinutes, setMinecraftTimeMinutes] = useState(savedSettings.minecraftTimeMinutes ?? 360); // Start at 6:00 AM
+  const [useMinecraftTime, setUseMinecraftTime] = useState(savedSettings.useMinecraftTimeToggle ?? true);
+  const [timeLocked, setTimeLocked] = useState(false);
+  const [lockedTimeMinutes, setLockedTimeMinutes] = useState(() =>
+    wrapClockMinutes(Math.round(getLocalClockMinutes()))
+  );
+  const worldTimeMinutes = timeLocked ? lockedTimeMinutes : (useMinecraftTime ? minecraftTimeMinutes : realTimeMinutes);
+  const worldTimeLabel = useMemo(() => formatClock24h(worldTimeMinutes), [worldTimeMinutes]);
+  const localTimeLabel = useMemo(() => formatClock24h(realTimeMinutes), [realTimeMinutes]);
 
-  const { timeOfDay, sunEnabled, shadowsEnabled, checkerEnabled, floorPrimaryColor, floorSecondaryColor } = useControls("World Settings", {
-    timeOfDay: { options: ["day", "night"] },
-    sunEnabled: true,
-    shadowsEnabled: true,
-    Checkerboard: folder({
-      checkerEnabled: false,
-      floorPrimaryColor: "#f1f1f1",
-      floorSecondaryColor: "#e5e5e5"
-    })
-  });
+  const [
+    {
+      renderMode,
+      sunEnabled,
+      shadowsEnabled,
+      fogEnabled,
+      fogDensity,
+      ambientMultiplier,
+      sunIntensityMultiplier,
+      brightness,
+      saturation,
+      contrast
+    },
+    setWorldSettings
+  ] = useControls(
+    "World Settings",
+    () => ({
+      localClock: {
+        value: localTimeLabel,
+        editable: false,
+        label: "Local Time"
+      },
+      worldClock: {
+        value: worldTimeLabel,
+        editable: false,
+        label: "World Time"
+      },
+      useMinecraftTimeToggle: {
+        value: useMinecraftTime,
+        label: "Use Minecraft Time",
+        onChange: (v: boolean) => setUseMinecraftTime(v)
+      },
+      renderMode: {
+        value: savedSettings.renderMode ?? "basic",
+        label: "Render Mode",
+        options: {
+          Basic: "basic",
+          Cinematic: "cinematic"
+        }
+      },
+      minecraftTime24h: {
+        value: (minecraftTimeMinutes / 60) % 24,
+        min: 0,
+        max: 23.99,
+        step: 0.1,
+        label: "Minecraft Time (24h)",
+        render: (get) => get("World Settings.useMinecraftTimeToggle"),
+        onChange: (v: number, path: string, ctx: { initial: boolean }) => {
+          if (!ctx.initial) {
+            setMinecraftTimeMinutes(v * 60);
+          }
+        }
+      },
+      lockTimeOfDay: {
+        value: timeLocked,
+        label: "Lock Time",
+        transient: false,
+        onChange: (value: boolean, _path: string, context: { initial: boolean }) => {
+          if (context.initial) {
+            return;
+          }
+
+          if (value) {
+            setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
+          }
+
+          setTimeLocked(value);
+        }
+      },
+      lockedTime24h: {
+        value: minutesToControlHours(lockedTimeMinutes),
+        min: 0,
+        max: 23.983333333333334,
+        step: 1 / 60,
+        label: "Locked Time (24h)",
+        render: (get) => get("World Settings.lockTimeOfDay"),
+        transient: false,
+        onChange: (value: number, _path: string, context: { initial: boolean }) => {
+          if (context.initial) {
+            return;
+          }
+
+          setLockedTimeMinutes(controlHoursToMinutes(value));
+        }
+      },
+      syncLockToNow: button(() => {
+        setTimeLocked(true);
+        setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
+      }),
+      sunEnabled: savedSettings.sunEnabled ?? true,
+      shadowsEnabled: savedSettings.shadowsEnabled ?? true,
+      "Sky & Atmosphere": folder({
+        fogEnabled: savedSettings.fogEnabled ?? true,
+        fogDensity: { value: savedSettings.fogDensity ?? 0.02, min: 0, max: 0.1, step: 0.001 }
+      }),
+      "Lighting & Shadows": folder({
+        ambientMultiplier: { value: savedSettings.ambientMultiplier ?? 1.0, min: 0.0, max: 3.0, step: 0.1 },
+        sunIntensityMultiplier: { value: savedSettings.sunIntensityMultiplier ?? 1.0, min: 0.0, max: 3.0, step: 0.1 }
+      }),
+      "Post-Processing": folder({
+        brightness: { value: savedSettings.brightness ?? 1.0, min: 0.0, max: 2.0, step: 0.05 },
+        saturation: { value: savedSettings.saturation ?? 1.0, min: 0.0, max: 2.0, step: 0.05 },
+        contrast: { value: savedSettings.contrast ?? 1.0, min: 0.0, max: 2.0, step: 0.05 }
+      })
+    }),
+    []
+  );
+  const normalizedRenderMode: RenderMode = renderMode === "cinematic" ? "cinematic" : "basic";
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
   const [playerCoins, setPlayerCoins] = useState(initialSandboxState.playerCoins);
@@ -218,6 +382,81 @@ function App() {
   const soldOwnedFurnitureIdsRef = useRef(new Set<string>());
   const skinInputRef = useRef<HTMLInputElement | null>(null);
   const nextSpawnRequestIdRef = useRef(1);
+
+  useEffect(() => {
+    const syncLocalClock = () => {
+      setRealTimeMinutes(getLocalClockMinutes());
+    };
+
+    syncLocalClock();
+    const localIntervalId = window.setInterval(syncLocalClock, 1000);
+
+    return () => {
+      window.clearInterval(localIntervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!useMinecraftTime || timeLocked) {
+      return;
+    }
+
+    let lastTime = Date.now();
+    const syncMinecraftClock = () => {
+      const now = Date.now();
+      const deltaMs = now - lastTime;
+      lastTime = now;
+      const deltaGameMinutes = deltaMs * 0.0012; // 24 hours (1440 min) per 20 real minutes (1,200,000 ms) = 0.0012
+      setMinecraftTimeMinutes((prev) => (prev + deltaGameMinutes) % 1440);
+    };
+
+    const mcIntervalId = window.setInterval(syncMinecraftClock, 250);
+
+    return () => {
+      window.clearInterval(mcIntervalId);
+    };
+  }, [timeLocked, useMinecraftTime]);
+
+  useEffect(() => {
+    setWorldSettings({
+      localClock: localTimeLabel,
+      worldClock: worldTimeLabel,
+      useMinecraftTimeToggle: useMinecraftTime,
+      renderMode: normalizedRenderMode,
+      minecraftTime24h: (minecraftTimeMinutes / 60) % 24,
+      lockTimeOfDay: timeLocked,
+      lockedTime24h: minutesToControlHours(lockedTimeMinutes)
+    });
+  }, [
+    localTimeLabel,
+    lockedTimeMinutes,
+    minecraftTimeMinutes,
+    normalizedRenderMode,
+    setWorldSettings,
+    timeLocked,
+    worldTimeLabel,
+    useMinecraftTime
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.localStorage === "undefined") return;
+    try {
+      window.localStorage.setItem(LEVA_SETTINGS_KEY, JSON.stringify({
+        minecraftTimeMinutes,
+        useMinecraftTimeToggle: useMinecraftTime,
+        renderMode: normalizedRenderMode,
+        sunEnabled,
+        shadowsEnabled,
+        fogEnabled,
+        fogDensity,
+        ambientMultiplier,
+        sunIntensityMultiplier,
+        brightness,
+        saturation,
+        contrast
+      }));
+    } catch {}
+  }, [minecraftTimeMinutes, useMinecraftTime, normalizedRenderMode, sunEnabled, shadowsEnabled, fogEnabled, fogDensity, ambientMultiplier, sunIntensityMultiplier, brightness, saturation, contrast]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -703,6 +942,9 @@ function App() {
         <div className="camera-toggle camera-toggle--status">
           Coins: {playerCoins}
         </div>
+        <div className="camera-toggle camera-toggle--status">
+          {timeLocked ? `Time Locked: ${worldTimeLabel}` : `Time: ${worldTimeLabel}`}
+        </div>
         <button className="camera-toggle" onClick={handleSkinImport} type="button">
           Import Minecraft Skin
         </button>
@@ -919,12 +1161,17 @@ function App() {
           initialPlayerPosition={playerPosition}
           initialFurniturePlacements={roomState.furniture}
           skinSrc={skinSrc}
-          timeOfDay={timeOfDay as "day" | "night"}
+          worldTimeMinutes={worldTimeMinutes}
+          renderMode={normalizedRenderMode}
           sunEnabled={sunEnabled}
           shadowsEnabled={shadowsEnabled}
-          checkerEnabled={checkerEnabled}
-          floorPrimaryColor={floorPrimaryColor}
-          floorSecondaryColor={floorSecondaryColor}
+          fogEnabled={fogEnabled}
+          fogDensity={fogDensity}
+          ambientMultiplier={ambientMultiplier}
+          sunIntensityMultiplier={sunIntensityMultiplier}
+          brightness={brightness}
+          saturation={saturation}
+          contrast={contrast}
           onCameraPositionChange={handleCameraPositionChange}
           onPlayerPositionChange={handlePlayerPositionChange}
           onFurnitureSnapshotChange={handleFurnitureSnapshotChange}

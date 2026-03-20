@@ -12,7 +12,8 @@ export type FurnitureType =
   | "books"
   | "poster"
   | "wall_frame"
-  | "rug";
+  | "rug"
+  | "floor_lamp";
 
 export type FurnitureSurfaceFamily = "floor" | "wall" | "surface";
 export type FurniturePlacementSurface = "floor" | "wall_back" | "wall_left" | "surface";
@@ -65,7 +66,8 @@ export interface FurnitureDefinition {
     | "books"
     | "poster"
     | "wall_frame"
-    | "rug";
+    | "rug"
+    | "floor_lamp";
   surface: FurnitureSurfaceFamily;
   footprintWidth: number;
   footprintDepth: number;
@@ -341,6 +343,21 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     defaultRotationY: 0,
     category: "Accents",
     unlockKey: "starter-floor-rug",
+    starterUnlocked: true
+  },
+  floor_lamp: {
+    type: "floor_lamp",
+    label: "Floor Lamp",
+    price: 45,
+    shopPreviewSrc: "/shop-previews/floor-lamp.svg",
+    shortDescription: "A tall warm lamp that lights up the room during those cozy dark nights.",
+    modelKey: "floor_lamp",
+    surface: "floor",
+    footprintWidth: 1,
+    footprintDepth: 1,
+    defaultRotationY: 0,
+    category: "Accents",
+    unlockKey: "starter-floor-lamp",
     starterUnlocked: true
   }
 };

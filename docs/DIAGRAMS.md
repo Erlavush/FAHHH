@@ -1,26 +1,47 @@
 # Diagrams
 
 ## Current Runtime Architecture
-Current: how the active solo sandbox runtime is structured.
 
 ```mermaid
 flowchart LR
-  Player["Player / Builder"] --> App["App.tsx<br/>UI shell + toggles + persistence bridge"]
-  App --> Room["RoomView.tsx<br/>3D runtime scene"]
+  Player["Player / Builder"] --> App["App.tsx<br/>toolbar + inventory + persistence + dev panel"]
+  App --> Room["RoomView.tsx<br/>live 3D runtime"]
+  App --> Preview["FurniturePreviewStudio.tsx<br/>thumbnail capture tool"]
   App --> Save["devLocalState.ts<br/>local sandbox persistence"]
-  App -. future track .-> Backend["backend/* + Firebase"]
 
+  Room --> Registry["furnitureRegistry.ts<br/>item taxonomy"]
+  Room --> RoomState["roomState.ts<br/>placements + ownership"]
+  Room --> Economy["economy.ts<br/>buy/sell rules"]
+  Room --> Collision["furnitureCollision.ts<br/>blocking rules"]
+  Room --> Surface["surfaceDecor.ts<br/>surface-host logic"]
+  Room --> Interactions["furnitureInteractions.ts<br/>sit / lie / use_pc"]
+  Room --> Openings["wallOpenings.ts<br/>window wall segmentation"]
   Room --> Avatar["MinecraftPlayer.tsx"]
-  Room --> Registry["furnitureRegistry.ts<br/>item taxonomy + metadata"]
-  Room --> RoomState["roomState.ts<br/>room metadata + placements"]
-  Room --> Collision["furnitureCollision.ts<br/>placement blocking"]
-  Room --> Surface["surfaceDecor.ts<br/>hosted tabletop logic"]
-  Room --> Interactions["furnitureInteractions.ts<br/>sit / lie / use_pc targeting"]
-  Room --> Models["model components + imported pack assets"]
+  Room --> Models["model components + imported assets"]
+
+  App -. future track .-> Firebase["firebase.ts + auth/pairing skeleton"]
 ```
 
-## Current Mode and Interaction Flow
-Current: how the player moves between play mode, build mode, and interaction states.
+## Current Data Model
+
+```mermaid
+flowchart TD
+  Sandbox["PersistedSandboxState v3"] --> Skin["skinSrc"]
+  Sandbox --> Camera["cameraPosition"]
+  Sandbox --> Player["playerPosition"]
+  Sandbox --> Coins["playerCoins"]
+  Sandbox --> Room["RoomState"]
+
+  Room --> Meta["RoomMetadata"]
+  Room --> Placements["RoomFurniturePlacement[]"]
+  Room --> Owned["OwnedFurnitureItem[]"]
+
+  Placements --> Registry["FurnitureDefinition"]
+  Placements --> Anchor["anchorFurnitureId / surfaceLocalOffset"]
+  Placements --> OwnershipRef["ownedFurnitureId"]
+```
+
+## Current Editor Flow
 
 ```mermaid
 stateDiagram-v2
@@ -29,91 +50,82 @@ stateDiagram-v2
   PlayMode --> MovePlayer: Right-click floor
   MovePlayer --> PlayMode
 
-  PlayMode --> ApproachInteraction: Right-click chair / bed / desk
-  ApproachInteraction --> ActiveInteraction: Reach target
-  ActiveInteraction --> PlayMode: Stand / right-click floor
+  PlayMode --> InteractionApproach: Right-click chair / bed / desk
+  InteractionApproach --> InteractionActive: Reach target
+  InteractionActive --> PlayMode: Stand / cancel
 
-  PlayMode --> BuildMode: Toggle Build Mode On
+  PlayMode --> BuildMode: Toggle Build Mode
   BuildMode --> PlayMode: Toggle Build Mode Off
 
-  BuildMode --> CatalogOpen: Toggle catalog
-  CatalogOpen --> DraftEditing: Spawn item
+  BuildMode --> InventoryPanel: Open Inventory
+  InventoryPanel --> DraftSpawn: Place stored item
+  InventoryPanel --> BuyItem: Buy item
+  BuyItem --> InventoryPanel
 
-  BuildMode --> DraftEditing: Double-click floor or wall item
-  BuildMode --> DraftEditing: Single-click surface decor
+  BuildMode --> DraftEdit: Select floor / wall / surface item
+  DraftSpawn --> DraftEdit
 
-  DraftEditing --> BuildMode: Confirm
-  DraftEditing --> BuildMode: Cancel
-  DraftEditing --> BuildMode: Delete
-  DraftEditing --> BuildMode: Deselect
+  DraftEdit --> BuildMode: Confirm
+  DraftEdit --> BuildMode: Cancel
+  DraftEdit --> BuildMode: Store
+  DraftEdit --> BuildMode: Deselect
 ```
 
-## Placement System Diagram
-Current: the three placement families and their rule sets.
+## Current Lighting Flow
 
 ```mermaid
 flowchart TD
-  Def["FurnitureDefinition"] --> Floor["Floor item"]
-  Def --> Wall["Wall item"]
-  Def --> Surface["Surface decor"]
+  Clock["World Time Minutes"] --> Lighting["getWorldLightingState(...)"]
+  Lighting --> Sun["Sun position + intensity"]
+  Lighting --> Moon["Moon position + intensity"]
+  Lighting --> Sky["Sky color + exposure"]
+  Lighting --> Hemi["Hemisphere colors"]
+  Lighting --> Post["AO + Bloom + Vignette + Color"]
+  Lighting --> Windows["Window day/night presentation"]
 
-  Floor --> FloorRules["floor bounds clamp + rotated footprint collision"]
-  Wall --> WallRules["wall_back / wall_left bounds + wall overlap"]
-  Surface --> Host["host furniture with supportSurface"]
-  Host --> Anchor["anchorFurnitureId + surfaceLocalOffset"]
-  Anchor --> Sync["surface decor follows host move / rotate"]
-
-  Surface --> Snap["grid on = 0.5 step<br/>4 sub-slots inside each 1x1 block"]
-  Surface --> Free["grid off = free placement anywhere on host top"]
+  Sun --> Scene["RoomView scene lighting"]
+  Moon --> Scene
+  Sky --> Scene
+  Hemi --> Scene
+  Post --> Scene
+  Windows --> Scene
 ```
 
-## Current Data Model Diagram
-Current: the local sandbox save and room model structure.
-
-```mermaid
-flowchart TD
-  Sandbox["PersistedSandboxState"] --> Skin["skinSrc"]
-  Sandbox --> Camera["cameraPosition"]
-  Sandbox --> Player["playerPosition"]
-  Sandbox --> Room["RoomState"]
-
-  Room --> Meta["RoomMetadata"]
-  Room --> Placements["RoomFurniturePlacement[]"]
-
-  Placements --> Registry["FurnitureDefinition"]
-  Placements --> SurfaceAnchor["anchorFurnitureId / surfaceLocalOffset<br/>(surface decor only)"]
-```
-
-## Full Product Roadmap Diagram
-Future: the intended path from the current sandbox foundation to the jam-ready `Risk It All` experience.
+## Window Wall System
 
 ```mermaid
 flowchart LR
-  A["Current: Local Solo Sandbox Foundation"] --> B["Stabilize Builder + Current Interactions"]
-  B --> C["Unify Local Room Schema With Shared Room Model"]
-  C --> D["Auth + Pairing + Shared Room Sync"]
-  D --> E["Coins + Buying + Levels + Couple Streak"]
-  E --> F["One PC Minigame + One Daily Quest"]
-  F --> G["Custom Photo Frames + One Pet"]
-  G --> H["Breakup Reset Flow + Final Jam Polish"]
+  WindowPlacement["Placed window furniture"] --> OpeningMeta["wallOpening metadata"]
+  OpeningMeta --> Layout["createWallOpeningLayout(...)"]
+  Layout --> Lower["Lower wall band"]
+  Layout --> Middle["Middle wall segments around openings"]
+  Layout --> Upper["Upper wall band"]
+  Layout --> Rail["Segmented chair rail"]
+  WindowPlacement --> WindowModel["WallWindowModel.tsx"]
+
+  Lower --> Shell["Room shell render"]
+  Middle --> Shell
+  Upper --> Shell
+  Rail --> Shell
+  WindowModel --> Shell
 ```
 
 ## Current vs Future Boundary
-Future-facing note: backend and auth already exist in the repo, but the active runtime currently stops at the local solo sandbox foundation.
 
 ```mermaid
 flowchart TD
-  Current["Current Active Product<br/>Local Sandbox Foundation"] --> CurrentTruth["Registry + RoomState + RoomView"]
-  Current --> LocalSave["Local sandbox persistence"]
+  Current["Current Active Runtime"] --> Local["Local sandbox builder"]
+  Current --> Inventory["Ownership + coins + previews"]
+  Current --> Clock["World clock + lighting"]
+  Current --> Windows["Buyable windows + wall openings"]
 
-  Future["Future Risk It All Product"] --> Auth["Pairing + Sign-In"]
-  Future --> SharedRoom["Canonical shared-room state"]
-  Future --> Presence["Live partner presence"]
-  Future --> Economy["Coins + levels + buying"]
-  Future --> Loop["PC minigame + daily quest + streak"]
-  Future --> Personal["Photo frames + pets"]
-  Future --> Breakup["Breakup reset flow"]
+  Future["Future Jam Game"] --> Pair["Auth + pairing"]
+  Future --> Shared["Shared room sync"]
+  Future --> Progress["Level + streak + quests"]
+  Future --> Activities["PC minigame"]
+  Future --> Personal["Custom frames + pets"]
+  Future --> Breakup["Breakup reset"]
 
-  CurrentTruth -. must be adopted by .-> SharedRoom
-  LocalSave -. schema should converge with .-> SharedRoom
+  Current -. schema should extend into .-> Shared
+  Current -. should not be replaced by older backend types .-> Shared
 ```

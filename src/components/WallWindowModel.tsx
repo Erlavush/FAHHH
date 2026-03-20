@@ -2,6 +2,7 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { DoubleSide } from "three";
 import { createCozyMaterialProps } from "./furnitureMaterials";
 import { getFurnitureDefinition } from "../lib/furnitureRegistry";
+import { clamp01, mixColor, mixNumber } from "../lib/worldLighting";
 
 interface WallWindowModelProps {
   position?: [number, number, number];
@@ -11,7 +12,7 @@ interface WallWindowModelProps {
   hovered?: boolean;
   interactionHovered?: boolean;
   blocked?: boolean;
-  isDay?: boolean;
+  daylightAmount?: number;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
 }
 
@@ -33,12 +34,14 @@ export function WallWindowModel({
   hovered = false,
   interactionHovered = false,
   blocked = false,
-  isDay = true,
+  daylightAmount = 1,
   onPointerDown
 }: WallWindowModelProps) {
+  const normalizedDaylightAmount = clamp01(daylightAmount);
+  const nightAmount = 1 - normalizedDaylightAmount;
   const materialState = { blocked, selected, hovered, interactionHovered };
   const frameMaterial = createCozyMaterialProps(materialState, {
-    baseColor: isDay ? "#8d674a" : "#6d533f",
+    baseColor: mixColor("#6d533f", "#8a6548", normalizedDaylightAmount),
     activeColor: "#57db8d",
     hoverColor: "#7bc4f8",
     blockedColor: "#ef6f7c",
@@ -46,7 +49,7 @@ export function WallWindowModel({
     metalness: 0.03
   });
   const sillMaterial = createCozyMaterialProps(materialState, {
-    baseColor: isDay ? "#bf9874" : "#7d6552",
+    baseColor: mixColor("#7d6552", "#c7a27b", normalizedDaylightAmount),
     activeColor: "#78e2a3",
     hoverColor: "#b9e6ff",
     blockedColor: "#f1a0aa",
@@ -59,10 +62,10 @@ export function WallWindowModel({
       ? "#ddfff0"
       : hovered || interactionHovered
         ? "#eaf7ff"
-        : isDay
-          ? "#dceefe"
-          : "#ffe4af";
-  const glowColor = blocked ? "#db7b88" : isDay ? "#c1dfff" : "#ffd69c";
+        : mixColor("#ffe4af", "#f6fbff", normalizedDaylightAmount);
+  const glowColor = blocked
+    ? "#db7b88"
+    : mixColor("#ffd69c", "#eef7ff", normalizedDaylightAmount);
   const sideJambSize: [number, number, number] = [FRAME_THICKNESS, WINDOW_HEIGHT, WINDOW_DEPTH];
   const topBottomRailSize: [number, number, number] = [OPENING_WIDTH, FRAME_THICKNESS, WINDOW_DEPTH];
   const trimDepth = 0.06;
@@ -72,8 +75,8 @@ export function WallWindowModel({
   const trimTopBottomSize: [number, number, number] = [trimWidth, FRAME_THICKNESS * 0.86, trimDepth];
   const frontTrimZ = WINDOW_DEPTH / 2 - trimDepth / 2;
   const backTrimZ = -WINDOW_DEPTH / 2 + trimDepth / 2;
-  const glassGlowOpacity = isDay ? 0.16 : 0.42;
-  const skyCardOpacity = isDay ? 0.22 : 0.36;
+  const glassGlowOpacity = mixNumber(0.42, 0.08, normalizedDaylightAmount);
+  const skyCardOpacity = mixNumber(0.32, 0, normalizedDaylightAmount);
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
@@ -146,28 +149,36 @@ export function WallWindowModel({
 
       <mesh position={[0, 0, 0]} raycast={() => null}>
         <boxGeometry args={[OPENING_WIDTH - 0.02, OPENING_HEIGHT - 0.02, GLASS_THICKNESS]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={glassColor}
           emissive={glowColor}
-          emissiveIntensity={isDay ? 0.05 : 0.22}
-          metalness={0.06}
-          roughness={0.08}
+          emissiveIntensity={mixNumber(0.22, 0, normalizedDaylightAmount)}
+          metalness={0}
+          roughness={mixNumber(0.08, 0.05, normalizedDaylightAmount)}
+          clearcoat={0.7}
+          clearcoatRoughness={0.06}
+          transmission={mixNumber(0.08, 0.9, normalizedDaylightAmount)}
+          thickness={0.12}
+          ior={1.12}
           transparent
-          opacity={isDay ? 0.14 : 0.2}
+          opacity={mixNumber(0.2, 0.9, normalizedDaylightAmount)}
+          depthWrite={false}
           side={DoubleSide}
         />
       </mesh>
 
-      <mesh position={[0, 0, -WINDOW_DEPTH / 2 - 0.01]} raycast={() => null}>
-        <planeGeometry args={[OPENING_WIDTH - 0.12, OPENING_HEIGHT - 0.12]} />
-        <meshBasicMaterial
-          color={isDay ? "#dbeeff" : "#ffdfab"}
-          toneMapped={false}
-          transparent
-          opacity={skyCardOpacity}
-          side={DoubleSide}
-        />
-      </mesh>
+      {nightAmount > 0.02 ? (
+        <mesh position={[0, 0, -WINDOW_DEPTH / 2 - 0.01]} raycast={() => null}>
+          <planeGeometry args={[OPENING_WIDTH - 0.12, OPENING_HEIGHT - 0.12]} />
+          <meshBasicMaterial
+            color="#ffdfab"
+            toneMapped={false}
+            transparent
+            opacity={skyCardOpacity}
+            side={DoubleSide}
+          />
+        </mesh>
+      ) : null}
 
       <mesh position={[0, 0, 0.03]} raycast={() => null}>
         <boxGeometry args={[INNER_MULLION_WIDTH, OPENING_HEIGHT + 0.1, 0.03]} />
@@ -195,7 +206,7 @@ export function WallWindowModel({
         <meshStandardMaterial {...sillMaterial} />
       </mesh>
 
-      {!isDay ? (
+      {nightAmount > 0.02 ? (
         <mesh position={[0, 0, -WINDOW_DEPTH / 2 + 0.02]} raycast={() => null}>
           <planeGeometry args={[OPENING_WIDTH - 0.16, OPENING_HEIGHT - 0.16]} />
           <meshBasicMaterial

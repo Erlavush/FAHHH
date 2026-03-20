@@ -1,137 +1,271 @@
 # Architecture
 
 ## Runtime Ownership Map
-### App Layer
-[App.tsx](Z:/FAHHHH/src/App.tsx) owns the top-level application shell:
-- build mode toggle
-- catalog open state
-- grid snap toggle
+
+### App Shell
+
+[App.tsx](/Z:/FAHHHH/src/App.tsx) owns the top-level application state and UI shell:
+
+- build-mode toggle
+- inventory panel visibility
+- grid-snap toggle
 - skin import
-- debug panel toggle
-- camera reset
-- room reset
-- local sandbox load/save bridge
-- passing initial and committed state into the scene
+- preview studio visibility and selection
+- coin balance
+- persisted room state
+- local vs accelerated world clock selection
+- locked time controls
+- Leva dev panel wiring
+- reset room / reset camera actions
+- save/load bridge to local storage
 
-### Scene Layer
-[RoomView.tsx](Z:/FAHHHH/src/components/RoomView.tsx) owns the actual live game runtime:
-- Three.js / React Three Fiber scene
-- camera reporting
-- player movement target
-- committed furniture vs draft furniture
-- selection, hover, drag, gizmo, confirm/cancel/delete
-- placement resolution for floor, wall, and surface decor
-- collision blocking state
-- interaction approach and active pose state
+`App.tsx` is the orchestrator. It does not simulate the 3D world itself, but it owns the authoritative app-side state that is passed into the scene.
 
-### Avatar Layer
-[MinecraftPlayer.tsx](Z:/FAHHHH/src/components/MinecraftPlayer.tsx) owns:
-- Minecraft-skin-compatible avatar rendering
-- walking / idle / sit / lie / use_pc poses
-- skin texture handling
+### Scene Runtime
+
+[RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) owns the live game scene:
+
+- Three.js / React Three Fiber scene graph
+- live furniture draft state
+- committed furniture state
+- selection and hover state
+- gizmo and direct-drag editing
+- play-mode interactions
+- player approach / active interaction state
+- camera target reporting
+- world clock to lighting-state conversion
+- room shell, walls, and windows
+- post-processing
+- smooth wheel zoom controller
+
+### Preview Studio
+
+[FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx) is a standalone content-creation tool inside the app:
+
+- isolated furniture preview stage
+- orthographic isometric capture camera
+- green / black / white backdrops
+- drag-to-orbit inspection
+- fixed save-name guidance for shop thumbnails
+
+This file is not gameplay-critical, but it is now part of the asset/content pipeline.
 
 ## Core Data Ownership
-### Registry
-[furnitureRegistry.ts](Z:/FAHHHH/src/lib/furnitureRegistry.ts) is the canonical item taxonomy.
+
+### Furniture Registry
+
+[furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts) is the canonical item taxonomy.
 
 It defines:
-- furniture type
-- label
+
+- furniture type and label
+- price
+- shop preview image and scale
+- short description
 - model key
-- category
 - placement family
 - footprint
 - default rotation
 - interaction metadata
-- support surface metadata
+- support-surface metadata
+- wall-opening metadata
+- sunlight metadata for windows
 
-No furniture should bypass the registry.
+All new furniture should enter the project through this registry first.
 
-### Room Model
-[roomState.ts](Z:/FAHHHH/src/lib/roomState.ts) is the canonical current room model.
+### Room State
+
+[roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts) is the active room-builder schema.
 
 It defines:
+
 - `RoomState`
 - `RoomMetadata`
 - `RoomFurniturePlacement`
-- starter room layout
-- cloning and update helpers
+- `OwnedFurnitureItem`
+- starter/default room layout
+- cloning helpers
+- placement creation helpers
+- ownership normalization helpers
 
-This is the current gameplay data model to preserve and extend.
+Key current design decision:
 
-### Local Persistence
-[devLocalState.ts](Z:/FAHHHH/src/lib/devLocalState.ts) owns:
-- local sandbox serialization
-- load / save / migration handling
-- validation of persisted room data
+- `ownedFurniture` is the ownership/inventory layer
+- `furniture` is only the placed-in-room layer
 
-This is the current active save path.
+That separation is central to the current builder and economy design.
+
+### Persistence
+
+[devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts) owns local sandbox serialization and migration.
+
+It handles:
+
+- persisted sandbox versioning
+- runtime validation
+- legacy save migration
+- room-layout fallback reset when the code version is newer than the save
+
+### Economy
+
+[economy.ts](/Z:/FAHHHH/src/lib/economy.ts) is intentionally small right now.
+
+It currently defines:
+
+- starting coin balance
+- sell-price behavior
+
+The economy layer is present, but the earn-loop layer is not yet implemented.
 
 ## Placement and Editing Subsystems
+
 ### Collision
-[furnitureCollision.ts](Z:/FAHHHH/src/lib/furnitureCollision.ts) owns placement blocking logic.
+
+[furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts) owns placement blocking.
 
 It currently supports:
+
 - rotated floor footprint overlap
+- player overlap blocking
+- rug exceptions
 - wall overlap on the same wall
 - surface decor overlap on the same host
-- player overlap blocking for non-rug floor items
-- rug-specific exception rules
 
-### Surface Decor Hosting
-[surfaceDecor.ts](Z:/FAHHHH/src/lib/surfaceDecor.ts) owns:
-- detecting valid surface hosts
-- converting between world and local surface coordinates
-- snapping on support surfaces
-- clamping decor to host tops
-- syncing anchored decor after host movement
+### Surface Decor
+
+[surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts) owns tabletop/surface placement math.
+
+It handles:
+
+- identifying valid hosts
+- converting world positions to host-local offsets
+- clamping decor within support-surface bounds
+- snapping decor to sub-block offsets
+- syncing anchored decor when hosts move or rotate
 
 ### Interactions
-[furnitureInteractions.ts](Z:/FAHHHH/src/lib/furnitureInteractions.ts) owns runtime interaction target selection.
 
-It currently resolves:
+[furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts) resolves interaction targets.
+
+It currently supports:
+
 - `sit`
 - `lie`
 - `use_pc`
 
-It also contains the desk-chair detection logic for PC use.
+It also contains:
 
-## Imported Asset Pipeline
-Imported assets are wrapped so they behave like the hand-built low-poly furniture:
-- [PackAssetModel.tsx](Z:/FAHHHH/src/components/PackAssetModel.tsx): generic loader / scaler / overlay wrapper
-- [OfficePackModels.tsx](Z:/FAHHHH/src/components/OfficePackModels.tsx): office desk and office chair wrappers
-- [FridgeModel.tsx](Z:/FAHHHH/src/components/FridgeModel.tsx): fridge wrapper
+- chair-zone detection for desks
+- multi-slot support for the bed
+- per-furniture pose offsets
 
-Expected asset workflow:
-1. load the imported model
-2. isolate the correct nodes
-3. normalize size to the room's block scale
-4. apply offset so the asset sits correctly on the floor
-5. connect it to a registry item with a footprint and category
+### Wall Openings
 
-## Current vs Legacy/Future Modules
-### Current Source of Truth
-- [App.tsx](Z:/FAHHHH/src/App.tsx)
-- [RoomView.tsx](Z:/FAHHHH/src/components/RoomView.tsx)
-- [furnitureRegistry.ts](Z:/FAHHHH/src/lib/furnitureRegistry.ts)
-- [roomState.ts](Z:/FAHHHH/src/lib/roomState.ts)
-- [surfaceDecor.ts](Z:/FAHHHH/src/lib/surfaceDecor.ts)
-- [furnitureCollision.ts](Z:/FAHHHH/src/lib/furnitureCollision.ts)
-- [furnitureInteractions.ts](Z:/FAHHHH/src/lib/furnitureInteractions.ts)
+[wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts) is a pure geometry helper for segmented walls.
 
-### Legacy / Future Skeleton
-These are important, but they are not the current gameplay source of truth:
-- [types.ts](Z:/FAHHHH/src/lib/types.ts)
-- [contracts.ts](Z:/FAHHHH/src/lib/backend/contracts.ts)
-- `backend/*`
-- [AuthGate.tsx](Z:/FAHHHH/src/components/AuthGate.tsx)
-- [PairingScreen.tsx](Z:/FAHHHH/src/components/PairingScreen.tsx)
-- [WelcomeOverlay.tsx](Z:/FAHHHH/src/components/WelcomeOverlay.tsx)
+It converts placed window metadata into:
 
-These modules represent the earlier/future connected-couple architecture and will need reconciliation with the current room-builder data model before multiplayer is restored.
+- lower wall band
+- opening band
+- upper wall band
+- remaining middle wall segments
+- remaining rail segments
 
-## Important Implementation Constraints
-- Do not add furniture without going through the registry.
-- Do not change room placement semantics casually.
-- Do not treat `types.ts` as the canonical room-builder schema.
-- Do not restore Firebase sync by reusing legacy shapes blindly; sync must adopt the current registry + room-state model.
+This lets `RoomView` open the back and left walls around placed windows without hardcoding each opening in the shell.
+
+## Rendering and Visual Stack
+
+### Room Shell and Assets
+
+[RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) composes the visual world from:
+
+- procedural floor and room shell
+- wall segmentation
+- registry-driven furniture models
+- imported GLB/pack wrappers
+- window models
+- avatar model
+
+Key asset files:
+
+- [StarterFurnitureModels.tsx](/Z:/FAHHHH/src/components/StarterFurnitureModels.tsx)
+- [OfficePackModels.tsx](/Z:/FAHHHH/src/components/OfficePackModels.tsx)
+- [WallWindowModel.tsx](/Z:/FAHHHH/src/components/WallWindowModel.tsx)
+- [MinecraftPlayer.tsx](/Z:/FAHHHH/src/components/MinecraftPlayer.tsx)
+
+### Time-of-Day Lighting
+
+The scene no longer uses a simple mode enum like `day` or `night`.
+
+Instead:
+
+- `App.tsx` computes the active `worldTimeMinutes`
+- `RoomView.tsx` converts that into `lightingState`
+- `lightingState` drives:
+  - sun position
+  - moon position
+  - directional-light intensities
+  - sky color
+  - hemisphere colors
+  - exposure
+  - AO
+  - bloom
+  - vignette
+  - window day/night rendering cues
+
+This is the active world-lighting architecture and should be extended, not bypassed.
+
+### Post-Processing
+
+The current post stack in [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) uses:
+
+- N8AO
+- Bloom
+- Vignette
+- Hue/Saturation
+- Brightness/Contrast
+
+Tone mapping is ACES Filmic.
+
+## UI and Flow Architecture
+
+The gameplay/editor flow is:
+
+1. Buy or select an owned item in `App.tsx`.
+2. Create a spawn request tied to an owned furniture id.
+3. Hand the request to `RoomView.tsx`.
+4. `RoomView.tsx` creates a draft placement and lets the player edit it.
+5. Snapshot updates are sent back during editing.
+6. Confirmed placements are committed back to `roomState`.
+
+Important separation:
+
+- `liveFurniturePlacements` tracks in-progress scene state
+- `roomState.furniture` is the committed persisted layout
+
+This split is what keeps builder editing reversible and stable.
+
+## Legacy / Future Boundary
+
+There is a second older/future-oriented data shape in the repo:
+
+- [types.ts](/Z:/FAHHHH/src/lib/types.ts)
+- [starterRoom.ts](/Z:/FAHHHH/src/lib/room/starterRoom.ts)
+- [firebase.ts](/Z:/FAHHHH/src/firebase.ts)
+- auth/pairing UI components
+
+These are useful groundwork for the eventual shared-room game, but they are not the active schema for the current sandbox runtime.
+
+Do not restore multiplayer by forcing the current sandbox back into those older shapes. The safer path is the opposite:
+
+- keep the current registry/room-state/builder model
+- map future shared-room persistence and syncing onto it
+
+## Important Constraints
+
+- Do not add furniture outside the registry.
+- Do not collapse `ownedFurniture` into placed furniture.
+- Do not break `anchorFurnitureId` + `surfaceLocalOffset` rules for surface decor.
+- Do not reintroduce hardcoded shell-only windows as the main system.
+- Do not replace the current world-clock lighting with ad hoc per-item lighting hacks.
+- Do not treat the legacy backend types as the active room-builder model.

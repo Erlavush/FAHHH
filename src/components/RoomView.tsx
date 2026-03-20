@@ -1,7 +1,15 @@
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Html, OrbitControls, PerspectiveCamera, PivotControls } from "@react-three/drei";
-import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Bloom,
+  EffectComposer,
+  Vignette,
+  N8AO,
+  HueSaturation,
+  BrightnessContrast,
+  ToneMapping
+} from "@react-three/postprocessing";
+import { type WheelEvent as ReactWheelEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ACESFilmicToneMapping,
   CanvasTexture,
@@ -9,16 +17,16 @@ import {
   Matrix4,
   MOUSE,
   NearestFilter,
-  Object3D,
+  NoToneMapping,
   Plane,
   PerspectiveCamera as ThreePerspectiveCamera,
   Quaternion,
   Ray,
   RepeatWrapping,
   SRGBColorSpace,
-  SpotLight as ThreeSpotLight,
   Vector3
 } from "three";
+import { ToneMappingMode } from "postprocessing";
 import { ChairModel } from "./ChairModel";
 import { FridgeModel } from "./FridgeModel";
 import { MinecraftPlayer } from "./MinecraftPlayer";
@@ -33,6 +41,7 @@ import {
   RugModel,
   WallFrameModel
 } from "./StarterFurnitureModels";
+import { FloorLampModel } from "./FloorLampModel";
 import {
   getFurnitureCollisionReason,
   type CollisionReason
@@ -68,6 +77,12 @@ import {
   type SurfaceLocalOffset
 } from "../lib/surfaceDecor";
 import { createWallOpeningLayout } from "../lib/wallOpenings";
+import {
+  clamp01,
+  getWorldLightingState,
+  mixColor,
+  mixNumber
+} from "../lib/worldLighting";
 
 const TILE_SIZE = 1;
 const GRID_SIZE = 10;
@@ -89,6 +104,18 @@ const WALL_MIN_Y = 1;
 const WALL_MAX_Y = 2.7;
 const WALL_RAIL_Y = 1.58;
 const WALL_TOP_TRIM_Y = 3.55;
+const MIN_CAMERA_DISTANCE = 5;
+const MAX_CAMERA_DISTANCE = 48;
+const SMOOTH_ZOOM_RESPONSE = 14;
+const SMOOTH_ZOOM_SENSITIVITY = 0.0015;
+const TOUCH_MAX_DPR = 1;
+const DESKTOP_MAX_DPR = 1.5;
+const TOUCH_COMPOSER_MULTISAMPLING = 0;
+const DESKTOP_COMPOSER_MULTISAMPLING = 4;
+const TOUCH_SUN_SHADOW_MAP_SIZE = 1024;
+const DESKTOP_SUN_SHADOW_MAP_SIZE = 1536;
+const TOUCH_MOON_SHADOW_MAP_SIZE = 0;
+const DESKTOP_MOON_SHADOW_MAP_SIZE = 512;
 const FLOOR_GIZMO_SCREEN_SIZE = 108;
 const WALL_GIZMO_SCREEN_SIZE = 94;
 const GIZMO_LINE_WIDTH = 4;
@@ -157,6 +184,7 @@ type PlayerInteractionStatus =
       label: string;
     }
   | null;
+type RenderMode = "cinematic" | "basic";
 
 function createWoodFloorTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -212,64 +240,6 @@ function createWoodFloorTexture(): CanvasTexture {
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
   texture.repeat.set(2.5, 2.5);
-
-  return texture;
-}
-
-function createSunlightPatchTexture(): CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Could not create the sunlight patch texture.");
-  }
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.filter = "blur(18px)";
-
-  const beamGradient = context.createLinearGradient(256, 16, 256, 246);
-  beamGradient.addColorStop(0, "rgba(255, 249, 232, 0.92)");
-  beamGradient.addColorStop(0.24, "rgba(255, 233, 189, 0.58)");
-  beamGradient.addColorStop(0.58, "rgba(255, 206, 134, 0.22)");
-  beamGradient.addColorStop(1, "rgba(255, 186, 108, 0)");
-  context.fillStyle = beamGradient;
-  context.beginPath();
-  context.moveTo(178, 24);
-  context.lineTo(334, 24);
-  context.lineTo(434, 236);
-  context.lineTo(78, 236);
-  context.closePath();
-  context.fill();
-
-  context.filter = "blur(10px)";
-  const coreGradient = context.createLinearGradient(256, 20, 256, 228);
-  coreGradient.addColorStop(0, "rgba(255, 255, 244, 0.82)");
-  coreGradient.addColorStop(0.22, "rgba(255, 241, 206, 0.42)");
-  coreGradient.addColorStop(1, "rgba(255, 241, 206, 0)");
-  context.fillStyle = coreGradient;
-  context.beginPath();
-  context.moveTo(226, 18);
-  context.lineTo(286, 18);
-  context.lineTo(338, 222);
-  context.lineTo(174, 222);
-  context.closePath();
-  context.fill();
-
-  context.filter = "none";
-  const streakGradient = context.createLinearGradient(256, 0, 256, 236);
-  streakGradient.addColorStop(0, "rgba(255, 255, 255, 0.24)");
-  streakGradient.addColorStop(0.5, "rgba(255, 240, 206, 0.08)");
-  streakGradient.addColorStop(1, "rgba(255, 240, 206, 0)");
-  context.fillStyle = streakGradient;
-  context.fillRect(244, 26, 24, 184);
-
-  const texture = new CanvasTexture(canvas);
-  texture.magFilter = NearestFilter;
-  texture.minFilter = NearestFilter;
-  texture.generateMipmaps = false;
-  texture.colorSpace = SRGBColorSpace;
 
   return texture;
 }
@@ -470,7 +440,7 @@ interface FloorStageProps {
   onFloorMoveCommand: (event: ThreeEvent<MouseEvent>) => void;
   onFloorPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onFloorPointerUp: () => void;
-  isDay: boolean;
+  surfaceLightAmount: number;
   checkerEnabled: boolean;
   floorPrimaryColor: string;
   floorSecondaryColor: string;
@@ -482,16 +452,16 @@ function FloorStage({
   onFloorMoveCommand,
   onFloorPointerMove,
   onFloorPointerUp,
-  isDay,
+  surfaceLightAmount,
   checkerEnabled,
   floorPrimaryColor,
   floorSecondaryColor,
   shadowsEnabled
 }: FloorStageProps) {
   const woodTexture = useMemo(() => createWoodFloorTexture(), []);
-  const platformColor = isDay ? "#34261f" : "#1f1714";
-  const floorEdgeColor = isDay ? "#d6a56d" : "#825f42";
-  const floorLipColor = isDay ? "#7a4a2d" : "#33241a";
+  const platformColor = mixColor("#1f1714", "#34261f", surfaceLightAmount);
+  const floorEdgeColor = mixColor("#825f42", "#d6a56d", surfaceLightAmount);
+  const floorLipColor = mixColor("#33241a", "#7a4a2d", surfaceLightAmount);
   const tiles = useMemo(() => {
     const nextTiles = [];
 
@@ -537,9 +507,9 @@ function FloorStage({
         <mesh position={[0, -0.5, 0]} receiveShadow={shadowsEnabled} castShadow={shadowsEnabled}>
           <boxGeometry args={[GRID_SIZE, 1, GRID_SIZE]} />
           <meshStandardMaterial
-            color={isDay ? "#8f5f3f" : "#70472f"}
+            color={mixColor("#70472f", "#8f5f3f", surfaceLightAmount)}
             map={woodTexture}
-            roughness={isDay ? 0.72 : 0.88}
+            roughness={mixNumber(0.88, 0.72, surfaceLightAmount)}
             metalness={0.03}
           />
         </mesh>
@@ -578,30 +548,6 @@ function FloorStage({
       </mesh>
     </group>
   );
-}
-
-function getWindowLightingProfile(isDay: boolean) {
-  if (isDay) {
-    return {
-      patchOpacity: 0.42,
-      spotlightColor: "#ffe5bd",
-      spotlightIntensity: 1.35,
-      spotlightDistance: 9,
-      spotlightAngle: 0.42,
-      spotlightPenumbra: 0.95,
-      patchRoll: 0.14
-    };
-  }
-
-  return {
-    patchOpacity: 0,
-    spotlightColor: "#000000",
-    spotlightIntensity: 0,
-    spotlightDistance: 0,
-    spotlightAngle: 0.38,
-    spotlightPenumbra: 0.92,
-    patchRoll: 0
-  };
 }
 
 function WallInteractionPlane({
@@ -710,97 +656,15 @@ function WallRail({
   );
 }
 
-function WindowSunlightPatch({
-  placement,
-  isDay,
-  sunEnabled
-}: {
-  placement: RoomFurniturePlacement;
-  isDay: boolean;
-  sunEnabled: boolean;
-}) {
-  const definition = getFurnitureDefinition(placement.type);
-  const sunlightPatch = definition.sunlightPatch;
-  const patchTexture = useMemo(() => createSunlightPatchTexture(), []);
-  const lightingProfile = getWindowLightingProfile(isDay);
-  const spotlightRef = useRef<ThreeSpotLight | null>(null);
-  const spotlightTargetRef = useRef<Object3D | null>(null);
-
-  useEffect(() => {
-    if (!isDay || !sunEnabled || !spotlightRef.current || !spotlightTargetRef.current) {
-      return;
-    }
-
-    spotlightRef.current.target = spotlightTargetRef.current;
-  }, [isDay, sunEnabled, placement.position, placement.surface]);
-
-  if (!sunlightPatch || !isDay || !sunEnabled) {
-    return null;
-  }
-
-  const isLeftWall = placement.surface === "wall_left";
-  const patchRotation: [number, number, number] = isLeftWall
-    ? [-Math.PI / 2, Math.PI / 2, -lightingProfile.patchRoll]
-    : [-Math.PI / 2, 0, lightingProfile.patchRoll];
-  const patchPosition: [number, number, number] = isLeftWall
-    ? [
-        LEFT_WALL_SURFACE_X + sunlightPatch.offsetFromWall + sunlightPatch.depth * 0.42,
-        0.028,
-        placement.position[2] - 0.12
-      ]
-    : [
-        placement.position[0] + 0.12,
-        0.028,
-        BACK_WALL_SURFACE_Z + sunlightPatch.offsetFromWall + sunlightPatch.depth * 0.42
-      ];
-  const spotlightOrigin: [number, number, number] = isLeftWall
-    ? [LEFT_WALL_SURFACE_X - 0.46, placement.position[1] + 0.1, placement.position[2] - 0.02]
-    : [placement.position[0] + 0.04, placement.position[1] + 0.1, BACK_WALL_SURFACE_Z - 0.46];
-  const spotlightTarget: [number, number, number] = isLeftWall
-    ? [LEFT_WALL_SURFACE_X + 1.6, 0.02, placement.position[2] + 0.18]
-    : [placement.position[0] + 0.24, 0.02, BACK_WALL_SURFACE_Z + 1.7];
-
-  return (
-    <group>
-      <mesh
-        position={patchPosition}
-        rotation={patchRotation}
-        raycast={() => null}
-        renderOrder={1}
-      >
-        <planeGeometry args={[sunlightPatch.width * 1.15, sunlightPatch.depth]} />
-        <meshBasicMaterial
-          map={patchTexture}
-          transparent
-          opacity={lightingProfile.patchOpacity}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
-      <spotLight
-        ref={spotlightRef}
-        color={lightingProfile.spotlightColor}
-        intensity={lightingProfile.spotlightIntensity}
-        distance={lightingProfile.spotlightDistance}
-        angle={lightingProfile.spotlightAngle}
-        penumbra={lightingProfile.spotlightPenumbra}
-        decay={1.8}
-        position={spotlightOrigin}
-      />
-      <object3D ref={spotlightTargetRef} position={spotlightTarget} />
-    </group>
-  );
-}
-
 function CubeLamp({
   position,
-  isDay
+  nightFactor
 }: {
   position: [number, number, number];
-  isDay: boolean;
+  nightFactor: number;
 }) {
-  const glowColor = isDay ? "#ffd290" : "#ffd394";
-  const bulbColor = isDay ? "#fff0d2" : "#ffe7bc";
+  const glowColor = mixColor("#ffd79f", "#ffd394", nightFactor);
+  const bulbColor = mixColor("#fff5e3", "#ffe7bc", nightFactor);
 
   return (
     <group position={position}>
@@ -809,7 +673,7 @@ function CubeLamp({
         <meshStandardMaterial
           color={bulbColor}
           emissive={glowColor}
-          emissiveIntensity={isDay ? 1.25 : 2.35}
+          emissiveIntensity={mixNumber(0.08, 2.35, nightFactor)}
           roughness={0.18}
           metalness={0.02}
           toneMapped={false}
@@ -817,37 +681,40 @@ function CubeLamp({
       </mesh>
       <pointLight
         position={[0, 0, 0]}
-        color={glowColor}
-        intensity={isDay ? 0.82 : 1.95}
-        distance={isDay ? 6.8 : 6.1}
+        color="#FF9944"
+        intensity={mixNumber(0.05, 0.8, nightFactor)}
+        distance={5}
         decay={2}
+        castShadow={false}
+        shadow-mapSize={[512, 512]}
+        shadow-radius={6}
       />
     </group>
   );
 }
 
 function RoomShell({
-  isDay,
-  sunEnabled,
+  surfaceLightAmount,
   furniture,
   shadowsEnabled,
+  nightFactor,
   onWallClick,
   onWallPointerMove,
   onWallPointerUp
 }: {
-  isDay: boolean;
-  sunEnabled: boolean;
+  surfaceLightAmount: number;
   furniture: RoomFurniturePlacement[];
   shadowsEnabled: boolean;
+  nightFactor: number;
   onWallClick: (event: ThreeEvent<MouseEvent>) => void;
   onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onWallPointerUp: () => void;
 }) {
-  const wallColor = isDay ? "#ddd5ca" : "#2d2826";
-  const baseboardColor = isDay ? "#855c3f" : "#5d4535";
-  const trimColor = isDay ? "#efe8dc" : "#4b3a2e";
-  const wallRailColor = isDay ? "#9c7654" : "#6a5140";
-  const cornerTrimColor = isDay ? "#e6ddd0" : "#5a4436";
+  const wallColor = mixColor("#28201c", "#eee6db", surfaceLightAmount);
+  const baseboardColor = mixColor("#775b46", "#8b6345", surfaceLightAmount);
+  const trimColor = mixColor("#725a48", "#f5eee3", surfaceLightAmount);
+  const wallRailColor = mixColor("#856652", "#a17856", surfaceLightAmount);
+  const cornerTrimColor = mixColor("#6d5443", "#e8dfd2", surfaceLightAmount);
   const windowPlacements = useMemo(
     () =>
       furniture.filter(
@@ -1027,33 +894,10 @@ function RoomShell({
         />
       ))}
 
-      {windowPlacements.map((placement) => (
-        <WindowSunlightPatch
-          key={`sun-${placement.id}`}
-          placement={placement}
-          isDay={isDay}
-          sunEnabled={sunEnabled}
-        />
-      ))}
-
-      <CubeLamp position={[2.7, 3.15, -3.92]} isDay={isDay} />
-      <CubeLamp position={[-3.12, 2.48, -3.95]} isDay={isDay} />
+      <CubeLamp position={[WALL_CENTER_COORD + 0.2, 2.42, -1.85]} nightFactor={nightFactor} />
+      <CubeLamp position={[-1.55, 2.54, WALL_CENTER_COORD + 0.2]} nightFactor={nightFactor} />
+      <CubeLamp position={[2.55, 2.54, WALL_CENTER_COORD + 0.2]} nightFactor={nightFactor} />
     </group>
-  );
-}
-
-function NightPostEffects() {
-  return (
-    <EffectComposer multisampling={0}>
-      <Bloom
-        intensity={0.58}
-        luminanceThreshold={0.36}
-        luminanceSmoothing={0.2}
-        radius={0.64}
-        mipmapBlur
-      />
-      <Vignette eskil={false} offset={0.18} darkness={0.4} />
-    </EffectComposer>
   );
 }
 
@@ -1071,12 +915,17 @@ interface RoomViewProps {
   initialPlayerPosition: Vector3Tuple;
   initialFurniturePlacements: RoomFurniturePlacement[];
   skinSrc: string | null;
-  timeOfDay: "day" | "night";
+  worldTimeMinutes: number;
+  renderMode: RenderMode;
   sunEnabled: boolean;
   shadowsEnabled: boolean;
-  checkerEnabled: boolean;
-  floorPrimaryColor: string;
-  floorSecondaryColor: string;
+  fogEnabled: boolean;
+  fogDensity: number;
+  ambientMultiplier: number;
+  sunIntensityMultiplier: number;
+  brightness: number;
+  saturation: number;
+  contrast: number;
   onCameraPositionChange: (position: Vector3Tuple) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
@@ -1103,6 +952,66 @@ function CameraTracker({
       state.camera.position.z
     ]);
   });
+
+  return null;
+}
+
+function SmoothZoomController({
+  cameraRef,
+  orbitControlsRef,
+  zoomTargetDistanceRef
+}: {
+  cameraRef: React.MutableRefObject<ThreePerspectiveCamera | null>;
+  orbitControlsRef: React.MutableRefObject<any>;
+  zoomTargetDistanceRef: React.MutableRefObject<number | null>;
+}) {
+  const cameraOffset = useMemo(() => new Vector3(), []);
+
+  useFrame((_, delta) => {
+    const camera = cameraRef.current;
+    const controls = orbitControlsRef.current;
+    const targetDistance = zoomTargetDistanceRef.current;
+
+    if (!camera || !controls || targetDistance === null) {
+      return;
+    }
+
+    cameraOffset.copy(camera.position).sub(controls.target);
+    const currentDistance = cameraOffset.length();
+
+    if (currentDistance <= 0.0001) {
+      return;
+    }
+
+    const smoothingFactor = 1 - Math.exp(-delta * SMOOTH_ZOOM_RESPONSE);
+    const nextDistance = currentDistance + (targetDistance - currentDistance) * smoothingFactor;
+
+    if (Math.abs(nextDistance - currentDistance) < 0.0001) {
+      return;
+    }
+
+    cameraOffset.multiplyScalar(nextDistance / currentDistance);
+    camera.position.copy(controls.target).add(cameraOffset);
+    controls.update();
+  });
+
+  return null;
+}
+
+function RendererExposureController({
+  exposure,
+  useRendererToneMapping
+}: {
+  exposure: number;
+  useRendererToneMapping: boolean;
+}) {
+  const { gl, invalidate } = useThree();
+
+  useLayoutEffect(() => {
+    gl.toneMapping = useRendererToneMapping ? ACESFilmicToneMapping : NoToneMapping;
+    gl.toneMappingExposure = exposure;
+    invalidate();
+  }, [exposure, gl, invalidate, useRendererToneMapping]);
 
   return null;
 }
@@ -1304,12 +1213,17 @@ export function RoomView({
   initialPlayerPosition,
   initialFurniturePlacements,
   skinSrc,
-  timeOfDay,
+  worldTimeMinutes,
+  renderMode,
   sunEnabled,
   shadowsEnabled,
-  checkerEnabled,
-  floorPrimaryColor,
-  floorSecondaryColor,
+  fogEnabled,
+  fogDensity,
+  ambientMultiplier,
+  sunIntensityMultiplier,
+  brightness,
+  saturation,
+  contrast,
   onCameraPositionChange,
   onPlayerPositionChange,
   onFurnitureSnapshotChange,
@@ -1333,6 +1247,7 @@ export function RoomView({
   const capturedPointerIdRef = useRef<number | null>(null);
   const capturedPointerTargetRef = useRef<PointerCaptureTarget | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const zoomTargetDistanceRef = useRef<number | null>(null);
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>(initialPlayerPosition);
   const [playerWorldPosition, setPlayerWorldPosition] = useState<[number, number, number]>(
     initialPlayerPosition
@@ -1356,8 +1271,88 @@ export function RoomView({
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
-  const isDay = timeOfDay === "day";
-  const enableNightPostEffects = !isDay && !prefersTouchControls;
+  const lightingState = useMemo(() => getWorldLightingState(worldTimeMinutes), [worldTimeMinutes]);
+  const isBasicRenderMode = renderMode === "basic";
+  const floorLampCount = useMemo(
+    () => furniture.filter((item) => item.type === "floor_lamp").length,
+    [furniture]
+  );
+  const practicalLampFactor = Math.min(1, floorLampCount / 2) * lightingState.nightFactor;
+  const roomSurfaceLightAmount = clamp01(
+    lightingState.interiorDaylightAmount + practicalLampFactor * 0.22
+  );
+  const windowSurfaceLightAmount = clamp01(
+    lightingState.windowDaylightAmount + practicalLampFactor * 0.08
+  );
+  const twilightSafetyAmount = lightingState.twilightAmount;
+  const skyGradientTopColor = mixColor(
+    mixColor("#071128", "#f2a85f", twilightSafetyAmount * 0.82),
+    "#2fa8ff",
+    lightingState.daylightAmount
+  );
+  const skyGradientBottomColor = mixColor(
+    mixColor("#132247", "#ffd7ab", twilightSafetyAmount * 0.76),
+    "#d6f2ff",
+    lightingState.daylightAmount
+  );
+  const sceneBackdrop = `linear-gradient(180deg, ${skyGradientTopColor} 0%, ${mixColor(
+    skyGradientTopColor,
+    skyGradientBottomColor,
+    0.45
+  )} 60%, ${skyGradientBottomColor} 100%)`;
+  const sceneFogColor = mixColor(skyGradientTopColor, skyGradientBottomColor, 0.68);
+  const sceneToneMappingExposure = isBasicRenderMode
+    ? mixNumber(0.28, 0.4, lightingState.daylightAmount) +
+      twilightSafetyAmount * 0.03 +
+      practicalLampFactor * 0.12
+    : lightingState.toneMappingExposure + practicalLampFactor * 0.16;
+  const composerAoIntensity = lightingState.aoIntensity * mixNumber(0.08, 1, 1 - twilightSafetyAmount);
+  const composerBloomIntensity =
+    lightingState.bloomIntensity * mixNumber(0.6, 1, 1 - twilightSafetyAmount);
+  const composerVignetteDarkness =
+    lightingState.vignetteDarkness * mixNumber(0.18, 1, 1 - twilightSafetyAmount);
+  const composerBrightness = brightness - 1 + twilightSafetyAmount * 0.12;
+  const composerContrast = contrast - 1;
+  const shouldApplyHueSaturation = Math.abs(saturation - 1) > 0.001;
+  const shouldApplyBrightnessContrast =
+    Math.abs(composerBrightness) > 0.001 || Math.abs(composerContrast) > 0.001;
+  const shouldUseBasicColorComposer =
+    isBasicRenderMode && (shouldApplyHueSaturation || shouldApplyBrightnessContrast);
+  const shouldUseRendererToneMapping = isBasicRenderMode && !shouldUseBasicColorComposer;
+  const canvasDpr = prefersTouchControls ? TOUCH_MAX_DPR : DESKTOP_MAX_DPR;
+  const composerMultisampling = prefersTouchControls
+    ? TOUCH_COMPOSER_MULTISAMPLING
+    : DESKTOP_COMPOSER_MULTISAMPLING;
+  const sunShadowMapSize = prefersTouchControls
+    ? TOUCH_SUN_SHADOW_MAP_SIZE
+    : DESKTOP_SUN_SHADOW_MAP_SIZE;
+  const moonShadowMapSize = prefersTouchControls
+    ? TOUCH_MOON_SHADOW_MAP_SIZE
+    : DESKTOP_MOON_SHADOW_MAP_SIZE;
+  const shouldUseAmbientOcclusion = !prefersTouchControls && composerAoIntensity > 0.02;
+  const shouldUseBloom = composerBloomIntensity > 0.02;
+  const hemisphereLightIntensity = (
+    isBasicRenderMode
+      ? mixNumber(0.18, 0.3, lightingState.daylightAmount) +
+        lightingState.twilightFillAmount * 0.12 +
+        practicalLampFactor * 0.12
+      : mixNumber(0.22, 0.38, lightingState.daylightAmount) +
+        lightingState.twilightFillAmount * 0.2 +
+        practicalLampFactor * 0.16
+  ) * ambientMultiplier;
+  const moonFillIntensity = isBasicRenderMode
+    ? lightingState.moonIntensity * 0.55 + lightingState.nightFactor * 0.025
+    : lightingState.moonIntensity;
+  const syncZoomTargetToCamera = useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = orbitControlsRef.current;
+
+    if (!camera || !controls) {
+      return;
+    }
+
+    zoomTargetDistanceRef.current = camera.position.distanceTo(controls.target);
+  }, []);
   const selectedFurniture = useMemo(
     () => findFurniturePlacement(furniture, selectedFurnitureId),
     [furniture, selectedFurnitureId]
@@ -1442,6 +1437,26 @@ export function RoomView({
     isTransformingFurniture,
     selectedFurnitureId
   ]);
+  const handleCanvasWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    if (prefersTouchControls || isTransformingFurniture) {
+      return;
+    }
+
+    const camera = cameraRef.current;
+    const controls = orbitControlsRef.current;
+
+    if (!camera || !controls) {
+      return;
+    }
+
+    const currentTargetDistance =
+      zoomTargetDistanceRef.current ?? camera.position.distanceTo(controls.target);
+    const zoomScale = Math.exp(event.deltaY * SMOOTH_ZOOM_SENSITIVITY);
+    zoomTargetDistanceRef.current = Math.min(
+      MAX_CAMERA_DISTANCE,
+      Math.max(MIN_CAMERA_DISTANCE, currentTargetDistance * zoomScale)
+    );
+  }, [isTransformingFurniture, prefersTouchControls]);
 
   useEffect(() => {
     if (placementListsMatch(lastReportedFurnitureRef.current, furniture)) {
@@ -1592,6 +1607,10 @@ export function RoomView({
   }, []);
 
   useEffect(() => {
+    syncZoomTargetToCamera();
+  }, [syncZoomTargetToCamera]);
+
+  useEffect(() => {
     if (!cameraResetToken || cameraResetToken === lastCameraResetTokenRef.current) {
       return;
     }
@@ -1604,8 +1623,9 @@ export function RoomView({
     );
     orbitControlsRef.current?.target.set(0, 0.9, 0);
     orbitControlsRef.current?.update();
+    syncZoomTargetToCamera();
     onCameraPositionChange(initialCameraPosition);
-  }, [cameraResetToken, initialCameraPosition, onCameraPositionChange]);
+  }, [cameraResetToken, initialCameraPosition, onCameraPositionChange, syncZoomTargetToCamera]);
 
   useEffect(() => {
     if (!standRequestToken || standRequestToken === lastStandRequestTokenRef.current) {
@@ -2783,7 +2803,7 @@ export function RoomView({
       case "office_chair":
         return <OfficeChairModel {...commonProps} />;
       case "window":
-        return <WallWindowModel {...commonProps} isDay={isDay} />;
+        return <WallWindowModel {...commonProps} daylightAmount={windowSurfaceLightAmount} />;
       case "vase":
         return <VaseModel {...commonProps} />;
       case "books":
@@ -2794,6 +2814,8 @@ export function RoomView({
         return <WallFrameModel {...commonProps} />;
       case "rug":
         return <RugModel {...commonProps} />;
+      case "floor_lamp":
+        return <FloorLampModel {...commonProps} nightFactor={lightingState.nightFactor} />;
       default:
         return null;
     }
@@ -2847,8 +2869,12 @@ export function RoomView({
   return (
     <div
       className="canvas-wrap"
-      style={{ cursor: interactionCursor }}
+      style={{
+        cursor: interactionCursor,
+        background: sceneBackdrop
+      }}
       onContextMenu={(event) => event.preventDefault()}
+      onWheel={handleCanvasWheel}
       onPointerLeave={() => {
         if (!isDraggingFurniture && !isTransformingFurniture) {
           setHoveredFurnitureId(null);
@@ -2858,15 +2884,19 @@ export function RoomView({
       }}
     >
       <Canvas
-        shadows
-        dpr={[1, 1.6]}
+        shadows={shadowsEnabled}
+        dpr={[1, canvasDpr]}
         gl={{
+          alpha: true,
           antialias: !prefersTouchControls,
-          toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: isDay ? 1.08 : 1.08
+          powerPreference: "high-performance"
         }}
       >
-        <color attach="background" args={[isDay ? "#8a96a8" : "#10151c"]} />
+        <RendererExposureController
+          exposure={sceneToneMappingExposure}
+          useRendererToneMapping={shouldUseRendererToneMapping}
+        />
+        <fogExp2 attach="fog" color={sceneFogColor} density={fogEnabled ? fogDensity : 0} />
         <PerspectiveCamera
           ref={cameraRef}
           makeDefault
@@ -2879,10 +2909,10 @@ export function RoomView({
           enabled={!isTransformingFurniture && !isDraggingFurniture}
           enableRotate={!isTransformingFurniture && !isDraggingFurniture}
           enablePan={false}
-          enableZoom={!isTransformingFurniture}
+          enableZoom={false}
           screenSpacePanning={false}
-          minDistance={5}
-          maxDistance={48}
+          minDistance={MIN_CAMERA_DISTANCE}
+          maxDistance={MAX_CAMERA_DISTANCE}
           target={[0, 0.9, 0]}
           minPolarAngle={0.18}
           maxPolarAngle={1.5}
@@ -2892,36 +2922,119 @@ export function RoomView({
             RIGHT: DISABLED_MOUSE_BUTTON
           }}
         />
-        <ambientLight intensity={isDay ? 0.34 : 0.18} color={isDay ? "#f6f2ea" : "#8f9ebb"} />
-        <hemisphereLight
-          intensity={isDay ? 0.16 : 0.2}
-          groundColor={isDay ? "#4d3324" : "#241915"}
-          color={isDay ? "#f5efe4" : "#4f617b"}
+        <SmoothZoomController
+          cameraRef={cameraRef}
+          orbitControlsRef={orbitControlsRef}
+          zoomTargetDistanceRef={zoomTargetDistanceRef}
         />
-        {sunEnabled ? (
-          <directionalLight
-            castShadow={shadowsEnabled}
-            intensity={isDay ? 1.18 : 0.16}
-            color={isDay ? "#ffe3bc" : "#92aedd"}
-            position={isDay ? [-6.8, 8.2, -7.4] : [2.6, 5.4, 3.2]}
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
-            shadow-bias={-0.0003}
-            shadow-normalBias={isDay ? 0.022 : 0.01}
+        {!isBasicRenderMode ? (
+          <ambientLight
+            intensity={
+              lightingState.nightFactor * 0.08 +
+              lightingState.twilightAmount * 0.12 +
+              practicalLampFactor * 0.1
+            }
+            color="#ffd7b0"
           />
         ) : null}
-        {isDay ? (
-          <directionalLight
-            intensity={0.06}
-            color="#ffffff"
-            position={[4.8, 5.6, 4.4]}
+        <hemisphereLight
+          intensity={hemisphereLightIntensity}
+          groundColor={mixColor(
+            lightingState.hemisphereGroundColor,
+            "#7b5e49",
+            practicalLampFactor * 0.6
+          )}
+          color={mixColor(
+            lightingState.hemisphereSkyColor,
+            "#ffd9b5",
+            practicalLampFactor * 0.55
+          )}
+        />
+        {practicalLampFactor > 0.001 ? (
+          <pointLight
+            position={[0, 2.55, -1.45]}
+            color="#ffcf9f"
+            intensity={practicalLampFactor * 0.82}
+            distance={13.5}
+            decay={2.2}
           />
+        ) : null}
+        {sunEnabled ? (
+          isBasicRenderMode ? (
+            <>
+              <directionalLight
+                castShadow={
+                  shadowsEnabled &&
+                  lightingState.sunIntensity > 0.08 &&
+                  lightingState.solarAltitude > 0.18
+                }
+                intensity={lightingState.sunIntensity * sunIntensityMultiplier}
+                color={lightingState.sunColor}
+                position={lightingState.sunPosition}
+                shadow-mapSize-width={sunShadowMapSize}
+                shadow-mapSize-height={sunShadowMapSize}
+                shadow-bias={-0.00028}
+                shadow-normalBias={mixNumber(0.01, 0.03, lightingState.daylightAmount)}
+                shadow-radius={mixNumber(4.4, 3.2, lightingState.daylightAmount)}
+              >
+                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
+              </directionalLight>
+              <directionalLight
+                castShadow={false}
+                intensity={moonFillIntensity}
+                color={lightingState.moonColor}
+                position={lightingState.moonPosition}
+              />
+            </>
+          ) : (
+            <>
+              <mesh position={lightingState.moonPosition} raycast={() => null}>
+                <sphereGeometry args={[0.48, 10, 10]} />
+                <meshBasicMaterial
+                  color={lightingState.moonColor}
+                  toneMapped={false}
+                  transparent
+                  opacity={clamp01(lightingState.nightFactor)}
+                />
+              </mesh>
+              <directionalLight
+                castShadow={
+                  shadowsEnabled &&
+                  lightingState.sunIntensity > 0.08 &&
+                  lightingState.solarAltitude > 0.18
+                }
+                intensity={lightingState.sunIntensity * sunIntensityMultiplier}
+                color={lightingState.sunColor}
+                position={lightingState.sunPosition}
+                shadow-mapSize-width={sunShadowMapSize}
+                shadow-mapSize-height={sunShadowMapSize}
+                shadow-bias={-0.00028}
+                shadow-normalBias={mixNumber(0.01, 0.03, lightingState.daylightAmount)}
+                shadow-radius={mixNumber(4.4, 3.2, lightingState.daylightAmount)}
+              >
+                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
+              </directionalLight>
+              <directionalLight
+                castShadow={false}
+                intensity={lightingState.moonIntensity}
+                color={lightingState.moonColor}
+                position={lightingState.moonPosition}
+                shadow-mapSize-width={moonShadowMapSize}
+                shadow-mapSize-height={moonShadowMapSize}
+                shadow-bias={-0.00018}
+                shadow-normalBias={0.012}
+                shadow-radius={4.8}
+              >
+                <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 50]} />
+              </directionalLight>
+            </>
+          )
         ) : null}
         <RoomShell
-          isDay={isDay}
-          sunEnabled={sunEnabled}
+          surfaceLightAmount={roomSurfaceLightAmount}
           furniture={furniture}
           shadowsEnabled={shadowsEnabled}
+          nightFactor={lightingState.lampNightFactor}
           onWallClick={handleWallClick}
           onWallPointerMove={handleSurfacePointerMove}
           onWallPointerUp={handleSurfacePointerUp}
@@ -2931,10 +3044,10 @@ export function RoomView({
           onFloorMoveCommand={handleFloorMoveCommand}
           onFloorPointerMove={handleSurfacePointerMove}
           onFloorPointerUp={handleSurfacePointerUp}
-          isDay={isDay}
-          checkerEnabled={checkerEnabled}
-          floorPrimaryColor={floorPrimaryColor}
-          floorSecondaryColor={floorSecondaryColor}
+          surfaceLightAmount={roomSurfaceLightAmount}
+          checkerEnabled={false}
+          floorPrimaryColor="#f1f1f1"
+          floorSecondaryColor="#e5e5e5"
           shadowsEnabled={shadowsEnabled}
         />
         <MinecraftPlayer
@@ -3052,7 +3165,50 @@ export function RoomView({
             confirmDisabled={isPlacementBlocked}
           />
         ) : null}
-        {enableNightPostEffects ? <NightPostEffects /> : null}
+        {shouldUseBasicColorComposer ? (
+          <EffectComposer multisampling={0}>
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            {shouldApplyHueSaturation ? <HueSaturation hue={0} saturation={saturation - 1} /> : <></>}
+            {shouldApplyBrightnessContrast ? (
+              <BrightnessContrast brightness={composerBrightness} contrast={composerContrast} />
+            ) : (
+              <></>
+            )}
+          </EffectComposer>
+        ) : !isBasicRenderMode ? (
+          <EffectComposer multisampling={composerMultisampling}>
+            {shouldUseAmbientOcclusion ? (
+              <N8AO
+                aoRadius={lightingState.aoRadius}
+                intensity={composerAoIntensity}
+                color="#000000"
+              />
+            ) : (
+              <></>
+            )}
+            {shouldUseBloom ? (
+              <Bloom
+                luminanceThreshold={lightingState.bloomThreshold}
+                mipmapBlur
+                intensity={composerBloomIntensity}
+              />
+            ) : (
+              <></>
+            )}
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <Vignette
+              eskil={false}
+              offset={lightingState.vignetteOffset}
+              darkness={composerVignetteDarkness}
+            />
+            {shouldApplyHueSaturation ? <HueSaturation hue={0} saturation={saturation - 1} /> : <></>}
+            {shouldApplyBrightnessContrast ? (
+              <BrightnessContrast brightness={composerBrightness} contrast={composerContrast} />
+            ) : (
+              <></>
+            )}
+          </EffectComposer>
+        ) : null}
         <CameraTracker onCameraPositionChange={onCameraPositionChange} />
       </Canvas>
       {buildModeEnabled && selectedFurniture ? (

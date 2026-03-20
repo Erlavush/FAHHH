@@ -29,6 +29,10 @@ const DEV_FURNITURE_KEY = "cozy-room-dev-furniture";
 const DEV_CAMERA_KEY = "cozy-room-dev-camera";
 const DEV_PLAYER_KEY = "cozy-room-dev-player";
 
+function clampCoordinate(val: number): number {
+  return typeof val !== "number" || isNaN(val) ? 0 : Math.max(-20, Math.min(20, val));
+}
+
 function canUseLocalStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -137,7 +141,11 @@ function loadLegacyVector3(key: string, fallback: PersistedVector3): PersistedVe
       return fallback;
     }
 
-    return [parsedValue[0], parsedValue[1], parsedValue[2]];
+    return [
+      clampCoordinate(parsedValue[0]), 
+      clampCoordinate(parsedValue[1]), 
+      clampCoordinate(parsedValue[2])
+    ];
   } catch {
     return fallback;
   }
@@ -327,9 +335,9 @@ export function loadPersistedSandboxState(
         parsedValue.cameraPosition[2]
       ],
       playerPosition: [
-        parsedValue.playerPosition[0],
-        parsedValue.playerPosition[1],
-        parsedValue.playerPosition[2]
+        clampCoordinate(parsedValue.playerPosition[0]),
+        clampCoordinate(parsedValue.playerPosition[1]),
+        clampCoordinate(parsedValue.playerPosition[2])
       ],
       playerCoins:
         parsedValue.version === 3 && "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)

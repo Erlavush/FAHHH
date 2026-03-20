@@ -1,11 +1,13 @@
 # Risk It All: Cozy Couple Room Game
 
 ## Project Fantasy
-This project is a cozy browser-based couple-room game built around intimacy, shared progression, and emotional risk. Two partners pair into one room, earn progress together, decorate a lovely private space, and fill it with personal memories. The room is meant to feel warm, playful, and meaningfully theirs.
+
+This project is a cozy browser-based couple-room game built around intimacy, shared progression, and emotional risk. Two partners pair into one room, earn progress together, decorate a lovely private space, and fill it with personal memories.
 
 The defining hook is `Risk it all`: if the couple decides to break up, the shared room and the progress tied to that relationship are wiped.
 
 ## Final Game Vision
+
 The intended final game is not only a room decorator. It is a shared couple-space game with:
 
 - one persistent room for one couple
@@ -24,6 +26,7 @@ The intended final game is not only a room decorator. It is a shared couple-spac
 - a breakup mechanic that clears the room and shared progress
 
 ## Core Pillars
+
 - `Shared intimacy`: the room should feel like a private place for two people.
 - `Earned decorating`: furniture and lovely details should be unlocked or bought, not all free from the start.
 - `Memory and personality`: custom photos, pets, and visual variants should make the room feel personal.
@@ -31,17 +34,45 @@ The intended final game is not only a room decorator. It is a shared couple-spac
 - `Emotional stakes`: breakup has real cost, which gives the room meaning.
 
 ## Core Player Loop
-- Pair into one shared room.
-- Log in and maintain the couple streak.
-- Complete a daily quest.
-- Play the desk PC minigame for extra coins.
-- Earn coins and level up.
-- Buy furniture, decor, frames, and pets.
-- Customize the room with shared memories and cute details.
-- Keep growing the room together while the relationship remains active.
+
+- pair into one shared room
+- log in and maintain the couple streak
+- complete a daily quest
+- play the desk PC minigame for extra coins
+- earn coins and level up
+- buy furniture, decor, frames, and pets
+- customize the room with shared memories and cute details
+- keep growing the room together while the relationship remains active
+
+## Current Product Status
+
+The repo has moved beyond the earliest empty-room prototype, but it is still a `local foundation`, not the complete shared-room game.
+
+### Implemented now
+
+- local sandbox room runtime
+- build-mode editing for floor, wall, and surface items
+- registry-driven furniture system
+- inventory ownership and stored-items flow
+- coin-based buying and selling
+- buyable wall windows with real wall openings
+- world clock with real-time sun/moon lighting controls
+- preview studio for shop thumbnails
+- local persistence for room, camera, position, skin, and coins
+
+### Still missing from the full game
+
+- pairing into one shared room
+- shared room sync and partner presence
+- level and couple streak
+- minigame and daily quest earn loops
+- editable couple-photo frames
+- pets
+- breakup reset gameplay
 
 ## Game Jam MVP
-The game jam build should focus on one polished slice of that fantasy:
+
+The jam build should prove one polished slice of the full fantasy:
 
 - one shared room
 - pairing into the same room
@@ -56,6 +87,7 @@ The game jam build should focus on one polished slice of that fantasy:
 The MVP should prove the fantasy of `we are building this room together and it matters`.
 
 ## Stretch Goals
+
 After the MVP is stable, the next most valuable additions are:
 
 - more furniture and decor categories
@@ -67,6 +99,7 @@ After the MVP is stable, the next most valuable additions are:
 - better social presence and partner feedback
 
 ## Scope Boundaries
+
 This project should stay focused on the room fantasy. It is not trying to become:
 
 - a broad life sim
@@ -77,14 +110,9 @@ This project should stay focused on the room fantasy. It is not trying to become
 The economy, quests, and progression should stay room-centered and readable for a game jam scale.
 
 ## World Scale Rules
-- `1 world unit = 1 block`.
-- Ground plane uses Minecraft-like block logic.
-- Room footprint is currently `10 x 10` blocks.
-- `Y` is vertical height; `X/Z` are floor-plane axes.
-- The player uses Minecraft-like proportions and Minecraft skin layout rules.
-- Furniture should fit cleanly into block-relative footprints and remain readable beside a roughly `1.8`-unit-tall avatar.
 
-## Current Product Status
-- `Implemented now`: local sandbox room builder, furniture placement, wall decor, surface decor, room interactions, local persistence, imported furniture assets.
-- `Foundation only`: the current implementation is the base layer for the larger jam game vision.
-- `Planned next`: stabilize the builder foundation, then add the MVP progression, shared-room, and personalization systems.
+- `1 world unit = 1 block`
+- room footprint is currently `10 x 10`
+- `Y` is vertical height; `X/Z` are floor-plane axes
+- furniture should fit cleanly into block-relative footprints
+- the player uses Minecraft-like proportions and Minecraft skin layout rules

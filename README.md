@@ -1,12 +1,27 @@
 # Risk It All: Cozy Couple Room
 
-A browser-first couple-room game foundation built with React, React Three Fiber, and Firebase.
+A browser-first cozy couple-room game foundation built with React, Vite, React Three Fiber, and Firebase-ready skeletons.
 
-## Project direction
+## What This Repo Is Right Now
 
-This repo is the foundation for a game jam concept about two partners building a shared room together and risking all of that progress on the relationship itself.
+The active product in this repository is a `local sandbox foundation`, not the full multiplayer jam game yet.
 
-The final game direction is:
+What already works in the live runtime:
+
+- a single-room 3D sandbox with Minecraft-skin-compatible avatars
+- build mode with floor, wall, and surface placement
+- stable gizmo editing, confirm/cancel/store flow, and smooth camera zoom
+- inventory ownership model with stored vs placed furniture
+- coin-based furniture buying and selling
+- a redesigned room inventory/shop panel with previews and item descriptions
+- a preview studio for generating thumbnail images
+- buyable wall windows that open real holes in the back and left walls
+- a real-time sun/moon lighting clock with dev controls for locking and scrubbing time
+- local persistence for room state, player position, camera, coins, and skin
+
+## Final Game Direction
+
+The final game direction is still `Risk It All`:
 
 - two partners pair into one persistent room
 - each partner earns coins and levels up
@@ -18,43 +33,51 @@ The final game direction is:
 - pets like cats and dogs make the room feel alive
 - if the couple breaks up, the shared room and its progress are wiped
 
-## Current foundation
+## Most Important Docs
 
-What exists in this repo today is the local sandbox foundation:
+- [AI handoff](/Z:/FAHHHH/docs/AI_HANDOFF.md): current source of truth for another AI or collaborator
+- [Current systems](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md): gameplay/runtime behavior that exists now
+- [Architecture](/Z:/FAHHHH/docs/ARCHITECTURE.md): file ownership and system boundaries
+- [Roadmap](/Z:/FAHHHH/docs/ROADMAP.md): implemented foundation vs next priorities
+- [Game overview](/Z:/FAHHHH/docs/GAME_OVERVIEW.md): long-term product vision
+- [Diagrams](/Z:/FAHHHH/docs/DIAGRAMS.md): runtime and roadmap diagrams
 
-- React + Vite + TypeScript frontend
-- React Three Fiber / Drei 3D room scene
-- local room builder with floor, wall, and surface decor placement
-- avatar movement and current furniture interactions
-- local persistence for room state, player position, camera, and skin
-- imported furniture asset wrappers
+## Current Runtime Truth
 
-## Game jam MVP
+If you are extending the current playable sandbox, start from:
 
-The intended jam MVP is:
+- [App.tsx](/Z:/FAHHHH/src/App.tsx)
+- [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx)
+- [furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts)
+- [roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts)
+- [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts)
+- [economy.ts](/Z:/FAHHHH/src/lib/economy.ts)
+- [furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts)
+- [surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts)
+- [furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts)
+- [wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts)
 
-- one shared couple room
-- pairing into the same room
-- coins plus a furniture shop
-- simple level and streak progression
-- one PC minigame for extra coins
-- one daily quest loop
-- editable photo frames
-- one pet type
-- breakup reset flow
+Do not treat the older backend/couple-room skeleton as the active runtime schema.
 
-## Getting started
+## Getting Started
 
 1. Copy `.env.example` to `.env`.
-2. Fill in your Firebase project values if you want to work on connected features later.
+2. Fill in Firebase variables only if you want to work on connected features later.
 3. Install dependencies.
 4. Start the dev server.
 
-On Windows PowerShell with strict script execution, use:
+On Windows PowerShell with strict script execution:
 
 ```powershell
 cmd /c npm install
 cmd /c npm run dev
 ```
 
-If Firebase is not configured, the app runs in the current local sandbox mode using browser storage.
+Useful commands:
+
+```powershell
+cmd /c npm test
+cmd /c npm run build
+```
+
+If Firebase is not configured, the app runs in browser-only local sandbox mode.
