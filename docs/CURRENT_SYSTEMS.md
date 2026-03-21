@@ -9,10 +9,15 @@
 - inventory ownership
 - coin-based shop and sell flow
 - window furniture with real wall openings
-- preview studio for shop thumbnails
+- preview studio for furniture thumbnails
+- preview studio `Mob Lab` for imported model and mob testing
+- a temporary pet-store flow for adopting the finalized raccoon or high-fidelity cat into the live room
+- a live-room pet runtime with room-safe wandering and procedural physics
+- real-time FPS performance monitoring HUD
 - real-time sun/moon world clock
 - desk PC minigame earn loop
-- local persistence for room, skin, camera, position, coins, and PC minigame progress
+- local persistence for room, skin, camera, position, coins, pets, and PC minigame progress
+- separate browser-local persistence for Mob Lab presets and selected parts
 
 ### Still Missing
 
@@ -22,7 +27,7 @@
 - streaks
 - quests
 - additional minigames
-- pets
+- a generalized pet gameplay loop beyond the current raccoon test pet
 - breakup/reset game logic
 
 ## Global Controls
@@ -33,6 +38,7 @@
 - `Mouse wheel`: smooth zoom in and out
 - `Reset Camera`: return to the default camera shot
 - `Reset Room`: restore the default sandbox state for the current layout version
+- **Performance Monitor**: real-time FPS counter in the bottom-left with color-coded status
 
 ### Play Mode
 
@@ -87,6 +93,7 @@ The inventory panel shows:
 - sell/remove button
 - preview image
 - info popover with short description
+- a `Pet Store` section for temporary test-pet adoption
 
 ## Furniture Placement Families
 
@@ -131,7 +138,7 @@ Valid on:
 
 - bed
 
-The bed now supports multiple slots at the interaction-target layer so future partner-side logic has a cleaner path.
+The bed supports multiple slots at the interaction-target layer so future partner-side logic has a cleaner path.
 
 ### Use PC
 
@@ -199,19 +206,7 @@ Important current facts:
 - layout version: `6`
 - theme: `starter-cozy`
 - current default room is based on a user-staged arrangement that was baked into the code
-- the starter layout includes:
-  - rug
-  - bed
-  - office desk
-  - office chair
-  - wardrobe
-  - side table
-  - books
-  - vase
-  - one left-wall window
-  - two back-wall windows
-  - poster
-  - wall frame
+- the starter layout includes furniture, decor, and real placed windows
 
 ## Window and Wall System
 
@@ -228,9 +223,13 @@ Current behavior:
 
 ## Preview Studio
 
-The preview studio is an in-app content tool for making shop thumbnails.
+The preview studio is an in-app content tool.
 
-It currently supports:
+It currently has two modes.
+
+### Furniture Studio
+
+Furniture Studio supports:
 
 - one-item-at-a-time preview
 - orthographic isometric camera
@@ -244,6 +243,25 @@ Current thumbnail state:
 - all registry items have a preview path
 - some items use real PNG captures
 - the rest still use placeholder SVGs
+
+### Mob Lab
+
+Mob Lab is for imported model and mob look-dev.
+
+It currently supports:
+
+- one active imported mob preset at a time
+- a `5 x 5` grass-block stage
+- live rig/body-part editing
+- live idle and walk animation tuning
+- preview locomotion modes: `idle`, `walk_in_place`, `loop_path`
+- collider size and offset tuning
+- high-fidelity GLB support with skeletal cloning (prevents scene theft)
+- Smart Mesh-Only variant filtering (hides ghost geometry)
+- local auto-save plus JSON export/import
+
+- the renderer supports both legacy cuboid CEM models and high-fidelity GLB skeletons
+- imported mobs are not automatically gameplay pets; live-room promotion is still an explicit per-preset step
 
 ## World Clock and Lighting
 
@@ -282,7 +300,7 @@ World settings currently include:
 
 Current note:
 
-- the scene now uses one cinematic lighting path
+- the scene uses one cinematic lighting path
 - there is no render-mode toggle in the dev panel right now
 
 ### Lighting Stack
@@ -307,15 +325,14 @@ Current note:
 
 - fake per-window ray-light decals have been removed
 - lighting now comes from the global world clock rig
-- floating cube wall lights have been removed
-- warm practical night fill now comes from floor-lamp furniture plus the shared room lighting rig
+- warm practical night fill comes from floor-lamp furniture plus the shared room lighting rig
 - the visual look is still stylized and still being polished
 
 ## Persistence
 
-The active save path is local browser storage through [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts).
+The active room save path is local browser storage through [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts).
 
-Persisted fields:
+Persisted room/runtime fields:
 
 - `skinSrc`
 - `cameraPosition`
@@ -323,16 +340,31 @@ Persisted fields:
 - `playerCoins`
 - `roomState`
 - `pcMinigame`
+- `pets`
 
 Important current facts:
 
-- save schema version is `4`
+- save schema version is `5`
 - older saves are normalized forward
 - outdated room layouts are reset to the current fallback starter room
 
+Mob Lab authoring state is stored separately through [mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts).
+
+Mob Lab persisted fields:
+
+- active mob id
+- selected part per mob id
+- imported-mob preset library
+
+Important current facts:
+
+- Mob Lab save schema version is `2`
+- Mob Lab state does not live inside the room sandbox save
+- JSON export/import is the intended browser-safe sharing path
+
 ## Test Coverage
 
-There are 11 test files in [tests](/Z:/FAHHHH/tests):
+There are 12 test files in [tests](/Z:/FAHHHH/tests):
 
 - [economy.test.ts](/Z:/FAHHHH/tests/economy.test.ts)
 - [furnitureCollision.test.ts](/Z:/FAHHHH/tests/furnitureCollision.test.ts)
@@ -345,11 +377,13 @@ There are 11 test files in [tests](/Z:/FAHHHH/tests):
 - [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
 - [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
 - [pcMinigame.test.ts](/Z:/FAHHHH/tests/pcMinigame.test.ts)
+- [petPathing.test.ts](/Z:/FAHHHH/tests/petPathing.test.ts)
 
 Important interpretation:
 
 - most sandbox/runtime coverage lives in the room-state, collision, interaction, economy, surface, and wall-opening tests
 - `starterRoom.test.ts` covers the older/future shared-room helper, not the active sandbox room schema
+- there is targeted automated coverage for simple pet pathing, but there is still no dedicated automated coverage for the full Mob Lab editor flow
 
 ## Known Rough Edges
 
@@ -357,4 +391,5 @@ Important interpretation:
 - many item thumbnails are still placeholders
 - art style cohesion is still mixed between hand-built models and imported/hardcoded replacements
 - visual lighting polish is still in progress
-- auth/pairing code exists but is not currently mounted by the active app shell
+- auth/pairing code exists but is not mounted by the active app shell
+- Mob Lab has been generalized to support GLB skeletons, but still lacks full gameplay AI (needs/moods)

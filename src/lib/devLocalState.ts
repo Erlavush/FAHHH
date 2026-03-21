@@ -4,6 +4,7 @@ import {
   createDefaultPcMinigameProgress,
   type PcMinigameProgress
 } from "./pcMinigame";
+import { cloneOwnedPets, PET_REGISTRY, type OwnedPet } from "./pets";
 import {
   cloneRoomState,
   createDefaultRoomState,
@@ -19,18 +20,18 @@ export type PersistedFurnitureType = FurnitureType;
 export type PersistedVector3 = Vector3Tuple;
 
 export interface PersistedSandboxState {
-  version: 4;
+  version: 5;
   skinSrc: string | null;
   cameraPosition: PersistedVector3;
   playerPosition: PersistedVector3;
   playerCoins: number;
   roomState: RoomState;
   pcMinigame: PcMinigameProgress;
+  pets: OwnedPet[];
 }
 
-const DEV_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox";
+const DEV_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox-v6";
 const DEV_SKIN_KEY = "cozy-room-dev-skin";
-const DEV_FURNITURE_KEY = "cozy-room-dev-furniture";
 const DEV_CAMERA_KEY = "cozy-room-dev-camera";
 const DEV_PLAYER_KEY = "cozy-room-dev-player";
 
@@ -98,6 +99,24 @@ function isValidOwnedFurnitureItem(value: unknown): value is OwnedFurnitureItem 
     value.type in FURNITURE_REGISTRY &&
     typeof value.ownerId === "string" &&
     (value.acquiredFrom === "starter" || value.acquiredFrom === "sandbox_catalog")
+  );
+}
+
+function isValidOwnedPet(value: unknown): value is OwnedPet {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "type" in value &&
+    typeof value.type === "string" &&
+    value.type in PET_REGISTRY &&
+    "presetId" in value &&
+    typeof value.presetId === "string" &&
+    "acquiredFrom" in value &&
+    value.acquiredFrom === "pet_shop" &&
+    "spawnPosition" in value &&
+    isValidVector3(value.spawnPosition)
   );
 }
 
@@ -179,8 +198,8 @@ function loadLegacyVector3(key: string, fallback: PersistedVector3): PersistedVe
     }
 
     return [
-      clampCoordinate(parsedValue[0]), 
-      clampCoordinate(parsedValue[1]), 
+      clampCoordinate(parsedValue[0]),
+      clampCoordinate(parsedValue[1]),
       clampCoordinate(parsedValue[2])
     ];
   } catch {
@@ -188,106 +207,13 @@ function loadLegacyVector3(key: string, fallback: PersistedVector3): PersistedVe
   }
 }
 
-function loadLegacyFurniturePlacements(
-  fallback: PersistedFurniturePlacement[]
-): PersistedFurniturePlacement[] {
-  if (!canUseLocalStorage()) {
-    return fallback;
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(DEV_FURNITURE_KEY);
-
-    if (!storedValue) {
-      return fallback;
-    }
-
-    const parsedValue = JSON.parse(storedValue) as unknown;
-
-    if (!Array.isArray(parsedValue)) {
-      return fallback;
-    }
-
-    return parsedValue
-      .map((entry) => {
-        if (!isValidFurniturePlacement(entry)) {
-          if (
-            typeof entry === "object" &&
-            entry !== null &&
-            "id" in entry &&
-            "type" in entry &&
-            "position" in entry &&
-            "rotationY" in entry &&
-            typeof entry.id === "string" &&
-            typeof entry.type === "string" &&
-            entry.type in FURNITURE_REGISTRY &&
-            Array.isArray(entry.position) &&
-            entry.position.length === 3 &&
-            entry.position.every((item: unknown) => typeof item === "number") &&
-            typeof entry.rotationY === "number"
-          ) {
-            return {
-              id: entry.id,
-              type: entry.type as FurnitureType,
-              surface: FURNITURE_REGISTRY[entry.type as FurnitureType].surface === "wall"
-                ? "wall_back"
-                : FURNITURE_REGISTRY[entry.type as FurnitureType].surface === "surface"
-                  ? "surface"
-                  : "floor",
-              position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
-              rotationY: entry.rotationY,
-              ownedFurnitureId:
-                "ownedFurnitureId" in entry && typeof entry.ownedFurnitureId === "string"
-                  ? entry.ownedFurnitureId
-                  : undefined
-            };
-          }
-
-          return null;
-        }
-
-        return {
-          id: entry.id,
-          type: entry.type,
-          surface: entry.surface,
-          position: [entry.position[0], entry.position[1], entry.position[2]] as PersistedVector3,
-          rotationY: entry.rotationY,
-          ownedFurnitureId: entry.ownedFurnitureId,
-          anchorFurnitureId: entry.anchorFurnitureId,
-          surfaceLocalOffset: entry.surfaceLocalOffset
-        };
-      })
-      .filter((entry): entry is PersistedFurniturePlacement => entry !== null);
-  } catch {
-    return fallback;
-  }
-}
-
-function loadLegacySandboxState(
-  fallbackCameraPosition: PersistedVector3,
-  fallbackPlayerPosition: PersistedVector3,
-  fallbackRoomState: RoomState
-): PersistedSandboxState {
-  const roomState = cloneRoomState(fallbackRoomState);
-
-  roomState.furniture = loadLegacyFurniturePlacements(roomState.furniture);
-
-  return {
-    version: 4,
-    skinSrc: loadPersistedSkin(),
-    cameraPosition: loadLegacyVector3(DEV_CAMERA_KEY, fallbackCameraPosition),
-    playerPosition: loadLegacyVector3(DEV_PLAYER_KEY, fallbackPlayerPosition),
-    playerCoins: DEFAULT_STARTING_COINS,
-    roomState: ensureRoomStateOwnership(roomState),
-    pcMinigame: createDefaultPcMinigameProgress()
-  };
-}
-
 function shouldResetToFallbackRoomState(
   persistedRoomState: RoomState,
-  fallbackRoomState: RoomState
+  fallbackRoomState: RoomState,
+  persistedVersion: number
 ): boolean {
   return (
+    persistedVersion < 6 ||
     persistedRoomState.metadata.roomTheme !== fallbackRoomState.metadata.roomTheme ||
     persistedRoomState.metadata.layoutVersion < fallbackRoomState.metadata.layoutVersion
   );
@@ -298,13 +224,14 @@ export function createDefaultSandboxState(
   playerPosition: PersistedVector3
 ): PersistedSandboxState {
   return {
-    version: 4,
+    version: 5,
     skinSrc: null,
     cameraPosition,
     playerPosition,
     playerCoins: DEFAULT_STARTING_COINS,
     roomState: createDefaultRoomState(),
-    pcMinigame: createDefaultPcMinigameProgress()
+    pcMinigame: createDefaultPcMinigameProgress(),
+    pets: []
   };
 }
 
@@ -321,11 +248,7 @@ export function loadPersistedSandboxState(
     const storedValue = window.localStorage.getItem(DEV_SANDBOX_STATE_KEY);
 
     if (!storedValue) {
-      return loadLegacySandboxState(
-        fallbackCameraPosition,
-        fallbackPlayerPosition,
-        fallbackRoomState
-      );
+      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
     }
 
     const parsedValue = JSON.parse(storedValue) as unknown;
@@ -334,7 +257,7 @@ export function loadPersistedSandboxState(
       typeof parsedValue !== "object" ||
       parsedValue === null ||
       !("version" in parsedValue) ||
-      (parsedValue.version !== 2 && parsedValue.version !== 3 && parsedValue.version !== 4) ||
+      parsedValue.version !== 6 ||
       !("skinSrc" in parsedValue) ||
       !("cameraPosition" in parsedValue) ||
       !("playerPosition" in parsedValue) ||
@@ -344,16 +267,17 @@ export function loadPersistedSandboxState(
       !isValidVector3(parsedValue.playerPosition) ||
       !isValidRoomState(parsedValue.roomState)
     ) {
-      return loadLegacySandboxState(
-        fallbackCameraPosition,
-        fallbackPlayerPosition,
-        fallbackRoomState
-      );
+      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
     }
 
-    if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState)) {
+    const parsedPets =
+      "pets" in parsedValue && Array.isArray(parsedValue.pets)
+        ? cloneOwnedPets(parsedValue.pets.filter(isValidOwnedPet))
+        : [];
+
+    if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState, parsedValue.version)) {
       return {
-        version: 4,
+        version: 6,
         skinSrc: parsedValue.skinSrc,
         cameraPosition: [...fallbackCameraPosition],
         playerPosition: [...fallbackPlayerPosition],
@@ -372,12 +296,13 @@ export function loadPersistedSandboxState(
                 lastRewardCoins: Math.floor(parsedValue.pcMinigame.lastRewardCoins),
                 lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
               }
-            : createDefaultPcMinigameProgress()
+            : createDefaultPcMinigameProgress(),
+        pets: parsedPets
       };
     }
 
     return {
-      version: 4,
+      version: 6,
       skinSrc: parsedValue.skinSrc,
       cameraPosition: [
         parsedValue.cameraPosition[0],
@@ -390,9 +315,7 @@ export function loadPersistedSandboxState(
         clampCoordinate(parsedValue.playerPosition[2])
       ],
       playerCoins:
-        (parsedValue.version === 3 || parsedValue.version === 4) &&
-        "playerCoins" in parsedValue &&
-        isValidPlayerCoins(parsedValue.playerCoins)
+        "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
           ? Math.floor(parsedValue.playerCoins)
           : DEFAULT_STARTING_COINS,
       roomState: ensureRoomStateOwnership(cloneRoomState(parsedValue.roomState)),
@@ -406,14 +329,11 @@ export function loadPersistedSandboxState(
               lastRewardCoins: Math.floor(parsedValue.pcMinigame.lastRewardCoins),
               lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
             }
-          : createDefaultPcMinigameProgress()
+          : createDefaultPcMinigameProgress(),
+      pets: parsedPets
     };
   } catch {
-    return loadLegacySandboxState(
-      fallbackCameraPosition,
-      fallbackPlayerPosition,
-      fallbackRoomState
-    );
+    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
   }
 }
 

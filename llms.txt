@@ -1,5 +1,5 @@
 # Risk It All: Cozy Couple Room
-> Browser-first cozy couple-room game foundation built with React, Vite, React Three Fiber, and Firebase-ready skeletons. The active runtime today is a local single-room sandbox, not the older multiplayer backend path.
+> Browser-first cozy couple-room game foundation built with React, Vite, React Three Fiber, and Firebase-ready skeletons. The active runtime today is a local single-room sandbox plus an in-app authoring studio. The older multiplayer/backend path is not the active runtime.
 
 ## Canonical Docs
 - [README](README.md): project overview, setup, and current runtime summary.
@@ -7,23 +7,33 @@
 - [Codebase map](docs/CODEBASE_MAP.md): fastest folder-by-folder navigation after the refactor.
 - [Current systems](docs/CURRENT_SYSTEMS.md): gameplay and runtime behavior that exists now.
 - [Architecture](docs/ARCHITECTURE.md): file ownership, boundaries, and system responsibilities.
+- [Mob Lab guide](docs/MOB_LAB.md): imported-mob preset pipeline, file ownership, and current limits.
 - [MCP setup](docs/MCP_SETUP.md): recommended MCP stack for this repo.
 
 ## Active Runtime Entry Points
-- [src/App.tsx](src/App.tsx): top-level sandbox orchestrator.
-- [src/components/RoomView.tsx](src/components/RoomView.tsx): live 3D scene/runtime controller.
+- [src/App.tsx](src/App.tsx): top-level sandbox orchestrator and studio shell state.
+- [src/components/RoomView.tsx](src/components/RoomView.tsx): live 3D room/runtime controller.
+- [src/components/FurniturePreviewStudio.tsx](src/components/FurniturePreviewStudio.tsx): dual-mode preview studio host.
 - [src/app](src/app): app-shell components and hooks extracted from App.
 - [src/components/room-view](src/components/room-view): scene-support modules extracted from RoomView.
+- [src/components/mob-lab](src/components/mob-lab): imported-mob stage, renderer, and editor UI.
 - [src/lib/roomState.ts](src/lib/roomState.ts): active room schema and starter layout.
 - [src/lib/furnitureRegistry.ts](src/lib/furnitureRegistry.ts): canonical furniture catalog.
-- [src/lib/devLocalState.ts](src/lib/devLocalState.ts): local persistence and migration.
+- [src/lib/devLocalState.ts](src/lib/devLocalState.ts): local sandbox persistence and migration.
 - [src/lib/economy.ts](src/lib/economy.ts): buy and sell rules.
 - [src/lib/pcMinigame.ts](src/lib/pcMinigame.ts): desk PC minigame rules and rewards.
 - [src/lib/worldLighting.ts](src/lib/worldLighting.ts): world-clock lighting calculations.
+- [src/lib/mobLab.ts](src/lib/mobLab.ts): imported-mob preset schema and default presets.
+- [src/lib/mobLabState.ts](src/lib/mobLabState.ts): Mob Lab local persistence.
+- [src/lib/pets.ts](src/lib/pets.ts): temporary pet registry and owned-pet helpers.
+- [src/lib/petPathing.ts](src/lib/petPathing.ts): simple room-safe pet spawn and wander helpers.
+- [src/components/room-view/RoomPetActor.tsx](src/components/room-view/RoomPetActor.tsx): live room pet renderer and simple wander controller.
 
 ## Navigation Heuristics
-- For toolbar, inventory, and app-shell UI changes, start in `src/app`.
-- For 3D scene, interaction, camera, and placement behavior, start in `src/components/RoomView.tsx` and then inspect `src/components/room-view`.
+- For toolbar, inventory, world clock, or app-shell UI changes, start in `src/app` and `src/App.tsx`.
+- For 3D room behavior, camera, interactions, placement, or lighting, start in `src/components/RoomView.tsx` and then inspect `src/components/room-view`.
+- For Preview Studio furniture thumbnails, start in `src/components/FurniturePreviewStudio.tsx`.
+- For imported mobs, start in `src/components/FurniturePreviewStudio.tsx`, then inspect `src/components/mob-lab`, `src/lib/mobLab.ts`, and `src/lib/mobLabState.ts`.
 - For rules, persistence, room schema, economy, or furniture metadata, start in `src/lib`.
 - For new furniture, update the registry first, then rendering, then tests.
 
@@ -34,6 +44,9 @@
 - Do not replace the active sandbox schema in `roomState.ts` with the older backend-oriented `types.ts` shape.
 - Starter furniture can be removed, but it must not mint sell coins.
 - Window furniture must keep wall-opening behavior.
+- Mob Lab is the authoring source of truth for imported presets, but promotion into the live room must be explicit. Current live-room pet integration is limited to the temporary `alexs_mobs_raccoon` test pet.
+- Imported mob presets are browser-local and JSON-exportable by default, but checked-in defaults also exist in `src/lib/mob-presets` when a preset has been finalized.
+- Mob Lab now has both a simple box-model renderer and a CEM renderer. `minecraft_vanilla_cat_rig` is the current cat pivot baseline, and `better_cats_v4_tabby` is the current OptiFine texture-pack baseline; do not assume general Minecraft or full OptiFine parity beyond the documented supported subset.
 
 ## Tech Stack
 - React 18.3
@@ -65,4 +78,5 @@
 - [tests/worldLighting.test.ts](tests/worldLighting.test.ts)
 
 ## Legacy Boundary
-The active runtime is the local sandbox path centered on `App.tsx`, `RoomView.tsx`, `furnitureRegistry.ts`, `roomState.ts`, and `devLocalState.ts`. Older Firebase/auth/pairing and couple-room files still exist, but they are not the current runtime entry path.
+The active runtime is the local sandbox path centered on `App.tsx`, `RoomView.tsx`, `FurniturePreviewStudio.tsx`, `furnitureRegistry.ts`, `roomState.ts`, `devLocalState.ts`, and the Mob Lab preset files. Older Firebase/auth/pairing and couple-room files still exist, but they are not the current runtime entry path.
+

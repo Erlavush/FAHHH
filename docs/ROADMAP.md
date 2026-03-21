@@ -11,14 +11,17 @@
 - local persistence
 - ownership-based inventory
 - coin-based buying and selling
-- preview studio for shop thumbnails
+- preview studio for furniture thumbnails
+- preview studio `Mob Lab` for imported-mob look-dev
 - info popovers and static shop previews
 - buyable wall windows with real wall openings
 - real-time world clock with sun/moon lighting controls
 - smooth camera zoom
 - desk PC minigame earn loop
+- generic high-fidelity GLB mob rendering with procedural physics
+- real-time FPS performance monitoring HUD
 
-### Still Missing From the Jam Game
+### Still Missing From The Jam Game
 
 - paired shared room runtime
 - live partner presence
@@ -27,7 +30,7 @@
 - second coin earn loop
 - daily quests
 - editable photo frames
-- pets
+- gameplay pets in the main room
 - breakup reset flow
 
 ## Recommended Build Order From Here
@@ -38,14 +41,14 @@
 2. Add the second real `coin earn loop`, likely:
    - one daily quest loop
    - one additional PC activity
-3. Add the second loop after it is stable.
-4. Add level and couple-streak state once earning/spending is no longer one-sided.
+3. Add level and couple-streak state once earning/spending is no longer one-sided.
 
-### Track 2: Personalization
+### Track 2: Personalization And Pets
 
 1. Add editable/custom picture frames.
-2. Add one pet implementation.
-3. Add more room-density props only after the core loop is working.
+2. Keep using `Mob Lab` as the authoring path for imported mobs and future pets.
+- [x] Promote one tuned imported-mob preset into a real gameplay pet (Raccoon and Cat integrated).
+4. Add more room-density props only after the core loop is working.
 
 ### Track 3: Shared-Room Architecture
 
@@ -60,8 +63,14 @@
 If the goal is `gameplay progress`, do this next:
 
 1. progression schema
-2. second earn loop
+2. daily quest or second earn loop
 3. level + streak
+
+If the goal is `imported-mob progress`, do this next:
+
+1. tune future presets in `Mob Lab`
+2. expand the `GlbMobPreviewActor` if specific model quirks (e.g. wings, multiple heads) require new attachment points
+3. expand the gameplay pet loop (needs/hunger/mood) now that authoring is stable
 
 If the goal is `visual progress`, do this next:
 
@@ -76,6 +85,8 @@ If the goal is `visual progress`, do this next:
 - Do not restart multiplayer from the older `types.ts` shape without reconciling it to the current sandbox schema.
 - Do not build future systems by replacing the current room model wholesale.
 - Do not add lots of content before one complete progression loop exists.
+- Do not confuse Mob Lab preview locomotion with gameplay pet AI.
+- Do not remove GLTF cloning or the Mesh-Only Filter from the GLB renderer; they are essential for visual and scene stability.
 
 ## Jam MVP Definition
 
@@ -89,4 +100,4 @@ The jam MVP should prove this loop:
 6. they personalize the room
 7. they can lose the shared progress through a breakup flow
 
-The current repo is still in the `foundation + local systems` phase before that shared-loop MVP.
+The current repo is still in the `foundation + local systems + authoring tools` phase before that shared-loop MVP.

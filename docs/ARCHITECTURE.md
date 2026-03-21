@@ -10,7 +10,7 @@
 - inventory panel visibility
 - grid-snap toggle
 - skin import
-- preview studio visibility and selection
+- preview studio visibility, mode, and current selection
 - coin balance
 - PC minigame progress and reward handling
 - persisted room state
@@ -18,9 +18,16 @@
 - locked time controls
 - Leva dev panel wiring
 - reset room / reset camera actions
+- real-time **Performance Monitor** HUD integration
 - save/load bridge to local storage
 
-`App.tsx` is the orchestrator. It does not simulate the 3D world itself, but it owns the authoritative app-side state that is passed into the scene.
+`App.tsx` is the orchestrator. It does not simulate the 3D world itself, but it owns the authoritative app-side state that is passed into the scene or the studio.
+
+The app-shell surface extracted from `App.tsx` now lives in [src/app](/Z:/FAHHHH/src/app):
+
+- toolbar and inventory UI in `src/app/components`
+- world clock, inventory, skin import, and info-popover hooks in `src/app/hooks`
+- shared shell types in `src/app/types.ts`
 
 ### Scene Runtime
 
@@ -41,9 +48,17 @@
 - single cinematic post-processing stack
 - smooth wheel zoom controller
 
+Scene-support modules extracted from `RoomView.tsx` now live in [src/components/room-view](/Z:/FAHHHH/src/components/room-view).
+
 ### Preview Studio
 
-[FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx) is a standalone content-creation tool inside the app:
+[FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx) is a standalone content-creation tool inside the app.
+
+It now has two modes.
+
+#### Furniture Studio
+
+Furniture Studio owns:
 
 - isolated furniture preview stage
 - orthographic isometric capture camera
@@ -51,7 +66,19 @@
 - drag-to-orbit inspection
 - fixed save-name guidance for shop thumbnails
 
-This file is not gameplay-critical, but it is now part of the asset/content pipeline.
+#### Mob Lab
+
+Mob Lab owns imported-mob look-dev and tuning:
+
+- small fixed grass-block stage
+- imported-mob preview actor
+- live rig/body-part editing
+- live idle and walk animation tuning
+- deterministic locomotion preview modes
+- collider preview and simple ground-offset tuning
+- preset export/import and browser-local persistence
+
+Mob Lab is authoring tooling, not gameplay pet runtime.
 
 ## Core Data Ownership
 
@@ -72,7 +99,6 @@ It defines:
 - interaction metadata
 - support-surface metadata
 - wall-opening metadata
-- sunlight metadata for windows
 
 All new furniture should enter the project through this registry first.
 
@@ -98,7 +124,7 @@ Key current design decision:
 
 That separation is central to the current builder and economy design.
 
-### Persistence
+### Sandbox Persistence
 
 [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts) owns local sandbox serialization and migration.
 
@@ -118,7 +144,7 @@ It currently defines:
 - starting coin balance
 - sell-price behavior
 
-The economy layer is present, and the first earn-loop layer now comes from the desk PC minigame.
+The first earn-loop layer now comes from the desk PC minigame.
 
 ### PC Minigame
 
@@ -131,6 +157,31 @@ It currently defines:
 - reward scaling
 - saved progress shape
 - result application helpers
+
+### Mob Preset Schema
+
+[mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts) owns the imported-mob preset schema.
+
+It defines:
+
+- `ImportedMobPreset`
+- part roles and geometry layout
+- animation settings
+- locomotion settings
+- physics settings
+- stage framing settings
+- default imported presets
+
+### Mob Lab Persistence
+
+[mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts) owns browser-local Mob Lab serialization and validation.
+
+It handles:
+
+- Mob Lab schema versioning
+- preset validation
+- fallback to default preset library
+- selected-part persistence per mob id
 
 ## Placement and Editing Subsystems
 
@@ -208,6 +259,22 @@ Key asset files:
 - [WallWindowModel.tsx](/Z:/FAHHHH/src/components/WallWindowModel.tsx)
 - [MinecraftPlayer.tsx](/Z:/FAHHHH/src/components/MinecraftPlayer.tsx)
 
+### Imported Mob Rendering
+
+Mob Lab rendering is split across:
+
+- [MobLabStage.tsx](/Z:/FAHHHH/src/components/mob-lab/MobLabStage.tsx)
+- [MobPreviewActor.tsx](/Z:/FAHHHH/src/components/mob-lab/MobPreviewActor.tsx)
+- [GlbMobPreviewActor.tsx](/Z:/FAHHHH/src/components/mob-lab/GlbMobPreviewActor.tsx)
+
+Current rendering model:
+
+- supported modes: `legacy_cem` (cuboid) and `high_fidelity_glb` (skeletal)
+- **Skeletal Cloning**: GLB models use `SkeletonUtils.clone` to support multiple simultaneous instances (Room vs Mob Lab)
+- **Procedural Overrides**: animation is applied from preset values plus role-based procedural logic and bone attachments (`attach()`)
+- **Mesh-Only Filtering**: dynamic visibility logic hides variant ghost geometry in CEM/GLB models
+- preview locomotion is deterministic and stage-local
+
 ### Time-of-Day Lighting
 
 The scene no longer uses a simple mode enum like `day` or `night`.
@@ -245,10 +312,12 @@ Tone mapping is ACES Filmic.
 
 Important current note:
 
-- this is the only active render path right now
+- this is the only active room render path right now
 - the visible blue sky background lives on the room wrapper behind a transparent canvas so post-processing cannot wash it out to white
 
 ## UI and Flow Architecture
+
+### Gameplay / Builder Flow
 
 The gameplay/editor flow is:
 
@@ -264,7 +333,23 @@ Important separation:
 - `liveFurniturePlacements` tracks in-progress scene state
 - `roomState.furniture` is the committed persisted layout
 
-This split is what keeps builder editing reversible and stable.
+This split keeps builder editing reversible and stable.
+
+### Imported-Mob Authoring Flow
+
+The current imported-mob flow is:
+
+1. Create or extend an `ImportedMobPreset` in `mobLab.ts` or import one as JSON in the browser.
+2. Open Preview Studio in `Mob Lab` mode.
+3. Select the preset and edit rig, animation, locomotion, and collider settings live.
+4. Let `mobLabState.ts` persist working values in local storage.
+5. Export JSON if the tuned preset needs to be preserved or manually checked into the repo later.
+
+Important boundary:
+
+- Preview Studio state is not part of `roomState`
+- Mob Lab persistence is separate from the sandbox save
+- imported mobs are not yet promoted into the live room runtime automatically
 
 ## Legacy / Future Boundary
 
@@ -289,5 +374,8 @@ Do not restore multiplayer by forcing the current sandbox back into those older 
 - Do not break `anchorFurnitureId` + `surfaceLocalOffset` rules for surface decor.
 - Do not reintroduce hardcoded shell-only windows as the main system.
 - Do not replace the current world-clock lighting with ad hoc per-item lighting hacks.
-- Do not reintroduce floating cube wall lights as the default room-lighting solution.
 - Do not treat the legacy backend types as the active room-builder model.
+- Do not treat Mob Lab preview motion as gameplay AI.
+- Do not wire imported mobs into the room runtime unless the task explicitly calls for gameplay pet integration.
+- **Do not bypass GLTF cloning** for multi-instance models (required for scene stability).
+- **Do not remove Mesh-Only filters**; they are required to hide CEM variant ghost geometry.

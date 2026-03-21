@@ -9,6 +9,8 @@ import {
   NearestFilter,
   SRGBColorSpace
 } from "three";
+import { resolvePlayerMovement } from "../lib/physics";
+import { RoomFurniturePlacement } from "../lib/roomState";
 
 type CubeFace = "right" | "left" | "top" | "bottom" | "front" | "back";
 
@@ -38,8 +40,11 @@ interface SkinSet {
 
 interface MinecraftPlayerProps {
   initialPosition: [number, number, number];
+  teleportPosition: [number, number, number] | null;
+  teleportRequestId: number;
   skinSrc: string | null;
   targetPosition: [number, number, number];
+  furniture: RoomFurniturePlacement[];
   interaction:
     | {
         type: "sit" | "lie" | "use_pc";
@@ -348,8 +353,11 @@ function lerpAngle(current: number, target: number, factor: number): number {
 
 export function MinecraftPlayer({
   initialPosition,
+  teleportPosition,
+  teleportRequestId,
   skinSrc,
   targetPosition,
+  furniture,
   interaction,
   onPositionChange,
   shadowsEnabled
@@ -369,6 +377,18 @@ export function MinecraftPlayer({
   const leftLegRef = useRef<Group>(null);
   const stepTimeRef = useRef(0);
   const lastSentTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!teleportPosition || !rootRef.current) {
+      return;
+    }
+
+    rootRef.current.position.set(
+      teleportPosition[0],
+      teleportPosition[1],
+      teleportPosition[2]
+    );
+  }, [teleportPosition, teleportRequestId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -486,8 +506,21 @@ export function MinecraftPlayer({
       stepTimeRef.current += delta * 1.4;
     } else if (isMoving) {
       const moveStep = Math.min(distance, moveSpeed * delta);
-      root.position.x += (dx / distance) * moveStep;
-      root.position.z += (dz / distance) * moveStep;
+      const movementResult = resolvePlayerMovement(
+        [root.position.x, root.position.y, root.position.z],
+        [
+          root.position.x + (dx / distance) * moveStep,
+          root.position.y,
+          root.position.z + (dz / distance) * moveStep
+        ],
+        furniture
+      );
+
+      root.position.set(
+        movementResult.position[0],
+        movementResult.position[1],
+        movementResult.position[2]
+      );
 
       const targetYaw = Math.atan2(dx, dz);
       root.rotation.y = lerpAngle(root.rotation.y, targetYaw, Math.min(1, delta * 10));
@@ -503,8 +536,6 @@ export function MinecraftPlayer({
       !interactionReady && isMoving ? -Math.sin(stepTimeRef.current) : 0;
     const idleFloat = Math.sin(state.clock.elapsedTime * 1.8) * 0.015;
     const idleSway = Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
-
-    root.position.y = targetPosition[1];
 
     if (isLying) {
       pose.position.set(
@@ -692,3 +723,5 @@ export function MinecraftPlayer({
     </group>
   );
 }
+
+

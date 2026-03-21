@@ -4,6 +4,7 @@ import type {
   FurnitureDefinition,
   FurnitureType
 } from "../../lib/furnitureRegistry";
+import type { PetDefinition, PetType } from "../../lib/pets";
 import type { InventoryStats } from "../types";
 import { FurnitureInfoControl } from "./FurnitureInfoControl";
 import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
@@ -15,13 +16,17 @@ type InventoryPanelProps = {
   inventoryByType: Map<FurnitureType, InventoryStats>;
   hoverPreviewEnabled: boolean;
   openFurnitureInfoKey: string | null;
+  petCatalogEntries: PetDefinition[];
+  ownedPetTypes: Set<PetType>;
   onOpenFurnitureInfo: (key: string) => void;
   onCloseFurnitureInfo: () => void;
   onToggleFurnitureInfo: (key: string) => void;
   onOpenStudio: (type: FurnitureType) => void;
+  onOpenMobStudio: (presetId: string) => void;
   onPlaceStoredFurniture: (type: FurnitureType) => void;
   onSellStoredFurniture: (type: FurnitureType) => void;
   onBuyFurniture: (type: FurnitureType) => void;
+  onBuyPet: (type: PetType) => void;
 };
 
 export function InventoryPanel({
@@ -31,13 +36,17 @@ export function InventoryPanel({
   inventoryByType,
   hoverPreviewEnabled,
   openFurnitureInfoKey,
+  petCatalogEntries,
+  ownedPetTypes,
   onOpenFurnitureInfo,
   onCloseFurnitureInfo,
   onToggleFurnitureInfo,
   onOpenStudio,
+  onOpenMobStudio,
   onPlaceStoredFurniture,
   onSellStoredFurniture,
-  onBuyFurniture
+  onBuyFurniture,
+  onBuyPet
 }: InventoryPanelProps) {
   return (
     <aside className="spawn-panel">
@@ -49,6 +58,70 @@ export function InventoryPanel({
         Buy furniture with coins, place stored items into the room, and sell extras you do not
         need.
       </p>
+
+      {petCatalogEntries.length > 0 ? (
+        <section className="spawn-section">
+          <span className="spawn-section__title">Pet Store</span>
+          <div className="spawn-grid">
+            {petCatalogEntries.map((pet) => {
+              const alreadyOwned = ownedPetTypes.has(pet.type);
+              const canAffordPurchase = playerCoins >= pet.price;
+
+              return (
+                <div key={pet.type} className="spawn-card">
+                  <div className="spawn-card__preview">
+                    <div className="spawn-card__preview-fallback">
+                      <span>Live Pet Test</span>
+                      <button
+                        className="spawn-card__preview-link"
+                        onClick={() => onOpenMobStudio(pet.presetId)}
+                        type="button"
+                      >
+                        Open Mob Lab
+                      </button>
+                    </div>
+                  </div>
+                  <div className="spawn-card__content">
+                    <div className="spawn-card__header-row">
+                      <strong>{pet.label}</strong>
+                      <span className="spawn-card__price">{pet.price} coins</span>
+                    </div>
+                    <div className="spawn-card__stats">
+                      <span className="spawn-card__stat">
+                        {alreadyOwned ? "Owned" : "Available"}
+                      </span>
+                      <span className="spawn-card__stat">Preset: {pet.presetId}</span>
+                    </div>
+                    <span className="spawn-card__hint">{pet.description}</span>
+                    <div className="spawn-card__actions">
+                      <button
+                        className="spawn-card__button"
+                        disabled={!canAffordPurchase || alreadyOwned}
+                        onClick={() => onBuyPet(pet.type)}
+                        type="button"
+                      >
+                        {alreadyOwned
+                          ? "Owned"
+                          : canAffordPurchase
+                            ? `Adopt for ${pet.price}`
+                            : `Need ${pet.price - playerCoins} more`}
+                      </button>
+                      <button
+                        className="spawn-card__button spawn-card__button--secondary"
+                        onClick={() => onOpenMobStudio(pet.presetId)}
+                        type="button"
+                      >
+                        Preview
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       <section className="spawn-section">
         <span className="spawn-section__title">Stored Items</span>
         {storedInventorySections.length > 0 ? (

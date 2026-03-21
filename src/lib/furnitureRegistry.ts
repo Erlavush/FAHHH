@@ -32,6 +32,11 @@ export interface FurnitureSupportSurface {
   offsetZ?: number;
 }
 
+export interface FurnitureCollisionBox {
+  center: [number, number, number];
+  size: [number, number, number];
+}
+
 export interface FurnitureWallOpening {
   width: number;
   height: number;
@@ -362,6 +367,41 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
   }
 };
 
+const FURNITURE_COLLISION_BOXES: Partial<Record<FurnitureType, FurnitureCollisionBox[]>> = {
+  bed: [{ center: [0, 0.36, 0], size: [2.84, 0.72, 3.86] }],
+  desk: [
+    { center: [0, 0.88, 0], size: [2.72, 0.12, 0.92] },
+    { center: [0.26, 1.18, -0.18], size: [0.78, 0.48, 0.1] }
+  ],
+  chair: [
+    { center: [0, 0.52, 0], size: [0.78, 0.1, 0.78] },
+    { center: [0, 0.96, -0.25], size: [0.78, 0.8, 0.1] }
+  ],
+  table: [
+    { center: [0, 0.76, 0], size: [0.9, 0.1, 0.9] },
+    { center: [-0.26, 0.36, -0.26], size: [0.12, 0.72, 0.12] },
+    { center: [0.26, 0.36, -0.26], size: [0.12, 0.72, 0.12] },
+    { center: [-0.26, 0.36, 0.26], size: [0.12, 0.72, 0.12] },
+    { center: [0.26, 0.36, 0.26], size: [0.12, 0.72, 0.12] }
+  ],
+  fridge: [{ center: [0, 1.05, 0], size: [0.92, 2.1, 0.92] }],
+  wardrobe: [{ center: [0, 1.15, 0], size: [1.32, 2.3, 0.86] }],
+  office_desk: [
+    { center: [0, 0.76, 0], size: [2.85, 0.12, 0.95] },
+    { center: [0, 1.18, -0.18], size: [1.1, 0.52, 0.14] }
+  ],
+  office_chair: [{ center: [0, 0.59, 0], size: [0.92, 1.18, 0.92] }],
+  rug: [{ center: [0, 0.02, 0], size: [3.8, 0.04, 2.6] }],
+  floor_lamp: [
+    { center: [0, 0.05, 0], size: [0.6, 0.1, 0.6] },
+    { center: [0, 0.72, 0], size: [0.12, 1.34, 0.12] },
+    { center: [0, 1.81, 0], size: [0.68, 0.54, 0.68] }
+  ]
+};
+
+export function getFurnitureCollisionBoxes(type: FurnitureType): FurnitureCollisionBox[] {
+  return FURNITURE_COLLISION_BOXES[type] ?? [];
+}
 export const ALL_FURNITURE_TYPES = Object.keys(FURNITURE_REGISTRY) as FurnitureType[];
 
 export function getFurnitureDefinition(type: FurnitureType): FurnitureDefinition {
@@ -398,3 +438,5 @@ export function getSurfaceRotationY(
 
   return getFurnitureDefinition(type).defaultRotationY;
 }
+
+

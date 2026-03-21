@@ -7,6 +7,7 @@ import {
   minutesToControlHours,
   wrapClockMinutes
 } from "../clock";
+import { GameLoopManager, ticksToMinutes } from "../../lib/gameLoop";
 
 const LEVA_SETTINGS_KEY = "cozy-room-leva-settings";
 
@@ -26,6 +27,7 @@ interface LevaSettings {
 
 export interface SandboxWorldClockState {
   worldTimeMinutes: number;
+  worldTicks: number;
   worldTimeLabel: string;
   timeLocked: boolean;
   sunEnabled: boolean;
@@ -64,6 +66,8 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   const [minecraftTimeMinutes, setMinecraftTimeMinutes] = useState(
     savedSettings.minecraftTimeMinutes ?? 360
   );
+  const [worldTicks, setWorldTicks] = useState(0);
+
   const [useMinecraftTime, setUseMinecraftTime] = useState(
     savedSettings.useMinecraftTimeToggle ?? true
   );
@@ -71,11 +75,13 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   const [lockedTimeMinutes, setLockedTimeMinutes] = useState(() =>
     wrapClockMinutes(Math.round(getLocalClockMinutes()))
   );
+
   const worldTimeMinutes = timeLocked
     ? lockedTimeMinutes
     : useMinecraftTime
       ? minecraftTimeMinutes
       : realTimeMinutes;
+
   const worldTimeLabel = useMemo(
     () => formatClock24h(worldTimeMinutes),
     [worldTimeMinutes]
@@ -84,6 +90,15 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
     () => formatClock24h(realTimeMinutes),
     [realTimeMinutes]
   );
+
+  const gameLoopRef = useRef<GameLoopManager | null>(null);
+
+  if (!gameLoopRef.current) {
+    gameLoopRef.current = new GameLoopManager(minecraftTimeMinutes, (ticks) => {
+      setWorldTicks(ticks);
+      setMinecraftTimeMinutes(ticksToMinutes(ticks));
+    });
+  }
 
   const [
     {
@@ -126,6 +141,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         onChange: (value: number, _path: string, context: { initial: boolean }) => {
           if (!context.initial) {
             setMinecraftTimeMinutes(value * 60);
+            gameLoopRef.current?.setMinutes(value * 60);
           }
         }
       },
@@ -232,19 +248,16 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
       return;
     }
 
-    let lastTime = Date.now();
-    const syncMinecraftClock = () => {
-      const now = Date.now();
-      const deltaMs = now - lastTime;
-      lastTime = now;
-      const deltaGameMinutes = deltaMs * 0.0012;
-      setMinecraftTimeMinutes((previousMinutes) => (previousMinutes + deltaGameMinutes) % 1440);
+    let frameId: number;
+    const loop = () => {
+      gameLoopRef.current?.update(Date.now());
+      frameId = requestAnimationFrame(loop);
     };
 
-    const minecraftIntervalId = window.setInterval(syncMinecraftClock, 250);
+    frameId = requestAnimationFrame(loop);
 
     return () => {
-      window.clearInterval(minecraftIntervalId);
+      cancelAnimationFrame(frameId);
     };
   }, [timeLocked, useMinecraftTime]);
 
@@ -308,6 +321,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
 
   return {
     worldTimeMinutes,
+    worldTicks,
     worldTimeLabel,
     timeLocked,
     sunEnabled,

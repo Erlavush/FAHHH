@@ -1,0 +1,30 @@
+{
+  "id": "better_cat_glb",
+  "label": "Better Cat (GLB)",
+  "sourceLabel": "Blockbench",
+  "sourceMobPath": "/models/better_cat.glb",
+  "renderMode": "glb",
+  "textureSrc": "placeholder",
+  "parts": [],
+  "animation": {
+    "idle": { "frequency": 1, "bodyBob": 0, "headYaw": 0, "headPitch": 0, "tailYaw": 0, "tailPitch": 0, "earPitch": 0, "earRoll": 0 },
+    "walk": { "strideRate": 1, "limbSwing": 0, "bodyBob": 0, "bodyRoll": 0, "headNod": 0, "tailYaw": 0, "tailPitch": 0 }
+  },
+  "locomotion": {
+    "mode": "idle",
+    "speed": 0.5,
+    "turnResponsiveness": 8,
+    "loopRadius": 1.5
+  },
+  "physics": {
+    "groundOffset": 0,
+    "colliderSize": [0.6, 0.6, 0.6],
+    "colliderOffset": [0, 0.3, 0],
+    "showCollider": false
+  },
+  "stage": {
+    "modelScale": 0.5,
+    "cameraPosition": [3, 2, 3],
+    "cameraTarget": [0, 0.5, 0]
+  }
+}

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ALL_FURNITURE_TYPES, FURNITURE_REGISTRY } from "../src/lib/furnitureRegistry";
+import {
+  ALL_FURNITURE_TYPES,
+  FURNITURE_REGISTRY,
+  getFurnitureCollisionBoxes
+} from "../src/lib/furnitureRegistry";
 
 describe("furniture registry", () => {
   it("provides a static shop preview image for every furniture item", () => {
@@ -37,5 +41,13 @@ describe("furniture registry", () => {
         offsetFromWall: expect.any(Number)
       })
     );
+  });
+
+  it("defines authored collision boxes for every floor furniture item", () => {
+    const floorTypes = ALL_FURNITURE_TYPES.filter(
+      (type) => FURNITURE_REGISTRY[type].surface === "floor"
+    );
+
+    expect(floorTypes.every((type) => getFurnitureCollisionBoxes(type).length > 0)).toBe(true);
   });
 });

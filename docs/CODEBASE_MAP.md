@@ -6,9 +6,12 @@ This document is the fastest way to orient yourself in the current runtime.
 
 - `src/App.tsx`: top-level sandbox orchestrator.
 - `src/components/RoomView.tsx`: live scene/runtime controller.
+- `src/components/FurniturePreviewStudio.tsx`: in-app content studio host.
 - `src/lib/roomState.ts`: active room schema and starter layout.
 - `src/lib/furnitureRegistry.ts`: canonical furniture catalog.
-- `src/lib/devLocalState.ts`: local persistence and migration.
+- `src/lib/devLocalState.ts`: local sandbox persistence and migration.
+- `src/lib/mobLab.ts`: imported-mob preset schema and defaults.
+- `src/lib/mobLabState.ts`: Mob Lab persistence.
 
 ## Top-Level Folder Rules
 
@@ -23,10 +26,12 @@ Use it when working on:
 - skin import flow
 - world clock / Leva world settings
 - app-only view helpers
+- cross-scene shell state types
 
 Important files:
 
 - `src/app/components/SceneToolbar.tsx`
+- `src/app/components/PerformanceMonitor.tsx`
 - `src/app/components/InventoryPanel.tsx`
 - `src/app/hooks/useSandboxWorldClock.ts`
 - `src/app/hooks/useSandboxInventory.ts`
@@ -56,9 +61,29 @@ Important files:
 - `src/components/room-view/CanvasControllers.tsx`
 - `src/components/room-view/FurnitureVisual.tsx`
 
+### `src/components/mob-lab`
+
+This folder contains imported-mob authoring UI and preview rendering.
+
+Use it when working on:
+
+- the Mob Lab stage
+- imported-mob rendering and live animation preview
+- part selection and live rig editing
+- collider visualization
+- locomotion preview controls
+
+Important files:
+
+- `src/components/mob-lab/MobLabStage.tsx`
+- `src/components/mob-lab/MobPreviewActor.tsx`
+- `src/components/mob-lab/GlbMobPreviewActor.tsx`
+- `src/app/components/PerformanceMonitor.tsx`
+- `src/components/mob-lab/MobLabEditorPanel.tsx`
+
 ### `src/lib`
 
-This folder still owns the gameplay/domain layer.
+This folder owns the gameplay/domain layer plus preview-studio authoring schemas.
 
 Use it when working on:
 
@@ -69,6 +94,7 @@ Use it when working on:
 - lighting math
 - persistence
 - economy rules
+- imported-mob presets
 - backend contracts
 
 Important files:
@@ -81,11 +107,16 @@ Important files:
 - `src/lib/worldLighting.ts`
 - `src/lib/devLocalState.ts`
 - `src/lib/roomPlacementEquality.ts`
+- `src/lib/mobLab.ts`
+- `src/lib/mobLabState.ts`
+- `src/lib/sceneTargets.ts`
 
 ## Fast Navigation Heuristics
 
 - If the change is UI-shell only, start in `src/app`.
-- If the change affects 3D scene behavior, start in `src/components/RoomView.tsx` and then move into `src/components/room-view`.
+- If the change affects the live room, start in `src/components/RoomView.tsx` and then move into `src/components/room-view`.
+- If the change affects Preview Studio furniture captures, start in `src/components/FurniturePreviewStudio.tsx`.
+- If the change affects imported mobs, start in `src/components/FurniturePreviewStudio.tsx` and then inspect `src/components/mob-lab` plus `src/lib/mobLab.ts`.
 - If the change affects rules, data, or persistence, start in `src/lib`.
 - If you are adding furniture, begin with `src/lib/furnitureRegistry.ts` before touching rendering.
 - If you are changing placement/edit behavior, check both `src/components/RoomView.tsx` and the helper modules in `src/components/room-view`.
@@ -94,10 +125,15 @@ Important files:
 
 There are still older multiplayer/couple-room files in the repo, but the active sandbox runtime is built around:
 
+- `App.tsx`
+- `RoomView.tsx`
+- `FurniturePreviewStudio.tsx`
 - `furnitureRegistry.ts`
 - `roomState.ts`
 - `devLocalState.ts`
-- `App.tsx`
-- `RoomView.tsx`
+- `mobLab.ts`
+- `mobLabState.ts`
+
+Imported mobs are now promoted to the live room as pets (Raccoon, Cat baseline).
 
 Do not treat the older backend/couple-room schema as the active runtime unless you are intentionally reviving that path.

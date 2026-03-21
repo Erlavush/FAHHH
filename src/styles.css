@@ -594,6 +594,156 @@ body {
   display: block;
 }
 
+.preview-studio__panel--mob-lab {
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(320px, 360px);
+  width: min(1520px, calc(100vw - 48px));
+}
+
+.preview-studio__mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preview-studio__mode-tab {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(142, 158, 186, 0.24);
+  border-radius: 999px;
+  background: rgba(99, 111, 132, 0.22);
+  color: #eef4fb;
+  font: 700 12px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  cursor: pointer;
+}
+
+.preview-studio__mode-tab--active {
+  border-color: rgba(111, 183, 131, 0.42);
+  background: rgba(74, 118, 80, 0.34);
+}
+
+.mob-lab__panel {
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(136, 155, 181, 0.16);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(39, 45, 60, 0.96), rgba(22, 27, 38, 0.97));
+  box-shadow: 0 24px 54px rgba(6, 10, 18, 0.42);
+}
+
+.mob-lab__section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(142, 158, 186, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mob-lab__section--compact {
+  gap: 10px;
+}
+
+.mob-lab__section-title {
+  margin: 0;
+  color: #f5f7fb;
+  font: 700 16px/1.1 Georgia, "Times New Roman", serif;
+}
+
+.mob-lab__section-copy {
+  margin: 6px 0 0;
+  color: rgba(208, 218, 232, 0.8);
+  font: 500 12px/1.45 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.mob-lab__meta-list {
+  display: grid;
+  gap: 6px;
+  color: rgba(214, 223, 236, 0.82);
+  font: 500 12px/1.4 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.mob-lab__button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mob-lab__button-row--compact {
+  align-items: end;
+  justify-content: space-between;
+}
+
+.mob-lab__error {
+  padding: 10px 12px;
+  border: 1px solid rgba(224, 116, 116, 0.32);
+  border-radius: 14px;
+  background: rgba(133, 33, 33, 0.22);
+  color: #ffd2d2;
+  font: 600 12px/1.35 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.mob-lab__subsection {
+  display: grid;
+  gap: 8px;
+}
+
+.mob-lab__subsection-title {
+  color: #d9b07c;
+  font: 700 11px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mob-lab__field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mob-lab__field {
+  display: grid;
+  gap: 6px;
+}
+
+.mob-lab__field--full {
+  grid-column: 1 / -1;
+}
+
+.mob-lab__field--step-toggle {
+  min-width: 88px;
+}
+
+.mob-lab__field-label {
+  color: rgba(214, 223, 236, 0.82);
+  font: 700 11px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mob-lab__number-input,
+.mob-lab__select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(142, 158, 186, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef4fb;
+  font: 600 12px/1 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.mob-lab__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #eef4fb;
+  font: 600 12px/1.2 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
 .pc-minigame {
   position: absolute;
   inset: 0;
@@ -1186,6 +1336,18 @@ body {
 
   .preview-studio__stage-title {
     font-size: 24px;
+  }
+
+  .preview-studio__panel--mob-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .mob-lab__panel {
+    max-height: 40vh;
+  }
+
+  .mob-lab__field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pc-minigame {

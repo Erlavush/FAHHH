@@ -1,5 +1,9 @@
+import {
+  getFurnitureCollisionBoxes,
+  getFurnitureDefinition,
+  type FurnitureCollisionBox
+} from "./furnitureRegistry";
 import type { PersistedVector3 } from "./devLocalState";
-import { getFurnitureDefinition } from "./furnitureRegistry";
 import type { RoomFurniturePlacement } from "./roomState";
 
 export type CollisionReason =
@@ -10,6 +14,15 @@ export type CollisionReason =
 export type FurnitureCollisionFootprint = {
   width: number;
   depth: number;
+};
+
+/**
+ * 3D Bounding Box (AABB)
+ * min/max coordinates for X, Y, Z
+ */
+export type AABB = {
+  min: [number, number, number];
+  max: [number, number, number];
 };
 
 type FootprintRect = {
@@ -141,6 +154,51 @@ function surfaceRectanglesOverlap(first: SurfaceRect, second: SurfaceRect): bool
   );
 }
 
+function rotateLocalPoint(x: number, z: number, rotationY: number): [number, number] {
+  const cos = Math.cos(rotationY);
+  const sin = Math.sin(rotationY);
+
+  return [x * cos + z * sin, z * cos - x * sin];
+}
+
+function createAABBFromLocalCollisionBox(
+  placement: RoomFurniturePlacement,
+  collisionBox: FurnitureCollisionBox
+): AABB {
+  const [centerX, centerY, centerZ] = collisionBox.center;
+  const [sizeX, sizeY, sizeZ] = collisionBox.size;
+  const halfX = sizeX / 2;
+  const halfY = sizeY / 2;
+  const halfZ = sizeZ / 2;
+  const corners: [number, number][] = [
+    [centerX - halfX, centerZ - halfZ],
+    [centerX + halfX, centerZ - halfZ],
+    [centerX + halfX, centerZ + halfZ],
+    [centerX - halfX, centerZ + halfZ]
+  ];
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+
+  corners.forEach(([localX, localZ]) => {
+    const [rotatedX, rotatedZ] = rotateLocalPoint(localX, localZ, placement.rotationY);
+    const worldX = placement.position[0] + rotatedX;
+    const worldZ = placement.position[2] + rotatedZ;
+
+    minX = Math.min(minX, worldX);
+    maxX = Math.max(maxX, worldX);
+    minZ = Math.min(minZ, worldZ);
+    maxZ = Math.max(maxZ, worldZ);
+  });
+
+  return {
+    min: [minX, placement.position[1] + centerY - halfY, minZ],
+    max: [maxX, placement.position[1] + centerY + halfY, maxZ]
+  };
+}
+
 export function getFurnitureFootprintRect(placement: RoomFurniturePlacement): FootprintRect {
   const definition = getFurnitureDefinition(placement.type);
 
@@ -150,8 +208,53 @@ export function getFurnitureFootprintRect(placement: RoomFurniturePlacement): Fo
   });
 }
 
+/**
+ * Gets one or more authored 3D bounding boxes for a furniture placement.
+ * Floor furniture uses explicit local collision boxes authored in the registry.
+ */
+export function getFurnitureAABBs(placement: RoomFurniturePlacement): AABB[] {
+  const definition = getFurnitureDefinition(placement.type);
+  const authoredBoxes = getFurnitureCollisionBoxes(placement.type);
+
+  if (authoredBoxes.length > 0) {
+    return authoredBoxes.map((collisionBox) => createAABBFromLocalCollisionBox(placement, collisionBox));
+  }
+
+  const pos = placement.position;
+  const height = definition.supportSurface?.height ?? 1.0;
+  const isRotated = Math.abs(Math.cos(placement.rotationY)) < 0.5;
+  const effectiveWidth = isRotated ? definition.footprintDepth : definition.footprintWidth;
+  const effectiveDepth = isRotated ? definition.footprintWidth : definition.footprintDepth;
+  const halfWidth = effectiveWidth / 2;
+  const halfDepth = effectiveDepth / 2;
+
+  return [{
+    min: [pos[0] - halfWidth, pos[1], pos[2] - halfDepth],
+    max: [pos[0] + halfWidth, pos[1] + height, pos[2] + halfDepth]
+  }];
+}
+
+export function aabbsOverlap(a: AABB, b: AABB): boolean {
+  const epsilon = 0.0001;
+  return (
+    a.min[0] <= b.max[0] - epsilon &&
+    a.max[0] >= b.min[0] + epsilon &&
+    a.min[1] <= b.max[1] - epsilon &&
+    a.max[1] >= b.min[1] + epsilon &&
+    a.min[2] <= b.max[2] - epsilon &&
+    a.max[2] >= b.min[2] + epsilon
+  );
+}
+
 export function getPlayerOccupancyRect(position: PersistedVector3): FootprintRect {
   return createFootprintRect(position, 0, PLAYER_OCCUPANCY_FOOTPRINT);
+}
+
+export function getPlayerAABB(position: PersistedVector3): AABB {
+  return {
+    min: [position[0] - 0.3, position[1], position[2] - 0.3],
+    max: [position[0] + 0.3, position[1] + 1.8, position[2] + 0.3]
+  };
 }
 
 function getWallSurfaceRect(placement: RoomFurniturePlacement): SurfaceRect {
@@ -227,25 +330,30 @@ export function getFurnitureCollisionReason(
   }
 
   const selectedRect = getFurnitureFootprintRect(selectedFurniture);
+  const selectedAABBs = getFurnitureAABBs(selectedFurniture);
+  const playerAABB = getPlayerAABB(playerPosition);
 
   if (
     otherFurniture.some((placement) => {
       const otherDefinition = getFurnitureDefinition(placement.type);
 
-      return (
-        otherDefinition.surface === "floor" &&
-        !(selectedIsRug && placement.type !== "rug") &&
-        !(!selectedIsRug && placement.type === "rug") &&
-        rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
-      );
+      if (otherDefinition.surface !== "floor") return false;
+      if (selectedIsRug && placement.type !== "rug") return false;
+      if (!selectedIsRug && placement.type === "rug") return false;
+
+      return rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement));
     })
   ) {
     return "furniture_overlap";
   }
 
-  if (!selectedIsRug && rectanglesOverlap(selectedRect, getPlayerOccupancyRect(playerPosition))) {
-    return "player_overlap";
+  if (!selectedIsRug) {
+    const overlapsPlayer = selectedAABBs.some((selectedAABB) => aabbsOverlap(selectedAABB, playerAABB));
+    if (overlapsPlayer) {
+      return "player_overlap";
+    }
   }
 
   return null;
 }
+

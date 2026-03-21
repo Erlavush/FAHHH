@@ -23,6 +23,14 @@ import {
   applyPcMinigameResult,
   type PcMinigameResult
 } from "./lib/pcMinigame";
+import {
+  ALL_PET_TYPES,
+  PET_REGISTRY,
+  createOwnedPet,
+  type OwnedPet,
+  type PetType
+} from "./lib/pets";
+import { pickPetSpawnPosition } from "./lib/petPathing";
 import { DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION } from "./app/constants";
 import { InventoryPanel } from "./app/components/InventoryPanel";
 import { SceneToolbar } from "./app/components/SceneToolbar";
@@ -32,8 +40,12 @@ import { useSkinImport } from "./app/hooks/useSkinImport";
 import { useSandboxWorldClock } from "./app/hooks/useSandboxWorldClock";
 import type {
   FurnitureSpawnRequest,
-  PlayerInteractionStatus
+  PlayerInteractionStatus,
+  PreviewStudioMode,
+  SceneJumpRequest
 } from "./app/types";
+import { ROOM_CAMERA_TARGET } from "./lib/sceneTargets";
+import { PerformanceMonitor } from "./app/components/PerformanceMonitor";
 import {
   placementListsMatch,
   vectorsMatch
@@ -64,7 +76,9 @@ function App() {
   const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
   const [debugOpen, setDebugOpen] = useState(true);
   const [previewStudioOpen, setPreviewStudioOpen] = useState(false);
+  const [previewStudioMode, setPreviewStudioMode] = useState<PreviewStudioMode>("furniture");
   const [previewStudioSelectedType, setPreviewStudioSelectedType] = useState<FurnitureType>("bed");
+  const [previewStudioSelectedMobId, setPreviewStudioSelectedMobId] = useState("better_cats_v4_tabby");
   const {
     skinSrc,
     setSkinSrc,
@@ -105,13 +119,16 @@ function App() {
   const [spawnRequest, setSpawnRequest] = useState<FurnitureSpawnRequest | null>(null);
   const [cameraResetToken, setCameraResetToken] = useState(0);
   const [standRequestToken, setStandRequestToken] = useState(0);
+  const [sceneJumpRequest, setSceneJumpRequest] = useState<SceneJumpRequest | null>(null);
   const [playerInteractionStatus, setPlayerInteractionStatus] =
     useState<PlayerInteractionStatus>(null);
   const [pcMinigameProgress, setPcMinigameProgress] = useState(initialSandboxState.pcMinigame);
+  const [ownedPets, setOwnedPets] = useState<OwnedPet[]>(initialSandboxState.pets);
   const playerCoinsRef = useRef(initialSandboxState.playerCoins);
   const pendingSpawnOwnedFurnitureIdsRef = useRef(new Set<string>());
   const soldOwnedFurnitureIdsRef = useRef(new Set<string>());
   const nextSpawnRequestIdRef = useRef(1);
+  const nextSceneJumpRequestIdRef = useRef(1);
   const {
     catalogSections,
     inventoryByType,
@@ -122,21 +139,38 @@ function App() {
     liveFurniturePlacements,
     pendingSpawnOwnedFurnitureIds
   );
+  const petCatalogEntries = useMemo(
+    () => ALL_PET_TYPES.map((type) => PET_REGISTRY[type]),
+    []
+  );
+  const ownedPetTypes = useMemo(
+    () => new Set<PetType>(ownedPets.map((pet) => pet.type)),
+    [ownedPets]
+  );
 
   useEffect(() => {
     savePersistedSandboxState({
-      version: 4,
+      version: 5,
       skinSrc,
       cameraPosition,
       playerPosition,
       playerCoins,
       roomState,
-      pcMinigame: pcMinigameProgress
+      pcMinigame: pcMinigameProgress,
+      pets: ownedPets
     });
-  }, [cameraPosition, pcMinigameProgress, playerCoins, playerPosition, roomState, skinSrc]);
+  }, [cameraPosition, ownedPets, pcMinigameProgress, playerCoins, playerPosition, roomState, skinSrc]);
 
   const openPreviewStudio = useCallback((type: FurnitureType) => {
+    setPreviewStudioMode("furniture");
     setPreviewStudioSelectedType(type);
+    setPreviewStudioOpen(true);
+    setCatalogOpen(false);
+  }, []);
+
+  const openMobPreviewStudio = useCallback((mobId: string) => {
+    setPreviewStudioMode("mob_lab");
+    setPreviewStudioSelectedMobId(mobId);
     setPreviewStudioOpen(true);
     setCatalogOpen(false);
   }, []);
@@ -191,6 +225,22 @@ function App() {
       ...currentRoomState,
       ownedFurniture: [...currentRoomState.ownedFurniture, createOwnedFurnitureItem(type)]
     }));
+  }
+
+  function handleBuyPet(type: PetType): void {
+    const petDefinition = PET_REGISTRY[type];
+
+    if (ownedPetTypes.has(type) || !trySpendCoins(petDefinition.price)) {
+      return;
+    }
+
+    const spawnPosition = pickPetSpawnPosition(playerPosition, liveFurniturePlacements);
+
+    setOwnedPets((currentPets) =>
+      currentPets.some((pet) => pet.type === type)
+        ? currentPets
+        : [...currentPets, createOwnedPet(type, spawnPosition)]
+    );
   }
 
   function handleSpawnFurniture(type: FurnitureType, ownedFurnitureId: string): void {
@@ -337,11 +387,19 @@ function App() {
     commitPlayerCoins(nextSandbox.playerCoins);
     setRoomState(nextSandbox.roomState);
     setPcMinigameProgress(nextSandbox.pcMinigame);
+    setOwnedPets(nextSandbox.pets);
     setLiveFurniturePlacements(nextSandbox.roomState.furniture);
     pendingSpawnOwnedFurnitureIdsRef.current.clear();
     soldOwnedFurnitureIdsRef.current.clear();
     setPendingSpawnOwnedFurnitureIds([]);
     setSpawnRequest(null);
+    setSceneJumpRequest({
+      requestId: nextSceneJumpRequestIdRef.current,
+      playerPosition: DEFAULT_PLAYER_POSITION,
+      cameraPosition: DEFAULT_CAMERA_POSITION,
+      cameraTarget: ROOM_CAMERA_TARGET
+    });
+    nextSceneJumpRequestIdRef.current += 1;
     setBuildModeEnabled(false);
     setCatalogOpen(false);
     setGridSnapEnabled(true);
@@ -401,6 +459,7 @@ function App() {
     <>
       <Leva hidden={!debugOpen} />
       <div className="scene-shell">
+        <PerformanceMonitor />
         <SceneToolbar
           buildModeEnabled={buildModeEnabled}
           catalogOpen={catalogOpen}
@@ -428,13 +487,17 @@ function App() {
             hoverPreviewEnabled={hoverPreviewEnabled}
             inventoryByType={inventoryByType}
             onBuyFurniture={handleBuyFurniture}
+            onBuyPet={handleBuyPet}
             onCloseFurnitureInfo={handleCloseFurnitureInfo}
             onOpenFurnitureInfo={handleOpenFurnitureInfo}
+            onOpenMobStudio={openMobPreviewStudio}
             onOpenStudio={openPreviewStudio}
             onPlaceStoredFurniture={handlePlaceStoredFurniture}
             onSellStoredFurniture={handleSellStoredFurniture}
             onToggleFurnitureInfo={handleToggleFurnitureInfo}
             openFurnitureInfoKey={openFurnitureInfoKey}
+            ownedPetTypes={ownedPetTypes}
+            petCatalogEntries={petCatalogEntries}
             playerCoins={playerCoins}
             storedInventorySections={storedInventorySections}
           />
@@ -444,8 +507,12 @@ function App() {
           <Suspense fallback={<div className="preview-studio preview-studio--loading">Loading preview studio...</div>}>
             <FurniturePreviewStudio
               catalogSections={catalogSections}
+              mode={previewStudioMode}
               onClose={() => setPreviewStudioOpen(false)}
+              onModeChange={setPreviewStudioMode}
+              onSelectMobChange={setPreviewStudioSelectedMobId}
               onSelectTypeChange={setPreviewStudioSelectedType}
+              selectedMobId={previewStudioSelectedMobId}
               selectedType={previewStudioSelectedType}
             />
           </Suspense>
@@ -471,6 +538,7 @@ function App() {
             initialCameraPosition={cameraPosition}
             initialPlayerPosition={playerPosition}
             initialFurniturePlacements={roomState.furniture}
+            pets={ownedPets}
             skinSrc={skinSrc}
             worldTimeMinutes={worldTimeMinutes}
             sunEnabled={sunEnabled}
@@ -487,6 +555,7 @@ function App() {
             onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
             onCommittedFurnitureChange={handleCommittedFurnitureChange}
             onInteractionStateChange={setPlayerInteractionStatus}
+            sceneJumpRequest={sceneJumpRequest}
           />
         </Suspense>
         {pcMinigameActive ? (

@@ -1,4 +1,5 @@
 import {
+  getFurnitureCollisionBoxes,
   getFurnitureDefinition,
   type FurnitureInteractionType,
   type FurnitureType
@@ -10,6 +11,7 @@ export interface FurnitureInteractionTarget {
   furnitureId: string;
   furnitureLabel: string;
   position: Vector3Tuple;
+  approachPosition?: Vector3Tuple;
   rotationY: number;
   poseOffset?: Vector3Tuple;
   chairFurnitureId?: string;
@@ -18,6 +20,9 @@ export interface FurnitureInteractionTarget {
 const DESK_USE_ZONE_HALF_SIZE = 0.5;
 const DEFAULT_DESK_USE_ZONE_OFFSET: Vector3Tuple = [0, 0, 1];
 const DESK_CHAIR_TYPES = new Set<FurnitureType>(["chair", "office_chair"]);
+const SIT_APPROACH_DISTANCE = 0.55;
+const USE_PC_APPROACH_DISTANCE = -0.65;
+const LIE_APPROACH_BUFFER = 0.45;
 
 function normalizeAngle(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -50,6 +55,14 @@ function rotateWorldOffsetToLocal(
     worldX * cos - worldZ * sin,
     worldY,
     worldX * sin + worldZ * cos
+  ];
+}
+
+function addOffset(position: Vector3Tuple, offset: Vector3Tuple): Vector3Tuple {
+  return [
+    position[0] + offset[0],
+    position[1] + offset[1],
+    position[2] + offset[2]
   ];
 }
 
@@ -122,19 +135,56 @@ function getDeskUseTarget(
   const seatYOffset = chairDefinition.interactionOffset?.[1] ?? 0;
   const seatForwardOffset = Math.abs(chairDefinition.interactionOffset?.[2] ?? 0.06);
   const rotatedSeatOffset = rotateLocalOffset([0, seatYOffset, seatForwardOffset], useRotationY);
+  const finalPosition: Vector3Tuple = [
+    chosenChair.position[0] + rotatedSeatOffset[0],
+    chosenChair.position[1] + rotatedSeatOffset[1],
+    chosenChair.position[2] + rotatedSeatOffset[2]
+  ];
+  const approachPosition = addOffset(
+    finalPosition,
+    rotateLocalOffset([0, 0, USE_PC_APPROACH_DISTANCE], useRotationY)
+  );
 
   return {
     type: "use_pc",
     furnitureId: desk.id,
     furnitureLabel: desk.type === "office_desk" ? "Using Office Desk + PC" : "Using Desk + PC",
-    position: [
-      chosenChair.position[0] + rotatedSeatOffset[0],
-      chosenChair.position[1] + rotatedSeatOffset[1],
-      chosenChair.position[2] + rotatedSeatOffset[2]
-    ],
+    position: finalPosition,
+    approachPosition,
     rotationY: useRotationY,
     chairFurnitureId: chosenChair.id
   };
+}
+
+function getDirectInteractionApproachPosition(
+  placement: RoomFurniturePlacement,
+  localOffset: Vector3Tuple,
+  finalPosition: Vector3Tuple,
+  interactionRotationY: number,
+  interactionType: FurnitureInteractionType
+): Vector3Tuple {
+  if (interactionType === "sit") {
+    return addOffset(
+      finalPosition,
+      rotateLocalOffset([0, 0, SIT_APPROACH_DISTANCE], interactionRotationY)
+    );
+  }
+
+  const definition = getFurnitureDefinition(placement.type);
+  const collisionBoxes = getFurnitureCollisionBoxes(placement.type);
+  const fallbackHalfWidth = definition.footprintWidth / 2;
+  const halfWidthFromCollision = collisionBoxes.reduce(
+    (current, collisionBox) => Math.max(current, Math.abs(collisionBox.center[0]) + collisionBox.size[0] / 2),
+    fallbackHalfWidth
+  );
+  const sideSign = localOffset[0] < 0 ? -1 : 1;
+  const approachLocalOffset: Vector3Tuple = [
+    sideSign * (halfWidthFromCollision + LIE_APPROACH_BUFFER),
+    localOffset[1],
+    localOffset[2]
+  ];
+
+  return addOffset(placement.position, rotateLocalOffset(approachLocalOffset, placement.rotationY));
 }
 
 function createDirectInteractionTarget(
@@ -147,16 +197,24 @@ function createDirectInteractionTarget(
   const interactionRotationY = normalizeAngle(
     placement.rotationY + (definition.interactionRotationOffsetY ?? 0)
   );
+  const finalPosition: Vector3Tuple = [
+    placement.position[0] + rotatedOffset[0],
+    placement.position[1] + rotatedOffset[1],
+    placement.position[2] + rotatedOffset[2]
+  ];
 
   return {
     type: definition.interactionType!,
     furnitureId: placement.id,
     furnitureLabel: definition.label,
-    position: [
-      placement.position[0] + rotatedOffset[0],
-      placement.position[1] + rotatedOffset[1],
-      placement.position[2] + rotatedOffset[2]
-    ],
+    position: finalPosition,
+    approachPosition: getDirectInteractionApproachPosition(
+      placement,
+      localOffset,
+      finalPosition,
+      interactionRotationY,
+      definition.interactionType!
+    ),
     rotationY: interactionRotationY,
     poseOffset
   };

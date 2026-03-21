@@ -5,10 +5,6 @@ import {
 } from "../src/lib/furnitureInteractions";
 import type { RoomFurniturePlacement } from "../src/lib/roomState";
 
-function normalizeAngle(angle: number): number {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
-}
-
 function shortestAngleDistance(from: number, to: number): number {
   return Math.atan2(Math.sin(from - to), Math.cos(from - to));
 }
@@ -34,6 +30,8 @@ describe("furniture interactions", () => {
     expect(target?.type).toBe("sit");
     expect(target?.position[0]).toBeCloseTo(1.06);
     expect(target?.position[2]).toBeCloseTo(2);
+    expect(target?.approachPosition?.[0]).toBeCloseTo(1.61);
+    expect(target?.approachPosition?.[2]).toBeCloseTo(2);
     expect(target?.rotationY).toBeCloseTo(Math.PI / 2);
   });
 
@@ -50,7 +48,7 @@ describe("furniture interactions", () => {
     expect(getFurnitureInteractionTarget(rug)).toBeNull();
   });
 
-  it("returns a lie target for beds", () => {
+  it("returns a lie target for beds with an approach point outside the mattress", () => {
     const bed: RoomFurniturePlacement = {
       id: "bed-a",
       type: "bed",
@@ -65,6 +63,8 @@ describe("furniture interactions", () => {
     expect(target?.type).toBe("lie");
     expect(target?.position[0]).toBeCloseTo(1.38);
     expect(target?.position[2]).toBeCloseTo(-0.8);
+    expect(target?.approachPosition?.[0]).toBeCloseTo(0.05);
+    expect(target?.approachPosition?.[2]).toBeCloseTo(-0.8);
     expect(target?.poseOffset).toEqual([0, 0.84, 1]);
     expect(
       Math.abs(shortestAngleDistance(target?.rotationY ?? 0, Math.PI))
@@ -88,6 +88,8 @@ describe("furniture interactions", () => {
     expect(targets[1]?.position[0]).toBeCloseTo(2);
     expect(targets[0]?.position[2]).toBeCloseTo(-0.8);
     expect(targets[1]?.position[2]).toBeCloseTo(-0.5);
+    expect(targets[0]?.approachPosition?.[0]).toBeLessThan(0.5);
+    expect(targets[1]?.approachPosition?.[0]).toBeGreaterThan(3.4);
     expect(targets[0]?.poseOffset).toEqual([0, 0.84, 1]);
     expect(targets[1]?.poseOffset).toEqual([0, 0.84, 1]);
   });
@@ -116,6 +118,8 @@ describe("furniture interactions", () => {
     expect(target?.chairFurnitureId).toBe("chair-a");
     expect(target?.position[0]).toBeCloseTo(0.12);
     expect(target?.position[2]).toBeCloseTo(1.24);
+    expect(target?.approachPosition?.[0]).toBeCloseTo(0.12);
+    expect(target?.approachPosition?.[2]).toBeCloseTo(1.89);
     expect(
       Math.abs(shortestAngleDistance(target?.rotationY ?? 0, Math.PI))
     ).toBeLessThan(0.005);
@@ -155,6 +159,7 @@ describe("furniture interactions", () => {
 
     expect(target?.chairFurnitureId).toBe("office-chair-a");
     expect(target?.type).toBe("use_pc");
+    expect(target?.approachPosition).toBeDefined();
   });
 
   it("returns null for a desk with no valid chair in front", () => {
@@ -200,8 +205,10 @@ describe("furniture interactions", () => {
 
     expect(target?.type).toBe("use_pc");
     expect(target?.chairFurnitureId).toBe("office-chair-a");
+    expect(target?.approachPosition).toBeDefined();
     expect(
       Math.abs(shortestAngleDistance(target?.rotationY ?? 0, 0))
     ).toBeLessThan(0.005);
   });
 });
+

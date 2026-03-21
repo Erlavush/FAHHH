@@ -10,6 +10,7 @@ import {
   ToneMapping
 } from "@react-three/postprocessing";
 import { type WheelEvent as ReactWheelEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useControls } from "leva";
 import {
   CanvasTexture,
   Euler,
@@ -80,9 +81,15 @@ import {
   placementsMatch
 } from "../lib/roomPlacementEquality";
 import { MinecraftPlayer } from "./MinecraftPlayer";
+import { RoomPetActor } from "./room-view/RoomPetActor";
+import { CollisionDebugOverlay } from "./room-view/CollisionDebugOverlay";
+import type { SceneJumpRequest } from "../app/types";
 
 import {
+  aabbsOverlap,
+  getFurnitureAABBs,
   getFurnitureCollisionReason,
+  getPlayerAABB,
   type CollisionReason
 } from "../lib/furnitureCollision";
 import {
@@ -95,6 +102,8 @@ import {
   type FurniturePlacementSurface,
   type FurnitureType
 } from "../lib/furnitureRegistry";
+import { DEFAULT_IMPORTED_MOB_PRESETS } from "../lib/mobLab";
+import type { OwnedPet } from "../lib/pets";
 import {
   cloneFurniturePlacement,
   cloneFurniturePlacements,
@@ -116,6 +125,7 @@ import {
   type SurfaceLocalOffset
 } from "../lib/surfaceDecor";
 import { createWallOpeningLayout } from "../lib/wallOpenings";
+import { ROOM_CAMERA_TARGET } from "../lib/sceneTargets";
 import {
   clamp01,
   getWorldLightingState,
@@ -144,6 +154,17 @@ type PlayerInteractionStatus =
       label: string;
       interactionType: FurnitureInteractionTarget["type"];
       furnitureId: string;
+    }
+  | null;
+
+type QueuedPostInteractionAction =
+  | {
+      type: "move";
+      position: Vector3Tuple;
+    }
+  | {
+      type: "interact";
+      interaction: FurnitureInteractionTarget;
     }
   | null;
 
@@ -253,7 +274,7 @@ function PlacementActions({
           disabled={confirmDisabled}
           aria-label="Confirm placement"
         >
-          ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“
+          Confirm
         </button>
       </div>
     </Html>
@@ -303,25 +324,39 @@ function EditDock({
       <div className="edit-dock__actions">
         {canRotate && (
           <>
-            <button className="edit-dock__icon-btn" onClick={onRotateLeft} title="Rotate Left" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â²</button>
-            <button className="edit-dock__icon-btn" onClick={onRotateRight} title="Rotate Right" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³</button>
+            <button className="edit-dock__icon-btn" onClick={onRotateLeft} title="Rotate Left" type="button">
+              Turn L
+            </button>
+            <button className="edit-dock__icon-btn" onClick={onRotateRight} title="Rotate Right" type="button">
+              Turn R
+            </button>
             <div className="edit-dock__divider" />
           </>
         )}
 
-        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â</button>
+        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">
+          Left
+        </button>
         {canNudgeVertical ? (
           <>
-            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</button>
-            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“</button>
+            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">
+              Up
+            </button>
+            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">
+              Down
+            </button>
           </>
         ) : null}
-        <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</button>
+        <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">
+          Right
+        </button>
 
         {canSwapWall && (
           <>
             <div className="edit-dock__divider" />
-            <button className="edit-dock__button" onClick={onSwapWall} type="button">Swap Wall</button>
+            <button className="edit-dock__button" onClick={onSwapWall} type="button">
+              Swap Wall
+            </button>
           </>
         )}
 
@@ -347,6 +382,7 @@ interface RoomViewProps {
   initialCameraPosition: Vector3Tuple;
   initialPlayerPosition: Vector3Tuple;
   initialFurniturePlacements: RoomFurniturePlacement[];
+  pets: OwnedPet[];
   skinSrc: string | null;
   worldTimeMinutes: number;
   sunEnabled: boolean;
@@ -363,6 +399,7 @@ interface RoomViewProps {
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
+  sceneJumpRequest: SceneJumpRequest | null;
 }
 export function RoomView({
   buildModeEnabled,
@@ -373,6 +410,7 @@ export function RoomView({
   initialCameraPosition,
   initialPlayerPosition,
   initialFurniturePlacements,
+  pets,
   skinSrc,
   worldTimeMinutes,
   sunEnabled,
@@ -388,15 +426,19 @@ export function RoomView({
   onPlayerPositionChange,
   onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
-  onInteractionStateChange
+  onInteractionStateChange,
+  sceneJumpRequest
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
+  const initialSceneTarget = ROOM_CAMERA_TARGET;
   const initialFurnitureRef = useRef(cloneFurniturePlacements(initialFurniturePlacements));
   const cameraRef = useRef<ThreePerspectiveCamera | null>(null);
   const orbitControlsRef = useRef<any>(null);
   const lastProcessedSpawnRequestIdRef = useRef<number | null>(null);
   const lastCameraResetTokenRef = useRef(0);
   const lastStandRequestTokenRef = useRef(0);
+  const nextTeleportRequestIdRef = useRef(1);
+  const lastProcessedSceneJumpRequestIdRef = useRef<number | null>(null);
   const lastReportedFurnitureRef = useRef<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
@@ -408,10 +450,23 @@ export function RoomView({
   const capturedPointerTargetRef = useRef<PointerCaptureTarget | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const zoomTargetDistanceRef = useRef<number | null>(null);
+  const {
+    showCollisionDebug,
+    showPlayerCollider,
+    showInteractionMarkers
+  } = useControls("Collision Debug", {
+    showCollisionDebug: { value: false, label: "Show colliders" },
+    showPlayerCollider: { value: true, label: "Show player box" },
+    showInteractionMarkers: { value: true, label: "Show interaction markers" }
+  });
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>(initialPlayerPosition);
   const [playerWorldPosition, setPlayerWorldPosition] = useState<[number, number, number]>(
     initialPlayerPosition
   );
+  const [playerTeleportRequest, setPlayerTeleportRequest] = useState<{
+    requestId: number;
+    position: Vector3Tuple;
+  } | null>(null);
   const [committedFurniture, setCommittedFurniture] = useState<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
   );
@@ -420,6 +475,8 @@ export function RoomView({
   );
   const [pendingInteraction, setPendingInteraction] = useState<FurnitureInteractionTarget | null>(null);
   const [activeInteraction, setActiveInteraction] = useState<FurnitureInteractionTarget | null>(null);
+  const [queuedPostInteractionAction, setQueuedPostInteractionAction] =
+    useState<QueuedPostInteractionAction>(null);
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const [hoveredInteractableFurnitureId, setHoveredInteractableFurnitureId] = useState<string | null>(null);
@@ -644,12 +701,14 @@ export function RoomView({
     furnitureEditStartRef.current = {};
     setPendingInteraction(null);
     setActiveInteraction(null);
+    setQueuedPostInteractionAction(null);
   }, [initialFurniturePlacements]);
 
   useEffect(() => {
     if (buildModeEnabled) {
       setPendingInteraction(null);
       setActiveInteraction(null);
+      setQueuedPostInteractionAction(null);
       return;
     }
 
@@ -697,9 +756,11 @@ export function RoomView({
       return;
     }
 
+    const interactionApproachPosition =
+      pendingInteraction.approachPosition ?? pendingInteraction.position;
     const distance = Math.hypot(
-      playerWorldPosition[0] - pendingInteraction.position[0],
-      playerWorldPosition[2] - pendingInteraction.position[2]
+      playerWorldPosition[0] - interactionApproachPosition[0],
+      playerWorldPosition[2] - interactionApproachPosition[2]
     );
 
     if (distance > 0.05) {
@@ -710,6 +771,24 @@ export function RoomView({
     setActiveInteraction(pendingInteraction);
     setPendingInteraction(null);
   }, [activeInteraction, pendingInteraction, playerWorldPosition]);
+
+  useEffect(() => {
+    if (!queuedPostInteractionAction || activeInteraction || pendingInteraction) {
+      return;
+    }
+
+    if (queuedPostInteractionAction.type === "move") {
+      setTargetPosition(queuedPostInteractionAction.position);
+    } else {
+      setPendingInteraction(queuedPostInteractionAction.interaction);
+      setTargetPosition(
+        queuedPostInteractionAction.interaction.approachPosition ??
+          queuedPostInteractionAction.interaction.position
+      );
+    }
+
+    setQueuedPostInteractionAction(null);
+  }, [activeInteraction, pendingInteraction, queuedPostInteractionAction]);
 
   useEffect(() => {
     if (!buildModeEnabled) {
@@ -757,6 +836,45 @@ export function RoomView({
   }, []);
 
   useEffect(() => {
+    if (
+      !sceneJumpRequest ||
+      sceneJumpRequest.requestId === lastProcessedSceneJumpRequestIdRef.current
+    ) {
+      return;
+    }
+
+    lastProcessedSceneJumpRequestIdRef.current = sceneJumpRequest.requestId;
+    setPendingInteraction(null);
+    setActiveInteraction(null);
+    setQueuedPostInteractionAction(null);
+    setTargetPosition(sceneJumpRequest.playerPosition);
+    setPlayerWorldPosition(sceneJumpRequest.playerPosition);
+    setPlayerTeleportRequest({
+      requestId: sceneJumpRequest.requestId,
+      position: sceneJumpRequest.playerPosition
+    });
+    onPlayerPositionChange(sceneJumpRequest.playerPosition);
+    cameraRef.current?.position.set(
+      sceneJumpRequest.cameraPosition[0],
+      sceneJumpRequest.cameraPosition[1],
+      sceneJumpRequest.cameraPosition[2]
+    );
+    orbitControlsRef.current?.target.set(
+      sceneJumpRequest.cameraTarget[0],
+      sceneJumpRequest.cameraTarget[1],
+      sceneJumpRequest.cameraTarget[2]
+    );
+    orbitControlsRef.current?.update();
+    syncZoomTargetToCamera();
+    onCameraPositionChange(sceneJumpRequest.cameraPosition);
+  }, [
+    onCameraPositionChange,
+    onPlayerPositionChange,
+    sceneJumpRequest,
+    syncZoomTargetToCamera
+  ]);
+
+  useEffect(() => {
     syncZoomTargetToCamera();
   }, [syncZoomTargetToCamera]);
 
@@ -771,11 +889,15 @@ export function RoomView({
       initialCameraPosition[1],
       initialCameraPosition[2]
     );
-    orbitControlsRef.current?.target.set(0, 0.9, 0);
+    orbitControlsRef.current?.target.set(
+      initialSceneTarget[0],
+      initialSceneTarget[1],
+      initialSceneTarget[2]
+    );
     orbitControlsRef.current?.update();
     syncZoomTargetToCamera();
     onCameraPositionChange(initialCameraPosition);
-  }, [cameraResetToken, initialCameraPosition, onCameraPositionChange, syncZoomTargetToCamera]);
+  }, [cameraResetToken, initialCameraPosition, initialSceneTarget, onCameraPositionChange, syncZoomTargetToCamera]);
 
   useEffect(() => {
     if (!standRequestToken || standRequestToken === lastStandRequestTokenRef.current) {
@@ -1064,27 +1186,159 @@ export function RoomView({
     return leftWallDistance < backWallDistance ? "wall_left" : "wall_back";
   }
 
+  function canPlayerStandAt(position: Vector3Tuple): boolean {
+    const playerAABB = getPlayerAABB(position);
+
+    return !furniture.some(
+      (item) =>
+        item.surface === "floor" &&
+        item.type !== "rug" &&
+        getFurnitureAABBs(item).some((aabb) => aabbsOverlap(playerAABB, aabb))
+    );
+  }
+
+  function createStandCandidate(x: number, z: number): Vector3Tuple {
+    return [clampToFloor(x), 0, clampToFloor(z)];
+  }
+
+  function getRankedStandCandidates(candidates: Vector3Tuple[]): Vector3Tuple[] {
+    const uniqueCandidates = candidates.filter(
+      (candidate, index) =>
+        candidates.findIndex(
+          (other) =>
+            Math.abs(other[0] - candidate[0]) < 0.01 &&
+            Math.abs(other[1] - candidate[1]) < 0.01 &&
+            Math.abs(other[2] - candidate[2]) < 0.01
+        ) === index
+    );
+
+    return uniqueCandidates.sort(
+      (first, second) =>
+        Math.hypot(first[0] - playerWorldPosition[0], first[2] - playerWorldPosition[2]) -
+        Math.hypot(second[0] - playerWorldPosition[0], second[2] - playerWorldPosition[2])
+    );
+  }
+
+  function findNearestFreeStandPosition(
+    origin: Vector3Tuple,
+    preferredRotationY: number,
+    minDistance: number
+  ): Vector3Tuple | null {
+    const searchCandidates: Vector3Tuple[] = [];
+    const angleOffsets = [
+      0,
+      Math.PI,
+      Math.PI / 2,
+      -Math.PI / 2,
+      Math.PI / 4,
+      -Math.PI / 4,
+      (3 * Math.PI) / 4,
+      (-3 * Math.PI) / 4
+    ];
+
+    for (let radiusStep = 0; radiusStep < 6; radiusStep += 1) {
+      const radius = minDistance + radiusStep * 0.45;
+
+      angleOffsets.forEach((angleOffset) => {
+        const angle = preferredRotationY + angleOffset;
+        searchCandidates.push(
+          createStandCandidate(
+            origin[0] + Math.sin(angle) * radius,
+            origin[2] + Math.cos(angle) * radius
+          )
+        );
+      });
+    }
+
+    return getRankedStandCandidates(searchCandidates).find(canPlayerStandAt) ?? null;
+  }
+
+  function resolveInteractionStandPosition(
+    interaction: FurnitureInteractionTarget
+  ): Vector3Tuple {
+    const host =
+      findFurniturePlacement(furniture, interaction.chairFurnitureId ?? interaction.furnitureId) ??
+      findFurniturePlacement(furniture, interaction.furnitureId);
+    const hostDefinition = host ? getFurnitureDefinition(host.type) : null;
+    const hostPosition = host?.position ?? interaction.position;
+    const hostRotation = host?.rotationY ?? interaction.rotationY;
+    const sideDistance = (hostDefinition?.footprintWidth ?? 1) / 2 + 0.55;
+    const forwardDistance = (hostDefinition?.footprintDepth ?? 1) / 2 + 0.55;
+    const candidates: Vector3Tuple[] = [];
+
+    function pushCandidate(basePosition: Vector3Tuple, localOffset: Vector3Tuple, rotationY: number) {
+      const [offsetX, , offsetZ] = rotateLocalOffset(localOffset, rotationY);
+      candidates.push(createStandCandidate(basePosition[0] + offsetX, basePosition[2] + offsetZ));
+    }
+
+    if (interaction.approachPosition) {
+      candidates.push(createStandCandidate(interaction.approachPosition[0], interaction.approachPosition[2]));
+    }
+
+    if (interaction.type === "use_pc") {
+      pushCandidate(interaction.position, [0, 0, -forwardDistance], interaction.rotationY);
+      pushCandidate(hostPosition, [sideDistance, 0, 0], hostRotation);
+      pushCandidate(hostPosition, [-sideDistance, 0, 0], hostRotation);
+    } else if (interaction.type === "sit") {
+      pushCandidate(interaction.position, [0, 0, forwardDistance], interaction.rotationY);
+      pushCandidate(hostPosition, [sideDistance, 0, 0], hostRotation);
+      pushCandidate(hostPosition, [-sideDistance, 0, 0], hostRotation);
+    } else {
+      pushCandidate(hostPosition, [sideDistance, 0, 0], hostRotation);
+      pushCandidate(hostPosition, [-sideDistance, 0, 0], hostRotation);
+      pushCandidate(hostPosition, [0, 0, forwardDistance + 0.3], hostRotation);
+      pushCandidate(hostPosition, [0, 0, -(forwardDistance + 0.3)], hostRotation);
+    }
+
+    const rankedCandidates = getRankedStandCandidates(candidates);
+    const validCandidate = rankedCandidates.find(canPlayerStandAt);
+
+    if (validCandidate) {
+      return validCandidate;
+    }
+
+    const fallbackCandidate = findNearestFreeStandPosition(
+      hostPosition,
+      hostRotation,
+      Math.max(sideDistance, forwardDistance)
+    );
+
+    if (fallbackCandidate) {
+      return fallbackCandidate;
+    }
+
+    return rankedCandidates[0] ?? createStandCandidate(hostPosition[0], hostPosition[2]);
+  }
+
   function resolveInteractionExitPosition(
     interaction: FurnitureInteractionTarget
   ): Vector3Tuple {
-    const [offsetX, offsetY, offsetZ] = rotateLocalOffset(
-      interaction.type === "use_pc" ? [0, 0, -0.9] : [0, 0, 0.9],
-      interaction.rotationY
-    );
-
-    return [
-      clampToFloor(interaction.position[0] + offsetX),
-      interaction.position[1] + offsetY,
-      clampToFloor(interaction.position[2] + offsetZ)
-    ];
+    return resolveInteractionStandPosition(interaction);
   }
 
-  function clearPlayerInteraction(nextTarget?: Vector3Tuple) {
+  function clearPlayerInteraction(
+    nextTarget?: Vector3Tuple,
+    postExitAction: QueuedPostInteractionAction = null
+  ) {
+    const exitingActiveInteraction = activeInteraction;
+
     setPendingInteraction(null);
     setActiveInteraction(null);
+    setQueuedPostInteractionAction(postExitAction);
 
     if (nextTarget) {
       setTargetPosition(nextTarget);
+
+      if (exitingActiveInteraction) {
+        nextTeleportRequestIdRef.current += 1;
+        setPlayerWorldPosition(nextTarget);
+        setPlayerTeleportRequest({
+          requestId: nextTeleportRequestIdRef.current,
+          position: nextTarget
+        });
+        onPlayerPositionChange(nextTarget);
+      }
+
       return;
     }
 
@@ -1400,8 +1654,14 @@ export function RoomView({
     event.stopPropagation();
     const nextTarget: Vector3Tuple = [clampToFloor(event.point.x), 0, clampToFloor(event.point.z)];
 
-    if (activeInteraction || pendingInteraction) {
-      clearPlayerInteraction(nextTarget);
+    if (activeInteraction) {
+      clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
+      return;
+    }
+
+    if (pendingInteraction) {
+      clearPlayerInteraction();
+      setTargetPosition(nextTarget);
       return;
     }
 
@@ -1411,6 +1671,7 @@ export function RoomView({
   function handleWallClick(event: ThreeEvent<MouseEvent>) {
     handleBuildSurfaceClick(event);
   }
+
 
   function handleFurniturePointerDown(
     furnitureId: string,
@@ -1520,14 +1781,37 @@ export function RoomView({
       return;
     }
 
+    const nextInteractionTarget: FurnitureInteractionTarget = {
+      ...interactionTarget,
+      approachPosition: resolveInteractionStandPosition(interactionTarget)
+    };
+
     if (activeInteraction?.furnitureId === furnitureId) {
       clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
       return;
     }
 
+    if (
+      activeInteraction?.type === "sit" &&
+      nextInteractionTarget.type === "use_pc" &&
+      activeInteraction.furnitureId === nextInteractionTarget.chairFurnitureId
+    ) {
+      setQueuedPostInteractionAction(null);
+      setPendingInteraction(null);
+      setActiveInteraction(nextInteractionTarget);
+      setTargetPosition(nextInteractionTarget.position);
+      return;
+    }
+
+    if (activeInteraction) {
+      clearPlayerInteraction(resolveInteractionExitPosition(activeInteraction));
+      return;
+    }
+
+    setQueuedPostInteractionAction(null);
     setActiveInteraction(null);
-    setPendingInteraction(interactionTarget);
-    setTargetPosition(interactionTarget.position);
+    setPendingInteraction(nextInteractionTarget);
+    setTargetPosition(nextInteractionTarget.approachPosition ?? nextInteractionTarget.position);
   }
 
   function handleFurniturePointerMove(
@@ -1998,7 +2282,13 @@ export function RoomView({
           makeDefault
           position={initialCameraPositionRef.current}
           fov={24}
-          onUpdate={(camera) => camera.lookAt(0, 0.9, 0)}
+          onUpdate={(camera) =>
+            camera.lookAt(
+              initialSceneTarget[0],
+              initialSceneTarget[1],
+              initialSceneTarget[2]
+            )
+          }
         />
         <OrbitControls
           ref={orbitControlsRef}
@@ -2009,7 +2299,7 @@ export function RoomView({
           screenSpacePanning={false}
           minDistance={MIN_CAMERA_DISTANCE}
           maxDistance={MAX_CAMERA_DISTANCE}
-          target={[0, 0.9, 0]}
+          target={initialSceneTarget}
           minPolarAngle={0.18}
           maxPolarAngle={1.5}
           mouseButtons={{
@@ -2115,10 +2405,24 @@ export function RoomView({
           floorSecondaryColor="#e5e5e5"
           shadowsEnabled={shadowsEnabled}
         />
+        {showCollisionDebug ? (
+          <CollisionDebugOverlay
+            furniture={furniture}
+            playerPosition={playerWorldPosition}
+            pendingInteraction={pendingInteraction}
+            activeInteraction={activeInteraction}
+            showPlayerCollider={showPlayerCollider}
+            showInteractionMarkers={showInteractionMarkers}
+          />
+        ) : null}
+
         <MinecraftPlayer
           initialPosition={initialPlayerPosition}
+          teleportPosition={playerTeleportRequest?.position ?? null}
+          teleportRequestId={playerTeleportRequest?.requestId ?? 0}
           skinSrc={skinSrc}
           targetPosition={targetPosition}
+          furniture={furniture}
           interaction={playerInteractionPose}
           onPositionChange={(position: Vector3Tuple) => {
             setPlayerWorldPosition(position);
@@ -2126,6 +2430,24 @@ export function RoomView({
           }}
           shadowsEnabled={shadowsEnabled}
         />
+        {pets.map((pet) => {
+          const preset = DEFAULT_IMPORTED_MOB_PRESETS[pet.presetId];
+
+          if (!preset) {
+            return null;
+          }
+
+          return (
+            <RoomPetActor
+              key={pet.id}
+              pet={pet}
+              preset={preset}
+              playerPosition={playerWorldPosition}
+              furniture={furniture}
+              shadowsEnabled={shadowsEnabled}
+            />
+          );
+        })}
         {furniture
           .filter((item) => item.id !== selectedFurnitureId)
           .map((item) => (
@@ -2327,3 +2649,14 @@ export function RoomView({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

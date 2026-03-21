@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFurnitureCollisionReason } from "../src/lib/furnitureCollision";
+import { getFurnitureAABBs, getFurnitureCollisionReason } from "../src/lib/furnitureCollision";
 import type { PersistedFurniturePlacement } from "../src/lib/devLocalState";
 
 const farAwayPlayer: [number, number, number] = [6, 0, 6];
@@ -215,3 +215,4 @@ describe("furnitureCollision", () => {
     expect(getFurnitureCollisionReason(selectedVase, otherFurniture, farAwayPlayer)).toBeNull();
   });
 });
+

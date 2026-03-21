@@ -21,9 +21,7 @@ The intended final game is not only a room decorator. It is a shared couple-spac
 - a buy loop for new furniture, decor, frames, pets, and variants
 - a desk PC that opens minigames for extra coins
 - daily quests that reward coins and support habit play
-- editable picture frames for real couple images
-- pets such as cats and dogs that make the room feel alive
-- a breakup mechanic that clears the room and shared progress
+- pets such as dogs that make the room feel alive
 
 ## Core Pillars
 
@@ -59,6 +57,8 @@ The repo has moved beyond the earliest empty-room prototype, but it is still a `
 - buyable wall windows with real wall openings
 - world clock with real-time sun/moon lighting controls
 - preview studio for shop thumbnails
+- high-fidelity mob system (Raccoon and Cat integrated into the live room)
+- real-time FPS performance monitoring HUD
 - local persistence for room, camera, position, skin, and coins
 
 ### Still missing from the full game
@@ -68,7 +68,7 @@ The repo has moved beyond the earliest empty-room prototype, but it is still a `
 - level and couple streak
 - daily quest and additional minigame earn loops
 - editable couple-photo frames
-- pets
+- advanced pet gameplay loops (needs/moods/interaction)
 - breakup reset gameplay
 
 ## Game Jam MVP

@@ -128,6 +128,7 @@ Even with MCPs, the most important project-specific context should stay in this 
 - [AI_HANDOFF.md](/Z:/FAHHHH/docs/AI_HANDOFF.md)
 - [CODEBASE_MAP.md](/Z:/FAHHHH/docs/CODEBASE_MAP.md)
 - [CURRENT_SYSTEMS.md](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md)
+- [MOB_LAB.md](/Z:/FAHHHH/docs/MOB_LAB.md)
 
 This keeps AI tools grounded in the actual game architecture before they reach for upstream docs.
 

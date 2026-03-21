@@ -2,7 +2,9 @@ import type {
   FurnitureInteractionType,
   FurnitureType
 } from "../lib/furnitureRegistry";
-import type { OwnedFurnitureItem } from "../lib/roomState";
+import type { OwnedFurnitureItem, Vector3Tuple } from "../lib/roomState";
+
+export type PreviewStudioMode = "furniture" | "mob_lab";
 
 export type FurnitureSpawnRequest = {
   requestId: number;
@@ -25,3 +27,10 @@ export type PlayerInteractionStatus =
       furnitureId: string;
     }
   | null;
+
+export type SceneJumpRequest = {
+  requestId: number;
+  playerPosition: Vector3Tuple;
+  cameraPosition: Vector3Tuple;
+  cameraTarget: Vector3Tuple;
+};

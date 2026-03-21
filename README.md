@@ -14,11 +14,15 @@ What already works in the live runtime:
 - inventory ownership model with stored vs placed furniture
 - coin-based furniture buying and selling
 - a redesigned room inventory/shop panel with previews and item descriptions
-- a preview studio for generating thumbnail images
+- a dual-mode preview studio for furniture thumbnails and imported-mob tuning
 - buyable wall windows that open real holes in the back and left walls
 - a real-time world clock with a single cinematic lighting pipeline, blue sky backdrop, and dev controls for locking and scrubbing time
 - a desk PC minigame earn loop with saved best score and cooldown tracking
-- local persistence for room state, player position, camera, coins, and skin
+- a browser-local Mob Lab with imported raccoon and cat presets, live rig editing, animation tuning, and JSON export/import
+- a checked-in final Alex's Mobs raccoon preset sourced from a tuned JSON
+- a temporary Pet Store flow that lets the player adopt the raccoon for `0` coins into the live room
+- a simple in-room raccoon wander behavior for live pet testing
+- local persistence for room state, player position, camera, coins, skin, pets, and Mob Lab presets
 
 ## Final Game Direction
 
@@ -40,6 +44,7 @@ The final game direction is still `Risk It All`:
 - [Current systems](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md): gameplay/runtime behavior that exists now
 - [Architecture](/Z:/FAHHHH/docs/ARCHITECTURE.md): file ownership and system boundaries
 - [Codebase map](/Z:/FAHHHH/docs/CODEBASE_MAP.md): fastest navigation guide for the current folder layout
+- [Mob Lab guide](/Z:/FAHHHH/docs/MOB_LAB.md): imported-mob workflow, preset structure, and authoring constraints
 - [Roadmap](/Z:/FAHHHH/docs/ROADMAP.md): implemented foundation vs next priorities
 - [Game overview](/Z:/FAHHHH/docs/GAME_OVERVIEW.md): long-term product vision
 - [Diagrams](/Z:/FAHHHH/docs/DIAGRAMS.md): runtime and roadmap diagrams
@@ -52,16 +57,22 @@ If you are extending the current playable sandbox, start from:
 
 - [App.tsx](/Z:/FAHHHH/src/App.tsx)
 - [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx)
+- [FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx)
 - [furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts)
 - [roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts)
 - [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts)
 - [economy.ts](/Z:/FAHHHH/src/lib/economy.ts)
+- [pcMinigame.ts](/Z:/FAHHHH/src/lib/pcMinigame.ts)
 - [furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts)
 - [surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts)
 - [furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts)
 - [wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts)
+- [mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts)
+- [mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts)
 
 Do not treat the older backend/couple-room skeleton as the active runtime schema.
+
+Imported mobs now have two states: Mob Lab authoring and optional live-room integration. The final `alexs_mobs_raccoon` preset is wired into the main room through the temporary Pet Store.
 
 ## Getting Started
 

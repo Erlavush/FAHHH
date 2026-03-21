@@ -1,0 +1,461 @@
+{
+  "id": "alexs_mobs_raccoon",
+  "label": "Alex's Mobs Raccoon",
+  "sourceLabel": "AlexsMobs-1.20.zip",
+  "sourceMobPath": "ModelRaccoon.java + raccoon.png",
+  "textureSrc": "/textures/alexsmobs/raccoon.png",
+  "stage": {
+    "modelScale": 0.0625,
+    "cameraPosition": [
+      4.6,
+      3.4,
+      4.6
+    ],
+    "cameraTarget": [
+      0,
+      0.72,
+      0
+    ]
+  },
+  "animation": {
+    "idle": {
+      "frequency": 0.55,
+      "bodyBob": 0.04,
+      "headYaw": 4.5,
+      "headPitch": 1.2,
+      "tailYaw": 3.5,
+      "tailPitch": 5.5,
+      "earPitch": 2.6,
+      "earRoll": 1.8
+    },
+    "walk": {
+      "strideRate": 10,
+      "limbSwing": 40,
+      "bodyBob": 0.4,
+      "bodyRoll": 3.5,
+      "headNod": 2,
+      "tailYaw": 6.5,
+      "tailPitch": 1
+    }
+  },
+  "locomotion": {
+    "mode": "loop_path",
+    "speed": 100,
+    "turnResponsiveness": 100,
+    "loopRadius": 1
+  },
+  "physics": {
+    "groundOffset": -0.02,
+    "colliderSize": [
+      0.75,
+      1.05,
+      1.65
+    ],
+    "colliderOffset": [
+      0,
+      0.53,
+      0.08
+    ],
+    "showCollider": true
+  },
+  "parts": [
+    {
+      "id": "body",
+      "label": "Body",
+      "parentId": null,
+      "role": "body",
+      "transform": {
+        "position": [
+          0,
+          10,
+          0.5
+        ],
+        "rotation": [
+          -10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          11,
+          8,
+          15
+        ],
+        "offset": [
+          -5.5,
+          -4,
+          -7.5
+        ],
+        "textureOrigin": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "tail",
+      "label": "Tail",
+      "parentId": "body",
+      "role": "tail",
+      "transform": {
+        "position": [
+          0.5,
+          2,
+          7.5
+        ],
+        "rotation": [
+          35,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          5,
+          5,
+          19
+        ],
+        "offset": [
+          -3,
+          -2,
+          0
+        ],
+        "textureOrigin": [
+          0,
+          24
+        ]
+      }
+    },
+    {
+      "id": "arm_left",
+      "label": "Front Left Leg",
+      "parentId": "body",
+      "role": "front_left_leg",
+      "transform": {
+        "position": [
+          3,
+          -2.1,
+          -5.5
+        ],
+        "rotation": [
+          10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          7,
+          2
+        ],
+        "offset": [
+          -1,
+          0,
+          -1
+        ],
+        "textureOrigin": [
+          0,
+          24
+        ]
+      }
+    },
+    {
+      "id": "arm_right",
+      "label": "Front Right Leg",
+      "parentId": "body",
+      "role": "front_right_leg",
+      "transform": {
+        "position": [
+          -3,
+          -2.1,
+          -5.5
+        ],
+        "rotation": [
+          10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          7,
+          2
+        ],
+        "offset": [
+          -1,
+          0,
+          -1
+        ],
+        "textureOrigin": [
+          0,
+          24
+        ],
+        "mirror": true
+      }
+    },
+    {
+      "id": "leg_left",
+      "label": "Rear Left Leg",
+      "parentId": "body",
+      "role": "rear_left_leg",
+      "transform": {
+        "position": [
+          3,
+          -4,
+          5.5
+        ],
+        "rotation": [
+          10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          7,
+          2
+        ],
+        "offset": [
+          -1,
+          0,
+          -1
+        ],
+        "textureOrigin": [
+          9,
+          32
+        ]
+      }
+    },
+    {
+      "id": "leg_right",
+      "label": "Rear Right Leg",
+      "parentId": "body",
+      "role": "rear_right_leg",
+      "transform": {
+        "position": [
+          -3,
+          -4,
+          5.5
+        ],
+        "rotation": [
+          10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          7,
+          2
+        ],
+        "offset": [
+          -1,
+          0,
+          -1
+        ],
+        "textureOrigin": [
+          9,
+          32
+        ],
+        "mirror": true
+      }
+    },
+    {
+      "id": "head",
+      "label": "Head",
+      "parentId": "body",
+      "role": "head",
+      "transform": {
+        "position": [
+          0,
+          -0.5,
+          -8.5
+        ],
+        "rotation": [
+          10,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          9,
+          7,
+          5
+        ],
+        "offset": [
+          -4.5,
+          -4,
+          -4
+        ],
+        "textureOrigin": [
+          30,
+          30
+        ]
+      }
+    },
+    {
+      "id": "ear_left",
+      "label": "Left Ear",
+      "parentId": "head",
+      "role": "ear_left",
+      "transform": {
+        "position": [
+          3.5,
+          4,
+          -2
+        ],
+        "rotation": [
+          2,
+          0,
+          8
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          2,
+          1
+        ],
+        "offset": [
+          -1,
+          -2,
+          0
+        ],
+        "textureOrigin": [
+          9,
+          24
+        ]
+      }
+    },
+    {
+      "id": "ear_right",
+      "label": "Right Ear",
+      "parentId": "head",
+      "role": "ear_right",
+      "transform": {
+        "position": [
+          -3.5,
+          4,
+          -2
+        ],
+        "rotation": [
+          2,
+          0,
+          -8
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          2,
+          2,
+          1
+        ],
+        "offset": [
+          -1,
+          -2,
+          0
+        ],
+        "textureOrigin": [
+          9,
+          24
+        ],
+        "mirror": true
+      }
+    },
+    {
+      "id": "snout",
+      "label": "Snout",
+      "parentId": "head",
+      "role": "snout",
+      "transform": {
+        "position": [
+          0,
+          -1.5,
+          -5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "geometry": {
+        "size": [
+          4,
+          3,
+          3
+        ],
+        "offset": [
+          -2,
+          -1.5,
+          -2
+        ],
+        "textureOrigin": [
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "textureSize": [
+    64,
+    64
+  ],
+  "presetRevision": 1
+}
