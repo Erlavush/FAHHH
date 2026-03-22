@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createDefaultMobLabState, loadPersistedMobLabState, type PersistedMobLabState } from "../src/lib/mobLabState";
-import type { ImportedMobPreset } from "../src/lib/mobLab";
+import { DEFAULT_MOB_LAB_MOB_ID, type ImportedMobPreset } from "../src/lib/mobLab";
 
 const STORAGE_KEY = "cozy-room-mob-lab";
 
@@ -31,7 +31,7 @@ describe("mobLabState", () => {
     const loadedState = loadPersistedMobLabState();
 
     expect(loadedState.presets[staleCatPreset.id]).toBeUndefined();
-    expect(loadedState.activeMobId).toBe("better_cats_v4_tabby");
+    expect(loadedState.activeMobId).toBe(DEFAULT_MOB_LAB_MOB_ID);
   });
 
   it("keeps imported custom presets that are not part of the built-in library", () => {
