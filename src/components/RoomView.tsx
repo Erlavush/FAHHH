@@ -1,3 +1,4 @@
+
 import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Html, OrbitControls, PerspectiveCamera, PivotControls } from "@react-three/drei";
 import {
@@ -10,7 +11,6 @@ import {
   ToneMapping
 } from "@react-three/postprocessing";
 import { type WheelEvent as ReactWheelEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useControls } from "leva";
 import {
   CanvasTexture,
   Euler,
@@ -41,6 +41,7 @@ import {
   LEFT_WALL_SURFACE_X,
   MAX_CAMERA_DISTANCE,
   MIN_CAMERA_DISTANCE,
+  OCCLUSION_ANGLE_THRESHOLD,
   SMOOTH_ZOOM_SENSITIVITY,
   TOUCH_COMPOSER_MULTISAMPLING,
   TOUCH_MAX_DPR,
@@ -394,12 +395,48 @@ interface RoomViewProps {
   brightness: number;
   saturation: number;
   contrast: number;
+  showCollisionDebug: boolean;
+  showPlayerCollider: boolean;
+  showInteractionMarkers: boolean;
   onCameraPositionChange: (position: Vector3Tuple) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
   sceneJumpRequest: SceneJumpRequest | null;
+}
+function WallOcclusionController({
+  onVisibilityChange
+}: {
+  onVisibilityChange: (visibility: Record<string, boolean>) => void;
+}) {
+  const { camera } = useThree();
+  const lastVisibilityRef = useRef<string>('');
+
+  useFrame(() => {
+    const angle = Math.atan2(camera.position.x, camera.position.z);
+    const threshold = OCCLUSION_ANGLE_THRESHOLD;
+
+    const isFrontHidden = angle > -Math.PI / 2 + threshold && angle < Math.PI / 2 - threshold;
+    const isRightHidden = angle > threshold && angle < Math.PI - threshold;
+    const isBackHidden = angle > Math.PI / 2 + threshold || angle < -Math.PI / 2 - threshold;
+    const isLeftHidden = angle > -Math.PI + threshold && angle < -threshold;
+
+    const nextVisibility = {
+      wall_front: !isFrontHidden,
+      wall_right: !isRightHidden,
+      wall_back: !isBackHidden,
+      wall_left: !isLeftHidden
+    };
+
+    const visibilityKey = JSON.stringify(nextVisibility);
+    if (visibilityKey !== lastVisibilityRef.current) {
+      lastVisibilityRef.current = visibilityKey;
+      onVisibilityChange(nextVisibility);
+    }
+  });
+
+  return null;
 }
 export function RoomView({
   buildModeEnabled,
@@ -422,6 +459,9 @@ export function RoomView({
   brightness,
   saturation,
   contrast,
+  showCollisionDebug,
+  showPlayerCollider,
+  showInteractionMarkers,
   onCameraPositionChange,
   onPlayerPositionChange,
   onFurnitureSnapshotChange,
@@ -450,15 +490,6 @@ export function RoomView({
   const capturedPointerTargetRef = useRef<PointerCaptureTarget | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const zoomTargetDistanceRef = useRef<number | null>(null);
-  const {
-    showCollisionDebug,
-    showPlayerCollider,
-    showInteractionMarkers
-  } = useControls("Collision Debug", {
-    showCollisionDebug: { value: false, label: "Show colliders" },
-    showPlayerCollider: { value: true, label: "Show player box" },
-    showInteractionMarkers: { value: true, label: "Show interaction markers" }
-  });
   const [targetPosition, setTargetPosition] = useState<[number, number, number]>(initialPlayerPosition);
   const [playerWorldPosition, setPlayerWorldPosition] = useState<[number, number, number]>(
     initialPlayerPosition
@@ -487,6 +518,12 @@ export function RoomView({
   } | null>(null);
   const [isDraggingFurniture, setIsDraggingFurniture] = useState(false);
   const [isTransformingFurniture, setIsTransformingFurniture] = useState(false);
+  const [wallVisibility, setWallVisibility] = useState<Record<string, boolean>>({
+    wall_back: true,
+    wall_left: true,
+    wall_front: true,
+    wall_right: true
+  });
   const [prefersTouchControls, setPrefersTouchControls] = useState(false);
   const lightingState = useMemo(() => getWorldLightingState(worldTimeMinutes), [worldTimeMinutes]);
   const floorLampCount = useMemo(
@@ -546,6 +583,7 @@ export function RoomView({
     lightingState.twilightFillAmount * 0.2 +
     practicalLampFactor * 0.16
   ) * ambientMultiplier;
+
   const syncZoomTargetToCamera = useCallback(() => {
     const camera = cameraRef.current;
     const controls = orbitControlsRef.current;
@@ -661,7 +699,8 @@ export function RoomView({
     const zoomScale = Math.exp(event.deltaY * SMOOTH_ZOOM_SENSITIVITY);
     zoomTargetDistanceRef.current = Math.min(
       MAX_CAMERA_DISTANCE,
-      Math.max(MIN_CAMERA_DISTANCE, currentTargetDistance * zoomScale)
+      Math.max(MIN_CAMERA_DISTANCE,
+  OCCLUSION_ANGLE_THRESHOLD, currentTargetDistance * zoomScale)
     );
   }, [isTransformingFurniture, prefersTouchControls]);
 
@@ -1141,7 +1180,6 @@ export function RoomView({
       );
     }
 
-    
     const dragPlane =
       dragState.surface === "floor"
         ? floorDragPlane
@@ -2386,9 +2424,11 @@ export function RoomView({
             </directionalLight>
           </>
         ) : null}
+        <WallOcclusionController onVisibilityChange={setWallVisibility} />
         <RoomShell
           surfaceLightAmount={roomSurfaceLightAmount}
           furniture={furniture}
+          wallVisibility={wallVisibility}
           shadowsEnabled={shadowsEnabled}
           onWallClick={handleWallClick}
           onWallPointerMove={handleSurfacePointerMove}
@@ -2449,7 +2489,13 @@ export function RoomView({
           );
         })}
         {furniture
-          .filter((item) => item.id !== selectedFurnitureId)
+          .filter((item) => {
+            if (item.id === selectedFurnitureId) return false;
+            if (item.surface !== "floor" && item.surface !== "surface") {
+              if (wallVisibility[item.surface] === false) return false;
+            }
+            return true;
+          })
           .map((item) => (
           <group
             key={item.id}
@@ -2528,7 +2574,7 @@ export function RoomView({
             {renderInteractionProxy(selectedFurniture)}
           </group>
         </PivotControls>
-        ) : selectedFurniture ? (
+        ) : selectedFurniture && (selectedFurniture.surface === "floor" || selectedFurniture.surface === "surface" || wallVisibility[selectedFurniture.surface] !== false) ? (
           <group
             position={selectedFurniture.position}
             rotation={[0, selectedFurniture.rotationY, 0]}
@@ -2649,14 +2695,3 @@ export function RoomView({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

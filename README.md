@@ -22,7 +22,7 @@ What already works in the live runtime:
 - a checked-in final Alex's Mobs raccoon preset sourced from a tuned JSON
 - a temporary Pet Store flow that lets the player adopt the raccoon for `0` coins into the live room
 - a simple in-room raccoon wander behavior for live pet testing
-- local persistence for room state, player position, camera, coins, skin, pets, and Mob Lab presets
+- dev-only browser persistence for world data, world settings, and Mob Lab presets
 
 ## Final Game Direction
 
@@ -96,3 +96,9 @@ cmd /c npm run build
 ```
 
 If Firebase is not configured, the app runs in browser-only local sandbox mode.
+
+Important current note:
+
+- the active save path in this repo is development-only browser storage
+- `world data` and `world settings` are stored as separate local browser documents
+- this is intended to be replaced later by backend persistence such as Firebase/SQL-backed player saves

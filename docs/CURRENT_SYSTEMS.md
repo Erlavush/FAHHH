@@ -330,7 +330,12 @@ Current note:
 
 ## Persistence
 
-The active room save path is local browser storage through [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts).
+The active sandbox save path is development-only browser storage.
+
+The save is currently split into two browser-local documents:
+
+- `world data` through [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts)
+- `world settings` through [devWorldSettings.ts](/Z:/FAHHHH/src/lib/devWorldSettings.ts)
 
 Persisted room/runtime fields:
 
@@ -342,9 +347,19 @@ Persisted room/runtime fields:
 - `pcMinigame`
 - `pets`
 
+Persisted world-settings/dev-panel fields currently include:
+
+- clock mode and locked-time controls
+- sun, shadows, fog, brightness, saturation, and contrast
+- build mode, inventory visibility, grid snap, and debug panel visibility
+- preview studio state
+- custom dev-panel collapsed-section state
+
 Important current facts:
 
-- save schema version is `5`
+- world-data save schema version is `6`
+- world settings are separate from world data on purpose
+- the browser-local save path is only for development and local sandbox use
 - older saves are normalized forward
 - outdated room layouts are reset to the current fallback starter room
 

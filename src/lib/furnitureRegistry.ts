@@ -16,7 +16,7 @@ export type FurnitureType =
   | "floor_lamp";
 
 export type FurnitureSurfaceFamily = "floor" | "wall" | "surface";
-export type FurniturePlacementSurface = "floor" | "wall_back" | "wall_left" | "surface";
+export type FurniturePlacementSurface = "floor" | "wall_back" | "wall_left" | "wall_front" | "wall_right" | "surface";
 export type FurnitureCatalogCategory =
   | "Floor Furniture"
   | "Wall Decor"
@@ -434,6 +434,14 @@ export function getSurfaceRotationY(
 ): number {
   if (surface === "wall_left") {
     return Math.PI / 2;
+  }
+
+  if (surface === "wall_front") {
+    return Math.PI;
+  }
+
+  if (surface === "wall_right") {
+    return -Math.PI / 2;
   }
 
   return getFurnitureDefinition(type).defaultRotationY;

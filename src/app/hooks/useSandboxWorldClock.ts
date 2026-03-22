@@ -1,5 +1,5 @@
 import { button, folder, useControls } from "leva";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   controlHoursToMinutes,
   formatClock24h,
@@ -8,28 +8,22 @@ import {
   wrapClockMinutes
 } from "../clock";
 import { GameLoopManager, ticksToMinutes } from "../../lib/gameLoop";
+import {
+  loadPersistedWorldSettings,
+  savePersistedWorldSettings,
+  type PersistedWorldSettings
+} from "../../lib/devWorldSettings";
 
-const LEVA_SETTINGS_KEY = "cozy-room-leva-settings";
-
-interface LevaSettings {
-  minecraftTimeMinutes?: number;
-  useMinecraftTimeToggle?: boolean;
-  sunEnabled?: boolean;
-  shadowsEnabled?: boolean;
-  fogEnabled?: boolean;
-  fogDensity?: number;
-  ambientMultiplier?: number;
-  sunIntensityMultiplier?: number;
-  brightness?: number;
-  saturation?: number;
-  contrast?: number;
-}
+type LevaSettings = PersistedWorldSettings;
 
 export interface SandboxWorldClockState {
   worldTimeMinutes: number;
   worldTicks: number;
   worldTimeLabel: string;
+  useMinecraftTime: boolean;
+  minecraftTimeHours: number;
   timeLocked: boolean;
+  lockedTimeHours: number;
   sunEnabled: boolean;
   shadowsEnabled: boolean;
   fogEnabled: boolean;
@@ -39,19 +33,24 @@ export interface SandboxWorldClockState {
   brightness: number;
   saturation: number;
   contrast: number;
+  setUseMinecraftTime: (value: boolean) => void;
+  setMinecraftTimeHours: (value: number) => void;
+  setTimeLockedEnabled: (value: boolean) => void;
+  setLockedTimeHours: (value: number) => void;
+  syncLockedTimeToLocalTime: () => void;
+  setSunEnabled: (value: boolean) => void;
+  setShadowsEnabled: (value: boolean) => void;
+  setFogEnabled: (value: boolean) => void;
+  setFogDensity: (value: number) => void;
+  setAmbientMultiplier: (value: number) => void;
+  setSunIntensityMultiplier: (value: number) => void;
+  setBrightness: (value: number) => void;
+  setSaturation: (value: number) => void;
+  setContrast: (value: number) => void;
 }
 
 function loadLevaSettings(): LevaSettings {
-  if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
-    return {};
-  }
-
-  try {
-    const data = window.localStorage.getItem(LEVA_SETTINGS_KEY);
-    return data ? (JSON.parse(data) as LevaSettings) : {};
-  } catch {
-    return {};
-  }
+  return loadPersistedWorldSettings();
 }
 
 export function useSandboxWorldClock(): SandboxWorldClockState {
@@ -71,9 +70,13 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   const [useMinecraftTime, setUseMinecraftTime] = useState(
     savedSettings.useMinecraftTimeToggle ?? true
   );
-  const [timeLocked, setTimeLocked] = useState(false);
+  const [timeLocked, setTimeLocked] = useState(savedSettings.timeLocked ?? false);
   const [lockedTimeMinutes, setLockedTimeMinutes] = useState(() =>
-    wrapClockMinutes(Math.round(getLocalClockMinutes()))
+    wrapClockMinutes(
+      typeof savedSettings.lockedTimeMinutes === "number"
+        ? savedSettings.lockedTimeMinutes
+        : Math.round(getLocalClockMinutes())
+    )
   );
 
   const worldTimeMinutes = timeLocked
@@ -85,6 +88,14 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   const worldTimeLabel = useMemo(
     () => formatClock24h(worldTimeMinutes),
     [worldTimeMinutes]
+  );
+  const minecraftTimeHours = useMemo(
+    () => (minecraftTimeMinutes / 60) % 24,
+    [minecraftTimeMinutes]
+  );
+  const lockedTimeHours = useMemo(
+    () => minutesToControlHours(lockedTimeMinutes),
+    [lockedTimeMinutes]
   );
   const localTimeLabel = useMemo(
     () => formatClock24h(realTimeMinutes),
@@ -114,21 +125,21 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
     },
     setWorldSettings
   ] = useControls(
-    "World Settings",
+    "----- WORLD SETTINGS -----",
     () => ({
       localClock: {
         value: localTimeLabel,
         editable: false,
-        label: "Local Time"
+        label: "Local"
       },
       worldClock: {
         value: worldTimeLabel,
         editable: false,
-        label: "World Time"
+        label: "World"
       },
       useMinecraftTimeToggle: {
         value: useMinecraftTime,
-        label: "Use Minecraft Time",
+        label: "Minecraft Clock",
         onChange: (value: boolean) => setUseMinecraftTime(value)
       },
       minecraftTime24h: {
@@ -136,12 +147,13 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         min: 0,
         max: 23.99,
         step: 0.1,
-        label: "Minecraft Time (24h)",
-        render: (get) => get("World Settings.useMinecraftTimeToggle"),
+        label: "Minecraft Time",
+        render: (get) => get("----- WORLD SETTINGS -----.useMinecraftTimeToggle"),
         onChange: (value: number, _path: string, context: { initial: boolean }) => {
           if (!context.initial) {
-            setMinecraftTimeMinutes(value * 60);
-            gameLoopRef.current?.setMinutes(value * 60);
+            const nextMinutes = controlHoursToMinutes(value);
+            setMinecraftTimeMinutes(nextMinutes);
+            gameLoopRef.current?.setMinutes(nextMinutes);
           }
         }
       },
@@ -166,8 +178,8 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         min: 0,
         max: 23.983333333333334,
         step: 1 / 60,
-        label: "Locked Time (24h)",
-        render: (get) => get("World Settings.lockTimeOfDay"),
+        label: "Locked Time",
+        render: (get) => get("----- WORLD SETTINGS -----.lockTimeOfDay"),
         transient: false,
         onChange: (value: number, _path: string, context: { initial: boolean }) => {
           if (context.initial) {
@@ -177,58 +189,171 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
           setLockedTimeMinutes(controlHoursToMinutes(value));
         }
       },
-      syncLockToNow: button(() => {
-        setTimeLocked(true);
-        setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
-      }),
-      sunEnabled: savedSettings.sunEnabled ?? true,
-      shadowsEnabled: savedSettings.shadowsEnabled ?? true,
-      "Sky & Atmosphere": folder({
-        fogEnabled: savedSettings.fogEnabled ?? true,
+      syncLockedTimeToLocalClock: {
+        ...button(() => {
+          setTimeLocked(true);
+          setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
+        }),
+        label: "Sync To Local Time"
+      },
+      sunEnabled: {
+        value: savedSettings.sunEnabled ?? true,
+        label: "Sun"
+      },
+      shadowsEnabled: {
+        value: savedSettings.shadowsEnabled ?? true,
+        label: "Shadows"
+      },
+      "----- ATMOSPHERE -----": folder({
+        fogEnabled: {
+          value: savedSettings.fogEnabled ?? true,
+          label: "Fog"
+        },
         fogDensity: {
           value: savedSettings.fogDensity ?? 0.02,
           min: 0,
           max: 0.1,
-          step: 0.001
+          step: 0.001,
+          label: "Density"
         }
       }),
-      "Lighting & Shadows": folder({
+      "----- LIGHTING -----": folder({
         ambientMultiplier: {
           value: savedSettings.ambientMultiplier ?? 1.0,
           min: 0.0,
           max: 3.0,
-          step: 0.1
+          step: 0.1,
+          label: "Ambient"
         },
         sunIntensityMultiplier: {
           value: savedSettings.sunIntensityMultiplier ?? 1.0,
           min: 0.0,
           max: 3.0,
-          step: 0.1
+          step: 0.1,
+          label: "Sun Light"
         }
       }),
-      "Post-Processing": folder({
+      "----- POST PROCESSING -----": folder({
         brightness: {
           value: savedSettings.brightness ?? 1.0,
           min: 0.0,
           max: 2.0,
-          step: 0.05
+          step: 0.05,
+          label: "Brightness"
         },
         saturation: {
           value: savedSettings.saturation ?? 1.0,
           min: 0.0,
           max: 2.0,
-          step: 0.05
+          step: 0.05,
+          label: "Saturation"
         },
         contrast: {
           value: savedSettings.contrast ?? 1.0,
           min: 0.0,
           max: 2.0,
-          step: 0.05
+          step: 0.05,
+          label: "Contrast"
         }
       })
     }),
     []
   );
+
+  const syncLockedTimeToLocalTime = useCallback(() => {
+    setTimeLocked(true);
+    setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
+  }, [realTimeMinutes]);
+
+  const setMinecraftTimeHoursValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const nextMinutes = controlHoursToMinutes(value);
+    setMinecraftTimeMinutes(nextMinutes);
+    gameLoopRef.current?.setMinutes(nextMinutes);
+  }, []);
+
+  const setTimeLockedEnabled = useCallback((value: boolean) => {
+    if (value) {
+      setLockedTimeMinutes(wrapClockMinutes(Math.round(realTimeMinutes)));
+    }
+
+    setTimeLocked(value);
+  }, [realTimeMinutes]);
+
+  const setLockedTimeHoursValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    setLockedTimeMinutes(controlHoursToMinutes(value));
+  }, []);
+
+  const updateWorldSetting = useCallback((patch: Record<string, unknown>) => {
+    setWorldSettings(patch as never);
+  }, [setWorldSettings]);
+
+  const setSunEnabledValue = useCallback((value: boolean) => {
+    updateWorldSetting({ sunEnabled: value });
+  }, [updateWorldSetting]);
+
+  const setShadowsEnabledValue = useCallback((value: boolean) => {
+    updateWorldSetting({ shadowsEnabled: value });
+  }, [updateWorldSetting]);
+
+  const setFogEnabledValue = useCallback((value: boolean) => {
+    updateWorldSetting({ fogEnabled: value });
+  }, [updateWorldSetting]);
+
+  const setFogDensityValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ fogDensity: value });
+  }, [updateWorldSetting]);
+
+  const setAmbientMultiplierValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ ambientMultiplier: value });
+  }, [updateWorldSetting]);
+
+  const setSunIntensityMultiplierValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ sunIntensityMultiplier: value });
+  }, [updateWorldSetting]);
+
+  const setBrightnessValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ brightness: value });
+  }, [updateWorldSetting]);
+
+  const setSaturationValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ saturation: value });
+  }, [updateWorldSetting]);
+
+  const setContrastValue = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    updateWorldSetting({ contrast: value });
+  }, [updateWorldSetting]);
 
   useEffect(() => {
     const syncLocalClock = () => {
@@ -266,14 +391,14 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
       localClock: localTimeLabel,
       worldClock: worldTimeLabel,
       useMinecraftTimeToggle: useMinecraftTime,
-      minecraftTime24h: (minecraftTimeMinutes / 60) % 24,
+      minecraftTime24h: minecraftTimeHours,
       lockTimeOfDay: timeLocked,
-      lockedTime24h: minutesToControlHours(lockedTimeMinutes)
+      lockedTime24h: lockedTimeHours
     });
   }, [
     localTimeLabel,
-    lockedTimeMinutes,
-    minecraftTimeMinutes,
+    lockedTimeHours,
+    minecraftTimeHours,
     setWorldSettings,
     timeLocked,
     useMinecraftTime,
@@ -281,41 +406,34 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   ]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.localStorage === "undefined") {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        LEVA_SETTINGS_KEY,
-        JSON.stringify({
-          minecraftTimeMinutes,
-          useMinecraftTimeToggle: useMinecraftTime,
-          sunEnabled,
-          shadowsEnabled,
-          fogEnabled,
-          fogDensity,
-          ambientMultiplier,
-          sunIntensityMultiplier,
-          brightness,
-          saturation,
-          contrast
-        })
-      );
-    } catch {
-      // Ignore dev-only local storage failures.
-    }
+    savePersistedWorldSettings({
+      minecraftTimeMinutes,
+      useMinecraftTimeToggle: useMinecraftTime,
+      timeLocked,
+      lockedTimeMinutes,
+      sunEnabled,
+      shadowsEnabled,
+      fogEnabled,
+      fogDensity,
+      ambientMultiplier,
+      sunIntensityMultiplier,
+      brightness,
+      saturation,
+      contrast
+    });
   }, [
     ambientMultiplier,
     brightness,
     contrast,
     fogDensity,
     fogEnabled,
+    lockedTimeMinutes,
     minecraftTimeMinutes,
     saturation,
     shadowsEnabled,
     sunEnabled,
     sunIntensityMultiplier,
+    timeLocked,
     useMinecraftTime
   ]);
 
@@ -323,7 +441,10 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
     worldTimeMinutes,
     worldTicks,
     worldTimeLabel,
+    useMinecraftTime,
+    minecraftTimeHours,
     timeLocked,
+    lockedTimeHours,
     sunEnabled,
     shadowsEnabled,
     fogEnabled,
@@ -332,6 +453,20 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
     sunIntensityMultiplier,
     brightness,
     saturation,
-    contrast
+    contrast,
+    setUseMinecraftTime,
+    setMinecraftTimeHours: setMinecraftTimeHoursValue,
+    setTimeLockedEnabled,
+    setLockedTimeHours: setLockedTimeHoursValue,
+    syncLockedTimeToLocalTime,
+    setSunEnabled: setSunEnabledValue,
+    setShadowsEnabled: setShadowsEnabledValue,
+    setFogEnabled: setFogEnabledValue,
+    setFogDensity: setFogDensityValue,
+    setAmbientMultiplier: setAmbientMultiplierValue,
+    setSunIntensityMultiplier: setSunIntensityMultiplierValue,
+    setBrightness: setBrightnessValue,
+    setSaturation: setSaturationValue,
+    setContrast: setContrastValue
   };
 }

@@ -17,7 +17,7 @@ import {
   type Vector3Tuple
 } from "./lib/roomState";
 import { getOwnedFurnitureSellPrice } from "./lib/economy";
-import { folder, Leva, useControls } from "leva";
+import { Leva } from "leva";
 import { PcMinigameOverlay } from "./components/PcMinigameOverlay";
 import {
   applyPcMinigameResult,
@@ -33,6 +33,7 @@ import {
 import { pickPetSpawnPosition } from "./lib/petPathing";
 import { DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION } from "./app/constants";
 import { InventoryPanel } from "./app/components/InventoryPanel";
+import { DevPanel } from "./app/components/DevPanel";
 import { SceneToolbar } from "./app/components/SceneToolbar";
 import { useFurnitureInfoPopover } from "./app/hooks/useFurnitureInfoPopover";
 import { useSandboxInventory } from "./app/hooks/useSandboxInventory";
@@ -46,6 +47,10 @@ import type {
 } from "./app/types";
 import { ROOM_CAMERA_TARGET } from "./lib/sceneTargets";
 import { PerformanceMonitor } from "./app/components/PerformanceMonitor";
+import {
+  loadPersistedWorldSettings,
+  savePersistedWorldSettings
+} from "./lib/devWorldSettings";
 import {
   placementListsMatch,
   vectorsMatch
@@ -61,6 +66,18 @@ const FurniturePreviewStudio = lazy(async () => {
   return { default: module.FurniturePreviewStudio };
 });
 
+function setVectorAxis(position: Vector3Tuple, axis: 0 | 1 | 2, nextValue: number): Vector3Tuple {
+  if (axis === 0) {
+    return [nextValue, position[1], position[2]];
+  }
+
+  if (axis === 1) {
+    return [position[0], nextValue, position[2]];
+  }
+
+  return [position[0], position[1], nextValue];
+}
+
 function App() {
   const initialSandboxState = useMemo(
     () =>
@@ -71,14 +88,60 @@ function App() {
       ),
     []
   );
-  const [buildModeEnabled, setBuildModeEnabled] = useState(false);
-  const [catalogOpen, setCatalogOpen] = useState(false);
-  const [gridSnapEnabled, setGridSnapEnabled] = useState(true);
-  const [debugOpen, setDebugOpen] = useState(true);
-  const [previewStudioOpen, setPreviewStudioOpen] = useState(false);
-  const [previewStudioMode, setPreviewStudioMode] = useState<PreviewStudioMode>("furniture");
-  const [previewStudioSelectedType, setPreviewStudioSelectedType] = useState<FurnitureType>("bed");
-  const [previewStudioSelectedMobId, setPreviewStudioSelectedMobId] = useState("better_cats_v4_tabby");
+  const initialWorldSettings = useMemo(() => loadPersistedWorldSettings(), []);
+  const [buildModeEnabled, setBuildModeEnabled] = useState(
+    initialWorldSettings.buildModeEnabled ?? false
+  );
+  const [catalogOpen, setCatalogOpen] = useState(initialWorldSettings.catalogOpen ?? false);
+  const [gridSnapEnabled, setGridSnapEnabled] = useState(
+    initialWorldSettings.gridSnapEnabled ?? true
+  );
+  const [debugOpen, setDebugOpen] = useState(initialWorldSettings.debugOpen ?? true);
+  const [previewStudioOpen, setPreviewStudioOpen] = useState(
+    initialWorldSettings.previewStudioOpen ?? false
+  );
+  const [previewStudioMode, setPreviewStudioMode] = useState<PreviewStudioMode>(
+    initialWorldSettings.previewStudioMode ?? "furniture"
+  );
+  const [previewStudioSelectedType, setPreviewStudioSelectedType] = useState<FurnitureType>(
+    initialWorldSettings.previewStudioSelectedType ?? "bed"
+  );
+  const [previewStudioSelectedMobId, setPreviewStudioSelectedMobId] = useState(
+    initialWorldSettings.previewStudioSelectedMobId ?? "better_cats_v4_tabby"
+  );
+  const [devPanelBuildSettingsCollapsed, setDevPanelBuildSettingsCollapsed] = useState(
+    initialWorldSettings.devPanelBuildSettingsCollapsed ?? false
+  );
+  const [devPanelPlayerStateCollapsed, setDevPanelPlayerStateCollapsed] = useState(
+    initialWorldSettings.devPanelPlayerStateCollapsed ?? false
+  );
+  const [devPanelPlayerCoordinatesCollapsed, setDevPanelPlayerCoordinatesCollapsed] = useState(
+    initialWorldSettings.devPanelPlayerCoordinatesCollapsed ?? false
+  );
+  const [devPanelCameraPropertiesCollapsed, setDevPanelCameraPropertiesCollapsed] = useState(
+    initialWorldSettings.devPanelCameraPropertiesCollapsed ?? false
+  );
+  const [devPanelWorldSettingsCollapsed, setDevPanelWorldSettingsCollapsed] = useState(
+    initialWorldSettings.devPanelWorldSettingsCollapsed ?? false
+  );
+  const [devPanelLightingFxCollapsed, setDevPanelLightingFxCollapsed] = useState(
+    initialWorldSettings.devPanelLightingFxCollapsed ?? false
+  );
+  const [devPanelCollisionDebugCollapsed, setDevPanelCollisionDebugCollapsed] = useState(
+    initialWorldSettings.devPanelCollisionDebugCollapsed ?? false
+  );
+  const [devPanelActionsCollapsed, setDevPanelActionsCollapsed] = useState(
+    initialWorldSettings.devPanelActionsCollapsed ?? false
+  );
+  const [showCollisionDebug, setShowCollisionDebug] = useState(
+    initialWorldSettings.showCollisionDebug ?? false
+  );
+  const [showPlayerCollider, setShowPlayerCollider] = useState(
+    initialWorldSettings.showPlayerCollider ?? true
+  );
+  const [showInteractionMarkers, setShowInteractionMarkers] = useState(
+    initialWorldSettings.showInteractionMarkers ?? true
+  );
   const {
     skinSrc,
     setSkinSrc,
@@ -97,7 +160,10 @@ function App() {
   const {
     worldTimeMinutes,
     worldTimeLabel,
+    useMinecraftTime,
+    minecraftTimeHours,
     timeLocked,
+    lockedTimeHours,
     sunEnabled,
     shadowsEnabled,
     fogEnabled,
@@ -106,7 +172,21 @@ function App() {
     sunIntensityMultiplier,
     brightness,
     saturation,
-    contrast
+    contrast,
+    setUseMinecraftTime,
+    setMinecraftTimeHours,
+    setTimeLockedEnabled,
+    setLockedTimeHours,
+    syncLockedTimeToLocalTime,
+    setSunEnabled,
+    setShadowsEnabled,
+    setFogEnabled,
+    setFogDensity,
+    setAmbientMultiplier,
+    setSunIntensityMultiplier,
+    setBrightness,
+    setSaturation,
+    setContrast
   } = useSandboxWorldClock();
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
@@ -124,6 +204,8 @@ function App() {
     useState<PlayerInteractionStatus>(null);
   const [pcMinigameProgress, setPcMinigameProgress] = useState(initialSandboxState.pcMinigame);
   const [ownedPets, setOwnedPets] = useState<OwnedPet[]>(initialSandboxState.pets);
+  const cameraPositionRef = useRef(initialSandboxState.cameraPosition);
+  const playerPositionRef = useRef(initialSandboxState.playerPosition);
   const playerCoinsRef = useRef(initialSandboxState.playerCoins);
   const pendingSpawnOwnedFurnitureIdsRef = useRef(new Set<string>());
   const soldOwnedFurnitureIdsRef = useRef(new Set<string>());
@@ -132,8 +214,7 @@ function App() {
   const {
     catalogSections,
     inventoryByType,
-    storedInventorySections,
-    storedInventoryCount
+    storedInventorySections
   } = useSandboxInventory(
     roomState.ownedFurniture,
     liveFurniturePlacements,
@@ -150,7 +231,7 @@ function App() {
 
   useEffect(() => {
     savePersistedSandboxState({
-      version: 5,
+      version: 6,
       skinSrc,
       cameraPosition,
       playerPosition,
@@ -160,6 +241,58 @@ function App() {
       pets: ownedPets
     });
   }, [cameraPosition, ownedPets, pcMinigameProgress, playerCoins, playerPosition, roomState, skinSrc]);
+
+  useEffect(() => {
+    savePersistedWorldSettings({
+      buildModeEnabled,
+      catalogOpen,
+      gridSnapEnabled,
+      debugOpen,
+      previewStudioOpen,
+      previewStudioMode,
+      previewStudioSelectedType,
+      previewStudioSelectedMobId,
+      devPanelBuildSettingsCollapsed,
+      devPanelPlayerStateCollapsed,
+      devPanelPlayerCoordinatesCollapsed,
+      devPanelCameraPropertiesCollapsed,
+      devPanelWorldSettingsCollapsed,
+      devPanelLightingFxCollapsed,
+      devPanelCollisionDebugCollapsed,
+      devPanelActionsCollapsed,
+      showCollisionDebug,
+      showPlayerCollider,
+      showInteractionMarkers
+    });
+  }, [
+    buildModeEnabled,
+    catalogOpen,
+    debugOpen,
+    devPanelActionsCollapsed,
+    devPanelBuildSettingsCollapsed,
+    devPanelCameraPropertiesCollapsed,
+    devPanelCollisionDebugCollapsed,
+    devPanelLightingFxCollapsed,
+    devPanelPlayerCoordinatesCollapsed,
+    devPanelPlayerStateCollapsed,
+    devPanelWorldSettingsCollapsed,
+    gridSnapEnabled,
+    previewStudioMode,
+    previewStudioOpen,
+    previewStudioSelectedMobId,
+    previewStudioSelectedType,
+    showCollisionDebug,
+    showInteractionMarkers,
+    showPlayerCollider
+  ]);
+
+  useEffect(() => {
+    cameraPositionRef.current = cameraPosition;
+  }, [cameraPosition]);
+
+  useEffect(() => {
+    playerPositionRef.current = playerPosition;
+  }, [playerPosition]);
 
   const openPreviewStudio = useCallback((type: FurnitureType) => {
     setPreviewStudioMode("furniture");
@@ -337,6 +470,73 @@ function App() {
     setCatalogOpen((current) => !current);
   }, [playerInteractionStatus]);
 
+  const requestSceneJump = useCallback(
+    (nextPlayerPosition: Vector3Tuple, nextCameraPosition: Vector3Tuple): void => {
+      playerPositionRef.current = nextPlayerPosition;
+      cameraPositionRef.current = nextCameraPosition;
+      setPlayerPosition((currentPosition) =>
+        vectorsMatch(currentPosition, nextPlayerPosition) ? currentPosition : nextPlayerPosition
+      );
+      setCameraPosition((currentPosition) =>
+        vectorsMatch(currentPosition, nextCameraPosition) ? currentPosition : nextCameraPosition
+      );
+      setSceneJumpRequest({
+        requestId: nextSceneJumpRequestIdRef.current,
+        playerPosition: nextPlayerPosition,
+        cameraPosition: nextCameraPosition,
+        cameraTarget: ROOM_CAMERA_TARGET
+      });
+      nextSceneJumpRequestIdRef.current += 1;
+    },
+    []
+  );
+
+  const updatePlayerAxis = useCallback((axis: 0 | 1 | 2, value: number): void => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const nextPlayerPosition = setVectorAxis(playerPositionRef.current, axis, value);
+    playerPositionRef.current = nextPlayerPosition;
+    setPlayerPosition((currentPosition) =>
+      vectorsMatch(currentPosition, nextPlayerPosition) ? currentPosition : nextPlayerPosition
+    );
+  }, []);
+
+  const updateCameraAxis = useCallback((axis: 0 | 1 | 2, value: number): void => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const nextCameraPosition = setVectorAxis(cameraPositionRef.current, axis, value);
+    cameraPositionRef.current = nextCameraPosition;
+    setCameraPosition((currentPosition) =>
+      vectorsMatch(currentPosition, nextCameraPosition) ? currentPosition : nextCameraPosition
+    );
+  }, []);
+
+  const commitPlayerAxis = useCallback((axis: 0 | 1 | 2, value: number): void => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const nextPlayerPosition = setVectorAxis(playerPositionRef.current, axis, value);
+    requestSceneJump(nextPlayerPosition, cameraPositionRef.current);
+  }, [requestSceneJump]);
+
+  const commitCameraAxis = useCallback((axis: 0 | 1 | 2, value: number): void => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const nextCameraPosition = setVectorAxis(cameraPositionRef.current, axis, value);
+    requestSceneJump(playerPositionRef.current, nextCameraPosition);
+  }, [requestSceneJump]);
+
+  const applyTransformChanges = useCallback(() => {
+    requestSceneJump(playerPositionRef.current, cameraPositionRef.current);
+  }, [requestSceneJump]);
+
   function handleResetCamera(): void {
     setCameraPosition(DEFAULT_CAMERA_POSITION);
     setCameraResetToken((current) => current + 1);
@@ -367,12 +567,14 @@ function App() {
   }, [updatePendingSpawnOwnedFurnitureIds]);
 
   const handleCameraPositionChange = useCallback((position: Vector3Tuple): void => {
+    cameraPositionRef.current = position;
     setCameraPosition((currentPosition) =>
       vectorsMatch(currentPosition, position) ? currentPosition : position
     );
   }, []);
 
   const handlePlayerPositionChange = useCallback((position: Vector3Tuple): void => {
+    playerPositionRef.current = position;
     setPlayerPosition((currentPosition) =>
       vectorsMatch(currentPosition, position) ? currentPosition : position
     );
@@ -381,6 +583,8 @@ function App() {
   function handleResetSandbox(): void {
     const nextSandbox = createDefaultSandboxState(DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION);
 
+    cameraPositionRef.current = nextSandbox.cameraPosition;
+    playerPositionRef.current = nextSandbox.playerPosition;
     setCameraPosition(nextSandbox.cameraPosition);
     setPlayerPosition(nextSandbox.playerPosition);
     setSkinSrc(nextSandbox.skinSrc);
@@ -407,49 +611,82 @@ function App() {
     setCameraResetToken((current) => current + 1);
   }
 
-  const [, setLiveCoords] = useControls("Live Coordinates", () => ({
-    Player: folder({
-      pX: { value: playerPosition[0], label: "x", onChange: (v) => { if (typeof v === "number") setPlayerPosition(prev => [v, prev[1], prev[2]]) } },
-      pY: { value: playerPosition[1], label: "y", onChange: (v) => { if (typeof v === "number") setPlayerPosition(prev => [prev[0], v, prev[2]]) } },
-      pZ: { value: playerPosition[2], label: "z", onChange: (v) => { if (typeof v === "number") setPlayerPosition(prev => [prev[0], prev[1], v]) } }
+  const levaTheme = useMemo(
+    () => ({
+      colors: {
+        elevation1: "#000000",
+        elevation2: "#000000",
+        elevation3: "#000000",
+        accent1: "#0b0b0b",
+        accent2: "#131313",
+        accent3: "#1d1d1d",
+        highlight1: "#8a8a8a",
+        highlight2: "#ffffff",
+        highlight3: "#ffffff",
+        vivid1: "#ffffff",
+        folderWidgetColor: "#ffffff",
+        folderTextColor: "#ffffff",
+        toolTipBackground: "#000000",
+        toolTipText: "#ffffff"
+      },
+      radii: {
+        xs: "0px",
+        sm: "0px",
+        lg: "0px"
+      },
+      space: {
+        xs: "3px",
+        sm: "4px",
+        md: "5px",
+        rowGap: "3px",
+        colGap: "5px"
+      },
+      fonts: {
+        mono: "\"Consolas\", \"Courier New\", monospace",
+        sans: "\"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif"
+      },
+      fontSizes: {
+        root: "12px",
+        toolTip: "11px"
+      },
+      sizes: {
+        rootWidth: "min(360px, calc(100vw - 12px))",
+        controlWidth: "108px",
+        numberInputMinWidth: "56px",
+        scrubberWidth: "6px",
+        scrubberHeight: "14px",
+        rowHeight: "24px",
+        folderTitleHeight: "24px",
+        checkboxSize: "14px",
+        joystickWidth: "110px",
+        joystickHeight: "110px",
+        colorPickerWidth: "200px",
+        colorPickerHeight: "110px",
+        imagePreviewWidth: "96px",
+        imagePreviewHeight: "72px",
+        monitorHeight: "44px",
+        titleBarHeight: "28px"
+      },
+      shadows: {
+        level1: "none",
+        level2: "none"
+      },
+      borderWidths: {
+        root: "1px",
+        input: "1px",
+        focus: "1px",
+        hover: "1px",
+        active: "1px",
+        folder: "1px"
+      },
+      fontWeights: {
+        label: "700",
+        folder: "800",
+        button: "700"
+      }
     }),
-    Camera: folder({
-      cX: { value: cameraPosition[0], label: "x", onChange: (v) => { if (typeof v === "number") setCameraPosition(prev => [v, prev[1], prev[2]]) } },
-      cY: { value: cameraPosition[1], label: "y", onChange: (v) => { if (typeof v === "number") setCameraPosition(prev => [prev[0], v, prev[2]]) } },
-      cZ: { value: cameraPosition[2], label: "z", onChange: (v) => { if (typeof v === "number") setCameraPosition(prev => [prev[0], prev[1], v]) } }
-    })
-  }));
-
-  const [, setRoomStateUI] = useControls("Room State", () => ({
-    Theme: { value: roomState.metadata.roomTheme, editable: false },
-    Layout: { value: `v${roomState.metadata.layoutVersion}`, editable: false },
-    Items: { value: `${roomState.furniture.length}`, editable: false },
-    Owned: { value: `${roomState.ownedFurniture.length}`, editable: false },
-    Stored: { value: `${storedInventoryCount}`, editable: false },
-    Coins: { value: `${playerCoins}`, editable: false }
-  }));
-
-  useEffect(() => {
-    setLiveCoords({
-      pX: playerPosition[0],
-      pY: playerPosition[1],
-      pZ: playerPosition[2],
-      cX: cameraPosition[0],
-      cY: cameraPosition[1],
-      cZ: cameraPosition[2]
-    } as any);
-  }, [playerPosition, cameraPosition, setLiveCoords]);
-
-  useEffect(() => {
-    setRoomStateUI({
-      Theme: roomState.metadata.roomTheme,
-      Layout: `v${roomState.metadata.layoutVersion}`,
-      Items: `${roomState.furniture.length}`,
-      Owned: `${roomState.ownedFurniture.length}`,
-      Stored: `${storedInventoryCount}`,
-      Coins: `${playerCoins}`
-    });
-  }, [playerCoins, roomState, setRoomStateUI, storedInventoryCount]);
+    []
+  );
 
   const pcMinigameActive =
     playerInteractionStatus?.phase === "active" &&
@@ -457,9 +694,89 @@ function App() {
 
   return (
     <>
-      <Leva hidden={!debugOpen} />
+      <Leva
+        hidden
+        theme={levaTheme}
+        flat
+        titleBar={{
+          title: "DEV PANEL",
+          drag: true,
+          filter: true
+        }}
+        hideCopyButton
+      />
       <div className="scene-shell">
         <PerformanceMonitor />
+        <DevPanel
+          visible={debugOpen}
+          buildModeEnabled={buildModeEnabled}
+          catalogOpen={catalogOpen}
+          gridSnapEnabled={gridSnapEnabled}
+          buildSettingsCollapsed={devPanelBuildSettingsCollapsed}
+          playerStateCollapsed={devPanelPlayerStateCollapsed}
+          playerCoordinatesCollapsed={devPanelPlayerCoordinatesCollapsed}
+          cameraPropertiesCollapsed={devPanelCameraPropertiesCollapsed}
+          worldSettingsCollapsed={devPanelWorldSettingsCollapsed}
+          lightingFxCollapsed={devPanelLightingFxCollapsed}
+          collisionDebugCollapsed={devPanelCollisionDebugCollapsed}
+          actionsCollapsed={devPanelActionsCollapsed}
+          playerCoins={playerCoins}
+          playerInteractionLabel={playerInteractionStatus?.label ?? "None"}
+          playerPosition={playerPosition}
+          cameraPosition={cameraPosition}
+          cameraTarget={ROOM_CAMERA_TARGET}
+          worldTimeLabel={worldTimeLabel}
+          useMinecraftTime={useMinecraftTime}
+          minecraftTimeHours={minecraftTimeHours}
+          timeLocked={timeLocked}
+          lockedTimeHours={lockedTimeHours}
+          sunEnabled={sunEnabled}
+          shadowsEnabled={shadowsEnabled}
+          fogEnabled={fogEnabled}
+          fogDensity={fogDensity}
+          ambientMultiplier={ambientMultiplier}
+          sunIntensityMultiplier={sunIntensityMultiplier}
+          brightness={brightness}
+          saturation={saturation}
+          contrast={contrast}
+          showCollisionDebug={showCollisionDebug}
+          showPlayerCollider={showPlayerCollider}
+          showInteractionMarkers={showInteractionMarkers}
+          onToggleBuildMode={handleToggleBuildMode}
+          onToggleCatalog={handleToggleCatalog}
+          onToggleGridSnap={() => setGridSnapEnabled((current) => !current)}
+          onBuildSettingsCollapsedChange={setDevPanelBuildSettingsCollapsed}
+          onPlayerStateCollapsedChange={setDevPanelPlayerStateCollapsed}
+          onPlayerCoordinatesCollapsedChange={setDevPanelPlayerCoordinatesCollapsed}
+          onCameraPropertiesCollapsedChange={setDevPanelCameraPropertiesCollapsed}
+          onWorldSettingsCollapsedChange={setDevPanelWorldSettingsCollapsed}
+          onLightingFxCollapsedChange={setDevPanelLightingFxCollapsed}
+          onCollisionDebugCollapsedChange={setDevPanelCollisionDebugCollapsed}
+          onActionsCollapsedChange={setDevPanelActionsCollapsed}
+          onPlayerCoinsCommit={commitPlayerCoins}
+          onPlayerAxisCommit={commitPlayerAxis}
+          onCameraAxisCommit={commitCameraAxis}
+          onApplyTransforms={applyTransformChanges}
+          onResetCamera={handleResetCamera}
+          onResetSandbox={handleResetSandbox}
+          onUseMinecraftTimeChange={setUseMinecraftTime}
+          onMinecraftTimeHoursCommit={setMinecraftTimeHours}
+          onTimeLockedChange={setTimeLockedEnabled}
+          onLockedTimeHoursCommit={setLockedTimeHours}
+          onSyncLockedTime={syncLockedTimeToLocalTime}
+          onSunEnabledChange={setSunEnabled}
+          onShadowsEnabledChange={setShadowsEnabled}
+          onFogEnabledChange={setFogEnabled}
+          onFogDensityCommit={setFogDensity}
+          onAmbientMultiplierCommit={setAmbientMultiplier}
+          onSunIntensityMultiplierCommit={setSunIntensityMultiplier}
+          onBrightnessCommit={setBrightness}
+          onSaturationCommit={setSaturation}
+          onContrastCommit={setContrast}
+          onShowCollisionDebugChange={setShowCollisionDebug}
+          onShowPlayerColliderChange={setShowPlayerCollider}
+          onShowInteractionMarkersChange={setShowInteractionMarkers}
+        />
         <SceneToolbar
           buildModeEnabled={buildModeEnabled}
           catalogOpen={catalogOpen}
@@ -550,6 +867,9 @@ function App() {
             brightness={brightness}
             saturation={saturation}
             contrast={contrast}
+            showCollisionDebug={showCollisionDebug}
+            showPlayerCollider={showPlayerCollider}
+            showInteractionMarkers={showInteractionMarkers}
             onCameraPositionChange={handleCameraPositionChange}
             onPlayerPositionChange={handlePlayerPositionChange}
             onFurnitureSnapshotChange={handleFurnitureSnapshotChange}

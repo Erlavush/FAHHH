@@ -20,7 +20,7 @@ export type PersistedFurnitureType = FurnitureType;
 export type PersistedVector3 = Vector3Tuple;
 
 export interface PersistedSandboxState {
-  version: 5;
+  version: 6;
   skinSrc: string | null;
   cameraPosition: PersistedVector3;
   playerPosition: PersistedVector3;
@@ -30,10 +30,12 @@ export interface PersistedSandboxState {
   pets: OwnedPet[];
 }
 
-const DEV_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox-v6";
+const DEV_WORLD_DATA_KEY = "cozy-room-dev-world-data-v1";
+const LEGACY_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox-v6";
 const DEV_SKIN_KEY = "cozy-room-dev-skin";
 const DEV_CAMERA_KEY = "cozy-room-dev-camera";
 const DEV_PLAYER_KEY = "cozy-room-dev-player";
+const DEV_FURNITURE_KEY = "cozy-room-dev-furniture";
 
 function clampCoordinate(val: number): number {
   return typeof val !== "number" || isNaN(val) ? 0 : Math.max(-20, Math.min(20, val));
@@ -224,7 +226,7 @@ export function createDefaultSandboxState(
   playerPosition: PersistedVector3
 ): PersistedSandboxState {
   return {
-    version: 5,
+    version: 6,
     skinSrc: null,
     cameraPosition,
     playerPosition,
@@ -245,7 +247,9 @@ export function loadPersistedSandboxState(
   }
 
   try {
-    const storedValue = window.localStorage.getItem(DEV_SANDBOX_STATE_KEY);
+    const storedValue =
+      window.localStorage.getItem(DEV_WORLD_DATA_KEY) ??
+      window.localStorage.getItem(LEGACY_SANDBOX_STATE_KEY);
 
     if (!storedValue) {
       return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
@@ -257,7 +261,7 @@ export function loadPersistedSandboxState(
       typeof parsedValue !== "object" ||
       parsedValue === null ||
       !("version" in parsedValue) ||
-      parsedValue.version !== 6 ||
+      (parsedValue.version !== 5 && parsedValue.version !== 6) ||
       !("skinSrc" in parsedValue) ||
       !("cameraPosition" in parsedValue) ||
       !("playerPosition" in parsedValue) ||
@@ -343,7 +347,7 @@ export function savePersistedSandboxState(state: PersistedSandboxState): void {
   }
 
   try {
-    window.localStorage.setItem(DEV_SANDBOX_STATE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(DEV_WORLD_DATA_KEY, JSON.stringify(state));
     window.localStorage.setItem(DEV_SKIN_KEY, state.skinSrc ?? "");
     window.localStorage.setItem(DEV_CAMERA_KEY, JSON.stringify(state.cameraPosition));
     window.localStorage.setItem(DEV_PLAYER_KEY, JSON.stringify(state.playerPosition));

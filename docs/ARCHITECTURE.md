@@ -135,6 +135,18 @@ It handles:
 - legacy save migration
 - room-layout fallback reset when the code version is newer than the save
 
+[devWorldSettings.ts](/Z:/FAHHHH/src/lib/devWorldSettings.ts) owns the separate development-only browser document for:
+
+- world clock and lighting settings
+- app-shell state like build mode, inventory, preview studio, and debug visibility
+- custom dev-panel collapsed-section state
+
+Important boundary:
+
+- `devLocalState.ts` is `world data`
+- `devWorldSettings.ts` is `world settings`
+- both are temporary development/browser persistence and are expected to be replaced later by backend player saves
+
 ### Economy
 
 [economy.ts](/Z:/FAHHHH/src/lib/economy.ts) is intentionally small right now.
