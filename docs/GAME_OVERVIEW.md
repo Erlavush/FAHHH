@@ -2,9 +2,9 @@
 
 ## Project Fantasy
 
-This project is a cozy browser-based couple-room game built around intimacy, shared progression, and emotional risk. Two partners pair into one room, earn progress together, decorate a lovely private space, and fill it with personal memories.
+This project is a cozy browser-based couple-room game built around intimacy, shared progression, and emotional risk. Two partners pair into one room, earn progress together, decorate a private shared space, and fill it with personal memories.
 
-The defining hook is `Risk it all`: if the couple decides to break up, the shared room and the progress tied to that relationship are wiped.
+The defining hook is `Risk It All`: if the couple breaks up, the shared room and the progress tied to that relationship are wiped.
 
 ## Final Game Vision
 
@@ -19,23 +19,23 @@ The intended final game is not only a room decorator. It is a shared couple-spac
   - streak together
   - shared room growth
 - a buy loop for new furniture, decor, frames, pets, and variants
-- a desk PC that opens minigames for extra coins
+- a desk PC that opens activities and minigames for extra coins
 - daily quests that reward coins and support habit play
-- pets such as dogs that make the room feel alive
+- pets that make the room feel alive
 
 ## Core Pillars
 
 - `Shared intimacy`: the room should feel like a private place for two people.
-- `Earned decorating`: furniture and lovely details should be unlocked or bought, not all free from the start.
-- `Memory and personality`: custom photos, pets, and visual variants should make the room feel personal.
-- `Small cozy rituals`: daily quests, streaks, and PC minigames create reasons to come back together.
+- `Earned decorating`: furniture and cozy details should be unlocked or bought, not all free from the start.
+- `Memory and personality`: photos, pets, and visual variants should make the room feel personal.
+- `Small cozy rituals`: daily quests, streaks, and minigames create reasons to come back together.
 - `Emotional stakes`: breakup has real cost, which gives the room meaning.
 
 ## Core Player Loop
 
 - pair into one shared room
 - log in and maintain the couple streak
-- complete a daily quest
+- complete a daily quest or shared activity
 - play the desk PC minigame for extra coins
 - earn coins and level up
 - buy furniture, decor, frames, and pets
@@ -44,31 +44,31 @@ The intended final game is not only a room decorator. It is a shared couple-spac
 
 ## Current Product Status
 
-The repo has moved beyond the earliest empty-room prototype, but it is still a `local foundation`, not the complete shared-room game.
+The repo has moved well beyond the empty-room prototype, but it is still a `local foundation`, not the complete shared-room game.
 
 ### Implemented now
 
 - local sandbox room runtime
 - build-mode editing for floor, wall, and surface items
 - registry-driven furniture system
-- inventory ownership and stored-items flow
+- ownership and stored-items flow
 - coin-based buying and selling
 - desk PC minigame earn loop
-- buyable wall windows with real wall openings
-- world clock with real-time sun/moon lighting controls
-- preview studio for shop thumbnails
-- high-fidelity mob system (Raccoon and Cat integrated into the live room)
-- real-time FPS performance monitoring HUD
-- local persistence for room, camera, position, skin, and coins
+- buyable wall windows with real openings on all four walls
+- world clock with sun/moon lighting controls
+- Preview Studio for shop thumbnails
+- Mob Lab for imported-mob look-dev
+- temporary live-room pets through the Pet Store
+- local persistence for room, camera, player, coins, world settings, pets, and Mob Lab data
 
 ### Still missing from the full game
 
 - pairing into one shared room
 - shared room sync and partner presence
 - level and couple streak
-- daily quest and additional minigame earn loops
+- daily quests and additional minigame earn loops
 - editable couple-photo frames
-- advanced pet gameplay loops (needs/moods/interaction)
+- advanced pet gameplay loops
 - breakup reset gameplay
 
 ## Game Jam MVP
@@ -97,7 +97,7 @@ After the MVP is stable, the next most valuable additions are:
 - more pet types and behaviors
 - room themes and visual variants
 - more ambient interactions such as fridge inspect or lamp toggle
-- better social presence and partner feedback
+- stronger social presence and partner feedback
 
 ## Scope Boundaries
 
@@ -108,7 +108,7 @@ This project should stay focused on the room fantasy. It is not trying to become
 - a deep economy simulator
 - a quest-heavy RPG
 
-The economy, quests, and progression should stay room-centered and readable for a game jam scale.
+The economy, quests, and progression should stay room-centered and readable for a game-jam-scale project.
 
 ## World Scale Rules
 

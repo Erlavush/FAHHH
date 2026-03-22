@@ -141,7 +141,7 @@ describe("findSpawnPlacement", () => {
     expect(result?.position).toEqual([0.5, 0, 0.5]);
   });
 
-  it("preserves wall and floor surface preference", () => {
+  it("preserves floor preference and chooses the nearest wall for wall spawns", () => {
     const floorPlacement = findSpawnPlacement({
       furniture: [],
       gridSnapEnabled: true,
@@ -149,15 +149,24 @@ describe("findSpawnPlacement", () => {
       spawnRequest: createSpawnRequest("bed"),
       targetPosition: [0, 0, 0]
     });
-    const wallPlacement = findSpawnPlacement({
-      furniture: [],
-      gridSnapEnabled: true,
-      playerWorldPosition: [0, 0, 0],
-      spawnRequest: createSpawnRequest("poster"),
-      targetPosition: [-4.5, 0, -1.2]
-    });
+    const wallCases: Array<[Vector3Tuple, RoomFurniturePlacement["surface"]]> = [
+      [[-4.5, 0, -1.2], "wall_left"],
+      [[0.4, 0, -4.5], "wall_back"],
+      [[4.5, 0, 1.2], "wall_right"],
+      [[-0.4, 0, 4.5], "wall_front"]
+    ];
 
     expect(floorPlacement?.surface).toBe("floor");
-    expect(wallPlacement?.surface).toBe("wall_left");
+    wallCases.forEach(([targetPosition, expectedSurface]) => {
+      const wallPlacement = findSpawnPlacement({
+        furniture: [],
+        gridSnapEnabled: true,
+        playerWorldPosition: [0, 0, 0],
+        spawnRequest: createSpawnRequest("poster"),
+        targetPosition
+      });
+
+      expect(wallPlacement?.surface).toBe(expectedSurface);
+    });
   });
 });

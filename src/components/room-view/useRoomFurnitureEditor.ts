@@ -27,7 +27,12 @@ import {
   syncAnchoredSurfaceDecor
 } from "../../lib/surfaceDecor";
 import { FREE_MOVE_NUDGE_STEP } from "./constants";
-import { hasFixedWallVerticalPlacement } from "./helpers";
+import {
+  getNextWallSurface,
+  getWallParallelCoordinate,
+  hasFixedWallVerticalPlacement,
+  isWallSurface
+} from "./helpers";
 import {
   applyPlacementToItem,
   resolveFloorPlacement,
@@ -55,6 +60,9 @@ export function useRoomFurnitureEditor({
 }: UseRoomFurnitureEditorOptions) {
   const initialFurnitureRef = useRef(
     cloneFurniturePlacements(initialFurniturePlacements)
+  );
+  const lastSyncedInitialFurnitureRef = useRef<RoomFurniturePlacement[]>(
+    cloneFurniturePlacements(initialFurnitureRef.current)
   );
   const lastReportedFurnitureRef = useRef<RoomFurniturePlacement[]>(
     cloneFurniturePlacements(initialFurnitureRef.current)
@@ -122,18 +130,24 @@ export function useRoomFurnitureEditor({
   }, [committedFurniture, onCommittedFurnitureChange]);
 
   useLayoutEffect(() => {
-    if (placementListsMatch(committedFurniture, initialFurniturePlacements)) {
+    if (
+      placementListsMatch(
+        lastSyncedInitialFurnitureRef.current,
+        initialFurniturePlacements
+      )
+    ) {
       return;
     }
 
     const nextPlacements = cloneFurniturePlacements(initialFurniturePlacements);
+    lastSyncedInitialFurnitureRef.current = nextPlacements;
     lastReportedCommittedFurnitureRef.current = nextPlacements;
     setCommittedFurniture(nextPlacements);
     setFurniture(nextPlacements);
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
     furnitureEditStartRef.current = {};
-  }, [committedFurniture, initialFurniturePlacements]);
+  }, [initialFurniturePlacements]);
 
   useEffect(() => {
     if (buildModeEnabled) {
@@ -358,30 +372,26 @@ export function useRoomFurnitureEditor({
       return;
     }
 
-    if (selectedFurniture.surface === "wall_back") {
-      updateFurnitureItem(selectedFurnitureId, (item) => ({
+    if (!isWallSurface(selectedFurniture.surface)) {
+      return;
+    }
+
+    updateFurnitureItem(selectedFurnitureId, (item) => {
+      if (!isWallSurface(item.surface)) {
+        return item;
+      }
+
+      return {
         ...item,
         ...resolveWallPlacement(
-          "wall_back",
-          item.position[0] + step,
+          item.surface,
+          getWallParallelCoordinate(item.surface, item.position) + step,
           item.position[1],
           item.type,
           gridSnapEnabled
         )
-      }));
-      return;
-    }
-
-    updateFurnitureItem(selectedFurnitureId, (item) => ({
-      ...item,
-      ...resolveWallPlacement(
-        "wall_left",
-        item.position[2] + step,
-        item.position[1],
-        item.type,
-        gridSnapEnabled
-      )
-    }));
+      };
+    });
   }
 
   function handleNudgeSelectedFurnitureVertical(verticalDirection: -1 | 1) {
@@ -433,16 +443,22 @@ export function useRoomFurnitureEditor({
       return;
     }
 
-    updateFurnitureItem(selectedFurnitureId, (item) => ({
-      ...item,
-      ...resolveWallPlacement(
-        item.surface === "wall_back" ? "wall_back" : "wall_left",
-        item.surface === "wall_back" ? item.position[0] : item.position[2],
-        item.position[1] + step,
-        item.type,
-        gridSnapEnabled
-      )
-    }));
+    updateFurnitureItem(selectedFurnitureId, (item) => {
+      if (!isWallSurface(item.surface)) {
+        return item;
+      }
+
+      return {
+        ...item,
+        ...resolveWallPlacement(
+          item.surface,
+          getWallParallelCoordinate(item.surface, item.position),
+          item.position[1] + step,
+          item.type,
+          gridSnapEnabled
+        )
+      };
+    });
   }
 
   function handleRotateSelectedFurniture(direction: -1 | 1) {
@@ -509,18 +525,16 @@ export function useRoomFurnitureEditor({
     if (
       !selectedFurnitureId ||
       !selectedFurniture ||
-      (selectedFurniture.surface !== "wall_back" &&
-        selectedFurniture.surface !== "wall_left")
+      !isWallSurface(selectedFurniture.surface)
     ) {
       return;
     }
 
-    const nextSurface =
-      selectedFurniture.surface === "wall_back" ? "wall_left" : "wall_back";
-    const horizontalSource =
-      selectedFurniture.surface === "wall_back"
-        ? selectedFurniture.position[0]
-        : selectedFurniture.position[2];
+    const nextSurface = getNextWallSurface(selectedFurniture.surface);
+    const horizontalSource = getWallParallelCoordinate(
+      selectedFurniture.surface,
+      selectedFurniture.position
+    );
     const nextPlacement = resolveWallPlacement(
       nextSurface,
       horizontalSource,

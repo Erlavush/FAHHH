@@ -6,9 +6,10 @@ import {
 } from "three";
 import {
   getFurnitureDefinition,
+  type FurniturePlacementSurface,
   type FurnitureType
 } from "../../lib/furnitureRegistry";
-import type { RoomFurniturePlacement } from "../../lib/roomState";
+import type { RoomFurniturePlacement, Vector3Tuple } from "../../lib/roomState";
 import {
   HALF_FLOOR_SIZE,
   WALL_MAX_Y,
@@ -122,48 +123,127 @@ export function rotateLocalOffset(
   ];
 }
 
+export type WallSurface = Extract<
+  FurniturePlacementSurface,
+  "wall_back" | "wall_left" | "wall_front" | "wall_right"
+>;
+
+const WALL_SURFACE_CYCLE: WallSurface[] = [
+  "wall_back",
+  "wall_left",
+  "wall_front",
+  "wall_right"
+];
+
+export function isWallSurface(
+  surface: FurniturePlacementSurface | RoomFurniturePlacement["surface"]
+): surface is WallSurface {
+  return (
+    surface === "wall_back" ||
+    surface === "wall_left" ||
+    surface === "wall_front" ||
+    surface === "wall_right"
+  );
+}
+
+export function getWallParallelCoordinate(
+  surface: WallSurface,
+  position: Vector3Tuple | { x: number; z: number }
+): number {
+  const worldX = Array.isArray(position) ? position[0] : position.x;
+  const worldZ = Array.isArray(position) ? position[2] : position.z;
+
+  return surface === "wall_back" || surface === "wall_front"
+    ? worldX
+    : worldZ;
+}
+
+export function getNextWallSurface(surface: WallSurface): WallSurface {
+  const currentIndex = WALL_SURFACE_CYCLE.indexOf(surface);
+  return WALL_SURFACE_CYCLE[(currentIndex + 1) % WALL_SURFACE_CYCLE.length];
+}
+
+function getWallRoomFacingWorldOffset(
+  surface: WallSurface,
+  depth: number
+): [number, number, number] {
+  switch (surface) {
+    case "wall_back":
+      return [0, 0, depth];
+    case "wall_left":
+      return [depth, 0, 0];
+    case "wall_front":
+      return [0, 0, -depth];
+    case "wall_right":
+      return [-depth, 0, 0];
+  }
+}
+
 export function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number, number] {
+  let offset: [number, number, number];
+
   switch (item.type) {
     case "bed":
-      return [0, 1.5, 0];
+      offset = [0, 1.5, 0];
+      break;
     case "desk":
-      return [0, 2.02, 0];
+      offset = [0, 2.02, 0];
+      break;
     case "chair":
-      return [0, 1.92, 0];
+      offset = [0, 1.92, 0];
+      break;
     case "table":
-      return [0, 1.82, 0];
+      offset = [0, 1.82, 0];
+      break;
     case "fridge":
-      return [0, 2.28, 0];
+      offset = [0, 2.28, 0];
+      break;
     case "wardrobe":
-      return [0, 2.5, 0];
+      offset = [0, 2.5, 0];
+      break;
     case "office_desk":
-      return [0, 1.68, 0];
+      offset = [0, 1.68, 0];
+      break;
     case "office_chair":
-      return [0, 1.48, 0];
+      offset = [0, 1.48, 0];
+      break;
     case "vase":
-      return [0, 1.08, 0];
+      offset = [0, 1.08, 0];
+      break;
     case "books":
-      return [0, 0.86, 0];
+      offset = [0, 0.86, 0];
+      break;
     case "rug":
-      return [0, 0.82, 0];
+      offset = [0, 0.82, 0];
+      break;
     case "poster":
-      return [0, 1.28, 0.14];
+      offset = [0, 1.28, 0.14];
+      break;
     case "wall_frame":
-      return [0, 1.18, 0.14];
+      offset = [0, 1.18, 0.14];
+      break;
     default:
-      return item.surface === "floor" ? [0, 1.64, 0] : [0, 1.16, 0.14];
+      offset = item.surface === "floor" ? [0, 1.64, 0] : [0, 1.16, 0.14];
+      break;
   }
+
+  if (isWallSurface(item.surface)) {
+    const roomFacingOffset = getWallRoomFacingWorldOffset(
+      item.surface,
+      Math.abs(offset[2]) || 0.14
+    );
+
+    return [roomFacingOffset[0], offset[1], roomFacingOffset[2]];
+  }
+
+  return offset;
 }
 
 export function getGizmoOffset(item: RoomFurniturePlacement): [number, number, number] {
   const actionOffset = getPlacementActionOffset(item);
 
-  if (item.surface === "wall_back") {
+  if (isWallSurface(item.surface)) {
     return [0, Math.max(0.42, actionOffset[1] - 0.72), 0.16];
-  }
-
-  if (item.surface === "wall_left") {
-    return [0.16, Math.max(0.42, actionOffset[1] - 0.72), 0];
   }
 
   if (item.surface === "surface") {
@@ -215,20 +295,12 @@ export function getActiveAxes(item: RoomFurniturePlacement | null): [boolean, bo
     return [true, false, true];
   }
 
-  if (item.surface === "wall_back") {
+  if (isWallSurface(item.surface)) {
     if (hasFixedWallVerticalPlacement(item.type)) {
       return [true, false, false];
     }
 
     return [true, true, false];
-  }
-
-  if (item.surface === "wall_left") {
-    if (hasFixedWallVerticalPlacement(item.type)) {
-      return [false, false, true];
-    }
-
-    return [false, true, true];
   }
 
   return [true, false, true];

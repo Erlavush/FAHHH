@@ -16,18 +16,26 @@ import {
 } from "../../lib/surfaceDecor";
 import {
   BACK_WALL_SURFACE_Z,
+  FRONT_WALL_SURFACE_Z,
+  HALF_FLOOR_SIZE,
   LEFT_WALL_SURFACE_X,
+  RIGHT_WALL_SURFACE_X,
   backWallDragPlane,
   dragPlaneHitPoint,
   floorDragPlane,
-  leftWallDragPlane
+  frontWallDragPlane,
+  leftWallDragPlane,
+  rightWallDragPlane
 } from "./constants";
 import {
   clampFurnitureToFloor,
   clampWallAxis,
   clampWallHeight,
   getEffectiveHalfSizes,
-  snapToBlockCenter
+  getWallParallelCoordinate,
+  isWallSurface,
+  snapToBlockCenter,
+  type WallSurface
 } from "./helpers";
 
 export type PlacementTransform = Pick<
@@ -147,18 +155,11 @@ export function resolvePlacementFromDragRay(
     );
   }
 
-  const dragPlane =
-    dragState.surface === "floor"
-      ? floorDragPlane
-      : dragState.surface === "wall_back"
-        ? backWallDragPlane
-        : leftWallDragPlane;
-
-  if (!ray.intersectPlane(dragPlane, dragPlaneHitPoint)) {
-    return null;
-  }
-
   if (dragState.surface === "floor") {
+    if (!ray.intersectPlane(floorDragPlane, dragPlaneHitPoint)) {
+      return null;
+    }
+
     return resolveFloorPlacement(
       dragPlaneHitPoint.x,
       dragPlaneHitPoint.z,
@@ -168,20 +169,20 @@ export function resolvePlacementFromDragRay(
     );
   }
 
-  if (dragState.surface === "wall_back") {
-    return resolveWallPlacement(
-      "wall_back",
-      dragPlaneHitPoint.x,
-      dragPlaneHitPoint.y,
-      dragState.type,
-      gridSnapEnabled
-    );
+  if (!isWallSurface(dragState.surface)) {
+    return null;
+  }
+
+  const resolvedWallDrag = resolveWallDragHit(ray, dragState.surface);
+
+  if (!resolvedWallDrag) {
+    return null;
   }
 
   return resolveWallPlacement(
-    "wall_left",
-    dragPlaneHitPoint.z,
-    dragPlaneHitPoint.y,
+    resolvedWallDrag.surface,
+    resolvedWallDrag.horizontal,
+    resolvedWallDrag.vertical,
     dragState.type,
     gridSnapEnabled
   );
@@ -189,11 +190,29 @@ export function resolvePlacementFromDragRay(
 
 export function getPreferredWallSurface(
   targetPosition: Vector3Tuple
-): FurniturePlacementSurface {
-  const leftWallDistance = Math.abs(targetPosition[0] - LEFT_WALL_SURFACE_X);
-  const backWallDistance = Math.abs(targetPosition[2] - BACK_WALL_SURFACE_Z);
+): WallSurface {
+  const distances: Array<{ surface: WallSurface; distance: number }> = [
+    {
+      surface: "wall_back",
+      distance: Math.abs(targetPosition[2] - BACK_WALL_SURFACE_Z)
+    },
+    {
+      surface: "wall_left",
+      distance: Math.abs(targetPosition[0] - LEFT_WALL_SURFACE_X)
+    },
+    {
+      surface: "wall_front",
+      distance: Math.abs(targetPosition[2] - FRONT_WALL_SURFACE_Z)
+    },
+    {
+      surface: "wall_right",
+      distance: Math.abs(targetPosition[0] - RIGHT_WALL_SURFACE_X)
+    }
+  ];
 
-  return leftWallDistance < backWallDistance ? "wall_left" : "wall_back";
+  return distances.reduce((closest, candidate) =>
+    candidate.distance < closest.distance ? candidate : closest
+  ).surface;
 }
 
 export function resolveFloorPlacement(
@@ -226,7 +245,7 @@ export function resolveFloorPlacement(
 }
 
 export function resolveWallPlacement(
-  surface: "wall_back" | "wall_left",
+  surface: WallSurface,
   horizontal: number,
   vertical: number,
   furnitureType: FurnitureType,
@@ -243,14 +262,14 @@ export function resolveWallPlacement(
       ? snapToBlockCenter(vertical)
       : vertical;
 
-  if (surface === "wall_back") {
+  if (surface === "wall_back" || surface === "wall_front") {
     return {
       position: [
         clampWallAxis(nextHorizontal, halfWidth),
         definition.wallOpening?.fixedVertical
           ? nextVertical
           : clampWallHeight(nextVertical, definition.footprintDepth / 2),
-        BACK_WALL_SURFACE_Z
+        surface === "wall_back" ? BACK_WALL_SURFACE_Z : FRONT_WALL_SURFACE_Z
       ],
       rotationY: getSurfaceRotationY(furnitureType, surface),
       surface
@@ -259,7 +278,7 @@ export function resolveWallPlacement(
 
   return {
     position: [
-      LEFT_WALL_SURFACE_X,
+      surface === "wall_left" ? LEFT_WALL_SURFACE_X : RIGHT_WALL_SURFACE_X,
       definition.wallOpening?.fixedVertical
         ? nextVertical
         : clampWallHeight(nextVertical, definition.footprintDepth / 2),
@@ -307,20 +326,21 @@ export function resolveSpawnPosition(
     );
   }
 
-  if (surface === "wall_back") {
+  if (isWallSurface(surface)) {
     return resolveWallPlacement(
-      "wall_back",
-      targetPosition[0] + offsetA,
+      surface,
+      surface === "wall_back" || surface === "wall_front"
+        ? targetPosition[0] + offsetA
+        : targetPosition[2] + offsetA,
       1.85 + offsetB * 0.35,
       furnitureType,
       gridSnapEnabled
     );
   }
 
-  return resolveWallPlacement(
-    "wall_left",
-    targetPosition[2] + offsetA,
-    1.85 + offsetB * 0.35,
+  return resolveFloorPlacement(
+    targetPosition[0] + offsetA,
+    targetPosition[2] + offsetB,
     furnitureType,
     gridSnapEnabled
   );
@@ -351,5 +371,61 @@ export function applyPlacementToItem(
   return {
     ...item,
     ...nextPlacement
+  };
+}
+
+type ResolvedWallDragHit = {
+  surface: WallSurface;
+  horizontal: number;
+  vertical: number;
+};
+
+function getWallDragPlane(surface: WallSurface) {
+  switch (surface) {
+    case "wall_back":
+      return backWallDragPlane;
+    case "wall_front":
+      return frontWallDragPlane;
+    case "wall_left":
+      return leftWallDragPlane;
+    case "wall_right":
+      return rightWallDragPlane;
+  }
+}
+
+function getAdjacentWallSurface(
+  surface: WallSurface,
+  horizontal: number
+): WallSurface {
+  if (surface === "wall_back" || surface === "wall_front") {
+    return horizontal < -HALF_FLOOR_SIZE ? "wall_left" : "wall_right";
+  }
+
+  return horizontal < -HALF_FLOOR_SIZE ? "wall_back" : "wall_front";
+}
+
+function resolveWallDragHit(
+  ray: Ray,
+  surface: WallSurface,
+  depth = 0
+): ResolvedWallDragHit | null {
+  if (depth > 4 || !ray.intersectPlane(getWallDragPlane(surface), dragPlaneHitPoint)) {
+    return null;
+  }
+
+  const horizontal = getWallParallelCoordinate(surface, dragPlaneHitPoint);
+
+  if (horizontal < -HALF_FLOOR_SIZE || horizontal > HALF_FLOOR_SIZE) {
+    return resolveWallDragHit(
+      ray,
+      getAdjacentWallSurface(surface, horizontal),
+      depth + 1
+    );
+  }
+
+  return {
+    surface,
+    horizontal,
+    vertical: dragPlaneHitPoint.y
   };
 }

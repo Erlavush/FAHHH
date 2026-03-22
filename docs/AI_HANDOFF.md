@@ -2,69 +2,95 @@
 
 ## Read This First
 
-As of the current codebase state, the active product is a `local solo sandbox` plus an in-app authoring studio.
+The active product in this repo is a `local solo sandbox` plus an in-app authoring studio.
 
-The active codebase already contains several production-shaping systems:
+It is already beyond the empty-room prototype, but it is not yet the full shared couple-room game.
 
-- registry-driven furniture placement
-- inventory ownership
+The current shipped-in-code systems include:
+
+- registry-driven furniture placement and ownership
+- floor, wall, and surface build-mode editing
+- four-wall wall decor and window placement
+- drag-across-wall editing for wall furniture
 - coin-based buying and selling
 - a desk PC minigame earn loop
-- buyable wall windows with real wall openings
-- preview-studio-generated furniture thumbnails
 - a real-time world clock with sun/moon lighting
-- a new Mob Lab for imported-mob look-dev and tuning
-- generic high-fidelity GLB mob rendering with procedural physics
-- real-time FPS performance monitoring HUD
-
-This is no longer the earliest empty-room prototype, but it is also not yet the full paired couple-room game.
+- an in-app Preview Studio for furniture captures
+- a Mob Lab for imported-mob look-dev
+- a temporary Pet Store plus live in-room raccoon and cat pets
+- browser-local persistence for room data, world settings, and Mob Lab state
 
 ## Current Runtime Truth
 
-These files define the actual running sandbox and should be treated as the current source of truth:
+These files define the actual running sandbox:
 
-- [App.tsx](/Z:/FAHHHH/src/App.tsx)
-- [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx)
-- [FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx)
-- [WallWindowModel.tsx](/Z:/FAHHHH/src/components/WallWindowModel.tsx)
-- [furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts)
-- [roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts)
-- [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts)
-- [economy.ts](/Z:/FAHHHH/src/lib/economy.ts)
-- [pcMinigame.ts](/Z:/FAHHHH/src/lib/pcMinigame.ts)
-- [furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts)
-- [surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts)
-- [furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts)
-- [wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts)
-- [mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts)
-- [mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts)
+- [../src/App.tsx](../src/App.tsx)
+- [../src/components/RoomView.tsx](../src/components/RoomView.tsx)
+- [../src/components/FurniturePreviewStudio.tsx](../src/components/FurniturePreviewStudio.tsx)
+- [../src/components/room-view](../src/components/room-view)
+- [../src/components/mob-lab](../src/components/mob-lab)
+- [../src/lib/furnitureRegistry.ts](../src/lib/furnitureRegistry.ts)
+- [../src/lib/roomState.ts](../src/lib/roomState.ts)
+- [../src/lib/devLocalState.ts](../src/lib/devLocalState.ts)
+- [../src/lib/devWorldSettings.ts](../src/lib/devWorldSettings.ts)
+- [../src/lib/economy.ts](../src/lib/economy.ts)
+- [../src/lib/pcMinigame.ts](../src/lib/pcMinigame.ts)
+- [../src/lib/furnitureCollision.ts](../src/lib/furnitureCollision.ts)
+- [../src/lib/furnitureInteractions.ts](../src/lib/furnitureInteractions.ts)
+- [../src/lib/surfaceDecor.ts](../src/lib/surfaceDecor.ts)
+- [../src/lib/wallOpenings.ts](../src/lib/wallOpenings.ts)
+- [../src/lib/worldLighting.ts](../src/lib/worldLighting.ts)
+- [../src/lib/mobLab.ts](../src/lib/mobLab.ts)
+- [../src/lib/mobLabState.ts](../src/lib/mobLabState.ts)
+- [../src/lib/pets.ts](../src/lib/pets.ts)
+- [../src/lib/petPathing.ts](../src/lib/petPathing.ts)
 
 ## The Two Active 3D Contexts
 
 ### 1. Live Room Runtime
 
-The live sandbox room is owned by [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx).
+[../src/components/RoomView.tsx](../src/components/RoomView.tsx) hosts the live sandbox room.
 
-This is where gameplay currently exists:
+This is where the current gameplay exists:
 
 - player movement
 - build mode
-- interactions
-- furniture placement
-- room shell and windows
-- world lighting
-- PC minigame entry
+- furniture editing
+- wall/surface/floor placement
+- interactions such as `sit`, `lie`, and `use_pc`
+- room shell and window openings
+- in-room pet rendering
+- lighting and post-processing
 
 ### 2. Preview Studio
 
-The in-app content studio is owned by [FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx).
+[../src/components/FurniturePreviewStudio.tsx](../src/components/FurniturePreviewStudio.tsx) hosts the in-app content tool.
 
-It now has two modes:
+It has two modes:
 
 - `Furniture Studio`: thumbnail capture for furniture/shop assets
-- `Mob Lab`: imported-mob preview and tuning (now supports high-fidelity GLB models)
+- `Mob Lab`: imported-mob preview and tuning
 
-This distinction matters. Imported presets are authored in Mob Lab first, then optionally promoted into the live room. Right now, both the `alexs_mobs_raccoon` and the high-fidelity `minecraft_cat` (GLB) are fully integrated into gameplay.
+Mob Lab is an authoring environment first. Promotion into the live room is explicit, not automatic.
+
+## RoomView After The Refactor
+
+`RoomView.tsx` is no longer the giant all-in-one file it used to be. It is now a composition shell that wires together focused room-view modules.
+
+Current ownership inside `src/components/room-view`:
+
+- `useRoomFurnitureEditor.ts`: selected item, working placements, confirm/cancel/store flow, nudge/rotate/swap behavior
+- `useRoomViewBuilderGestures.ts`: pointer capture, direct drag, pivot interaction, surface selection, wall-drag transition behavior
+- `useRoomViewInteractions.ts`: play-mode movement and interaction state machine
+- `useRoomViewCamera.ts`: camera reset, zoom state, scene jump, DPR and Canvas config
+- `useRoomViewLighting.ts`: derived lighting state and post-processing config
+- `useRoomViewSpawn.ts`: spawn request handling and initial placement search
+- `placementResolvers.ts`: pure placement, spawn, and drag-ray math
+- `helpers.ts`: shared wall helpers, gizmo helpers, offsets, and axis rules
+- `RoomFurnitureLayer.tsx` and `RoomSelectedFurnitureLayer.tsx`: furniture rendering layers
+- `RoomSceneLighting.tsx`, `RoomPostProcessing.tsx`, `WallOcclusionController.tsx`: scene lighting and visibility helpers
+
+If a task mentions wall editing, placement bugs, gizmo behavior, or spawn logic, inspect `src/components/room-view` before assuming the logic still lives inline in `RoomView.tsx`.
 
 ## What Is Implemented Now
 
@@ -72,148 +98,103 @@ This distinction matters. Imported presets are authored in Mob Lab first, then o
 
 - single `10 x 10` room with block-relative world scale
 - Minecraft-skin-compatible avatar import and rendering
-- right-click movement in play mode
-- furniture interactions for `sit`, `lie`, and `use_pc`
-- stable build-mode editing with draft vs committed placements
+- right-click floor movement in play mode
+- build-mode editing with draft-vs-committed placement flow
+- room reset and camera reset actions
 
-### Builder and Placement
+### Builder And Placement
 
-- floor, wall, and surface placement layers
-- improved gizmo reliability and direct-drag behavior
-- collision rules for floor items, wall items, and surface decor
-- surface decor hosts with anchored local offsets
-- real selection / confirm / cancel / store flow
-- smooth wheel zoom instead of stepped OrbitControls zoom
+- floor, wall, and surface placement families
+- all wall items support `wall_back`, `wall_left`, `wall_front`, and `wall_right`
+- wall decor can move across walls by dragging through room corners
+- surface decor stays anchored through `anchorFurnitureId` and `surfaceLocalOffset`
+- selection supports confirm, cancel, store, deselect, rotate, nudge, and wall swap
+- smooth wheel zoom and stable pivot controls
 
-### Inventory and Economy
+### Inventory And Economy
 
 - ownership is separate from placement
-- stored items and placed items are tracked independently
+- stored furniture and placed furniture are tracked independently
 - buying furniture costs coins
-- selling bought furniture refunds full price for now
-- starter furniture can be removed but does not mint coins
-- the inventory panel also contains a temporary `Pet Store` section
-- the current Pet Store exposes a `0`-coin raccoon adoption flow for room-runtime testing
-- current starting balance is `180` coins
-- the first live earn loop comes from the desk PC minigame
+- purchased furniture currently refunds full price
+- starter furniture can be removed but does not mint sell profit
+- the inventory panel also contains a temporary `Pet Store`
+- the current Pet Store exposes a `0`-coin raccoon and a `0`-coin cat for live-room testing
+- the first earn loop comes from the desk PC minigame
 
 ### PC Minigame
 
-- `use_pc` desk interactions open the `Pixel Gigs` overlay once the player reaches the desk seat
-- runs last `25` seconds and reward coins based on score
-- completed runs trigger a real-time cooldown before the next attempt
-- best score, last result, total earned coins, and cooldown timestamp are persisted locally
+- desks and office desks can trigger `use_pc`
+- the player approaches the desk and uses the correct chair slot
+- the `Pixel Gigs` overlay opens only while the interaction is active
+- runs last `25` seconds
+- rewards depend on score
+- cooldowns and best-score history persist locally
 
-### Catalog and Preview Studio
-
-- the catalog has been reworked into a room inventory/shop panel
-- every registry item has `shopPreviewSrc` and `shortDescription`
-- info popovers exist beside shop actions
-- Preview Studio exists for generating clean thumbnail captures
-- some items already use real PNG thumbnails; others still use placeholder SVGs
-
-### Mob Lab
-
-The imported-mob authoring pipeline now exists inside Preview Studio.
-
-- preview locomotion supports `idle`, `walk_in_place`, and `loop_path`
-- high-fidelity GLB support with `GlbMobPreviewActor.tsx`
-- **Hierarchy Reconstruction**: manual bone re-parenting (e.g., tail segments) is handled in code via `attach()`
-- **Scene Stability**: GLTF cloning prevents "scene theft" between Mob Lab and Room View
-- **Mesh Filtering**: Smart Mesh-Only filter hides variant ghost lines (thintails, bobtails, etc.)
-- collider size, offset, and visibility are editable live
-- presets auto-save locally and can be exported/imported as JSON
-
-Important current limits:
-
-- Mob Lab is preset-driven, not direct Java entity execution
-- the current renderer is role-based and best suited to quadruped-style cuboid mobs
-- preview locomotion is deterministic authoring behavior, not gameplay pathfinding
-- imported mobs are not mounted into the main room automatically; current live-room integration is an explicit raccoon-only test path
-
-### Windows and Room Shell
+### Windows And Room Shell
 
 - `window` is a real wall furniture type
-- back and left walls open around placed windows
-- starter room includes actual starter-owned window placements
-- window glass/frame rendering lives in [WallWindowModel.tsx](/Z:/FAHHHH/src/components/WallWindowModel.tsx)
-- wall segmentation logic is isolated in [wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts)
+- windows can be bought, owned, placed, stored, and sold
+- windows work on all four walls
+- placed windows create real segmented wall openings
+- removing or storing the window closes the wall again
+- `wallOpenings.ts` stays the geometry source of truth for openings
 
-### Lighting and World Time
+### Pets
 
-- the old `day/night` mode toggle has been replaced by a 24-hour world clock
-- the scene can follow either:
-  - local machine time
-  - accelerated in-world `Minecraft Time`
-  - a user-locked inspection time
-- the moon is rendered as a visible scene body, while the daytime sky look comes from a wrapper-level blue backdrop gradient behind the transparent canvas
-- directional sun and moon lights move from southwest to northeast across the room
-- lighting state also drives the backdrop gradient, fog tint, tone mapping exposure, hemisphere colors, AO, bloom, and vignette
-- fake window ray decals are gone; the scene is driven by the global clock/lighting rig
-- there is no render-mode toggle right now; the active scene path is a single cinematic lighting/post-processing pipeline
+- live-room pets are defined in `pets.ts`
+- `alexs_mobs_raccoon` and `minecraft_cat` are the current temporary gameplay pets
+- pets are stored in the sandbox save, not in Mob Lab state
+- `RoomPetActor.tsx` drives simple wander behavior using `petPathing.ts`
+- live-room pet motion is deliberately simpler than Mob Lab preview motion
 
-### Performance Monitoring
+### Preview Studio And Mob Lab
 
-- a real-time **Performance Monitor** (FPS counter) exists in the bottom-left of the main UI
-- calculation uses `requestAnimationFrame` for high precision
-- features a color-coded status indicator (Green/Yellow/Red)
+- Furniture Studio supports furniture capture with controlled backgrounds and camera framing
+- Mob Lab supports imported-mob editing with box, CEM, and GLB render modes
+- the current default checked-in imported presets are `alexs_mobs_raccoon` and `better_cat_glb`
+- presets auto-save in browser storage and can be exported/imported as JSON
+- `ImportedMobActor.tsx` lazy-loads the CEM and GLB renderers to keep the base bundle lighter
 
-## Current Top-Level UI
+### Lighting And World Time
 
-The toolbar currently exposes:
-
-- `Build Mode`
-- `Inventory`
-- `Grid Snap`
-- `Coins`
-- current `Time`
-- `Import Minecraft Skin`
-- `Preview Studio`
-- `Reset Camera`
-- `Reset Room`
-- `Stand Up / Cancel Interaction`
-- `Dev Panel`
-
-Inside Preview Studio, the top-level mode switch is now:
-
-- `Furniture Studio`
-- `Mob Lab`
+- the old simple `day/night` mode is no longer the main path
+- the scene follows a world clock that can use local time, accelerated Minecraft time, or a locked inspection time
+- the lighting stack includes sun, moon, ambient/hemi fill, fog tint, backdrop gradient, and post-processing
+- floor lamps contribute practical warm lighting to the shared lighting rig
 
 ## Current Data Model
 
-### Registry
+### Furniture Registry
 
-[furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts) is the canonical furniture taxonomy.
+[../src/lib/furnitureRegistry.ts](../src/lib/furnitureRegistry.ts) is the canonical item taxonomy.
 
-It currently defines:
+It defines:
 
-- furniture type and label
-- price
-- category
+- furniture type, label, category, and price
+- placement family
+- footprint and default rotation
 - model key
-- surface family
-- footprint
-- default rotation
-- interaction metadata
 - support-surface metadata
-- preview image metadata
-- short descriptions
-- wall-opening metadata for windows
+- interaction metadata
+- wall-opening metadata
+- preview image metadata and short description
 
 ### Room State
 
-[roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts) is the active room schema.
+[../src/lib/roomState.ts](../src/lib/roomState.ts) is the active room schema.
 
 Important current facts:
 
 - `DEFAULT_ROOM_LAYOUT_VERSION = 6`
-- room theme is `starter-cozy`
-- starter room includes placed starter items plus corresponding owned items
-- surface decor uses `anchorFurnitureId` and `surfaceLocalOffset`
+- `ownedFurniture` is the ownership layer
+- `furniture` is the placed-in-room layer
+- surface decor uses `anchorFurnitureId` plus `surfaceLocalOffset`
+- starter room state is defined directly here
 
 ### Local Persistence
 
-[devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts) persists:
+[../src/lib/devLocalState.ts](../src/lib/devLocalState.ts) persists:
 
 - skin source
 - camera position
@@ -225,152 +206,88 @@ Important current facts:
 
 Important current facts:
 
-- persisted sandbox schema is currently `version: 5`
-- legacy furniture-only saves are migrated forward
-- outdated local layouts reset to the current fallback room if the layout version is older
+- persisted sandbox schema is `version: 6`
+- old `version: 5` saves are normalized forward
+- outdated layout versions reset to the current fallback starter room
 
-### Mob Lab Presets
+[../src/lib/devWorldSettings.ts](../src/lib/devWorldSettings.ts) separately persists:
 
-[mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts) defines the imported-mob preset schema.
+- world clock controls
+- lighting/dev panel settings
+- build mode, inventory visibility, grid snap, and preview studio UI state
 
-Important current facts:
+### Mob Lab State
 
-- presets separate metadata, stage settings, animation, locomotion, physics, and parts
-- each part has stable ids, hierarchy links, optional semantic roles, cuboid geometry, and transforms
-- the current default preset library contains the finalized Alex's Mobs raccoon
+[../src/lib/mobLabState.ts](../src/lib/mobLabState.ts) persists:
 
-[mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts) persists Mob Lab authoring state.
+- active mob id
+- selected part per mob id
+- imported-mob preset library
 
 Important current facts:
 
 - Mob Lab persistence is separate from the room sandbox save
-- the Mob Lab schema is currently `version: 2`
-- loading a legacy Mob Lab `version: 1` state preserves the new checked-in final raccoon preset instead of old local raccoon data
-- browser localStorage plus JSON export/import is the current persistence model
+- Mob Lab save schema is `version: 2`
+- several older cat baseline preset ids are intentionally migrated away during load
 
-## Current Furniture Set
-
-### Floor Furniture
-
-- bed
-- desk
-- chair
-- fridge
-- wardrobe
-- office desk
-- office chair
-
-### Wall Decor
-
-- tall window
-- poster
-- wall frame
-
-### Surface Decor
-
-- vase
-- books
-
-### Accents
-
-- table
-- rug
-- floor lamp
-
-## Visual and Asset Notes
-
-- the bed uses a custom GLB from [public/models/custom/bed.glb](/Z:/FAHHHH/public/models/custom/bed.glb)
-- the wardrobe is a hardcoded model wrapper, not the earlier broken imported wardrobe shell
-- shop preview support exists for every registry item, but only some items currently use final PNG captures
-- the Preview Studio furniture mode is the intended path for creating the remaining thumbnails
-- the first imported mob texture currently lives at [raccoon.png](/Z:/FAHHHH/public/textures/alexsmobs/raccoon.png)
-
-## Tests and Project Health
+## Tests And Verification
 
 Current automated coverage exists for:
 
+- room placement math
+- room lighting math
+- room spawn logic
+- wall helper behavior
+- canvas sizing logic
+- editor state synchronization
 - economy
-- furniture collision
+- collisions
 - furniture interactions
 - furniture registry completeness
-- invite-code utilities
-- room-state helpers
-- PC minigame rules
-- starter-room legacy helpers
+- room state helpers
 - surface decor
-- wall opening segmentation
-- world-lighting transitions
-- simple pet pathing helpers
+- wall-opening segmentation
+- world lighting
+- Mob Lab persistence and helpers
+- pets and pet pathing
+- physics helpers
 
-The active sandbox systems are primarily covered by:
+Most relevant files live in [../tests](../tests).
 
-- [economy.test.ts](/Z:/FAHHHH/tests/economy.test.ts)
-- [furnitureCollision.test.ts](/Z:/FAHHHH/tests/furnitureCollision.test.ts)
-- [furnitureInteractions.test.ts](/Z:/FAHHHH/tests/furnitureInteractions.test.ts)
-- [furnitureRegistry.test.ts](/Z:/FAHHHH/tests/furnitureRegistry.test.ts)
-- [roomState.test.ts](/Z:/FAHHHH/tests/roomState.test.ts)
-- [pcMinigame.test.ts](/Z:/FAHHHH/tests/pcMinigame.test.ts)
-- [surfaceDecor.test.ts](/Z:/FAHHHH/tests/surfaceDecor.test.ts)
-- [wallOpenings.test.ts](/Z:/FAHHHH/tests/wallOpenings.test.ts)
-- [worldLighting.test.ts](/Z:/FAHHHH/tests/worldLighting.test.ts)
-- [petPathing.test.ts](/Z:/FAHHHH/tests/petPathing.test.ts)
+Standard verification commands are:
 
-Most recent known health in this repo state:
+- `cmd /c npm test`
+- `cmd /c npm run build`
 
-- `npm test`: passing
-- `npm run build`: passing
+## Legacy Boundary
 
-## Important Legacy and Future-Track Modules
+The older Firebase/auth/pairing skeleton that used to live in this repo is no longer the active runtime path and has been removed from the current source tree cleanup.
 
-These files exist and are still useful, but they are not the active runtime model for the sandbox:
+That does not change the product direction. It means future shared-room work should be layered onto the current `roomState.ts` and registry-driven sandbox model rather than by restoring deleted legacy files as the app's main architecture.
 
-- [types.ts](/Z:/FAHHHH/src/lib/types.ts)
-- [starterRoom.ts](/Z:/FAHHHH/src/lib/room/starterRoom.ts)
-- [firebase.ts](/Z:/FAHHHH/src/firebase.ts)
-- [AuthGate.tsx](/Z:/FAHHHH/src/components/AuthGate.tsx)
-- [PairingScreen.tsx](/Z:/FAHHHH/src/components/PairingScreen.tsx)
-- invite-code utilities and Firebase-ready auth/pairing UI
+## Things Another AI Should Not Regress
 
-Interpretation:
-
-- the repo still contains an older/future couple-room data shape
-- the current app runtime does not boot through that path
-- multiplayer work must reconcile those modules with `furnitureRegistry.ts` + `roomState.ts`, not replace the current sandbox model with the old one
-
-## Things Another AI Should Not Accidentally Regress
-
-- Do not remove the distinction between `ownedFurniture` and `furniture` placements.
-- Do not bypass registry-driven metadata when adding furniture.
-- Do not break `surfaceLocalOffset` anchoring rules for tabletop decor.
-- Do not reintroduce fake window-only sunlight logic on top of the world clock system.
-- Do not replace the current local room schema with the older backend `types.ts` shapes.
-- Do not treat starter furniture as coin-generating sellables.
-- Do not lose the fixed-height wall-window opening behavior in v1.
-- Do not treat Mob Lab preview locomotion as gameplay pet AI.
-- Do not break the temporary pet registry, room-pet save data, or the explicit raccoon/cat promotion path.
-- Do not mount imported mobs into the room runtime by accident when only authoring/tuning is requested.
-- **Do not remove GLTF cloning** (`SkeletonUtils.clone`) in `GlbMobPreviewActor`; it is required to prevent the model disappearing from the room when opening Mob Lab.
-- **Do not disable the Mesh-Only Filter**; it is essential for hiding CEM variant ghost lines (thintails, etc.).
-
-## Current Known Gaps
-
-- no multiplayer runtime is wired into the active app shell yet
-- only one live earn loop exists so far: the desk PC minigame
-- no levels, streak, quests, or breakup state are in the active runtime yet
-- only the raccoon is wired into the live room right now, with simple wander behavior rather than a full pet gameplay loop
-- many shop previews are still placeholders
-- visual polish is still in progress, especially for art-set cohesion and advanced lighting quality
+- Do not remove the distinction between `ownedFurniture` and placed `furniture`.
+- Do not bypass `furnitureRegistry.ts` when adding or changing furniture behavior.
+- Do not break `anchorFurnitureId` plus `surfaceLocalOffset` rules for surface decor.
+- Do not regress four-wall wall decor and window support.
+- Do not regress drag-across-wall editing for wall furniture.
+- Do not reintroduce decorative fake windows as the main system.
+- Do not replace the current room schema with a new incompatible shape casually.
+- Do not mix Mob Lab persistence into the room sandbox save.
+- Do not treat Mob Lab preview motion as gameplay pet AI.
+- Do not remove GLB cloning or mesh filtering from the imported-mob render pipeline.
 
 ## Best Next Steps
 
-If continuing from the current codebase, the highest-value next gameplay layers are:
+If continuing gameplay work:
 
-1. define and persist progression data beyond coins
-2. add a second real coin earn loop, likely a daily quest or another PC activity
-3. add level and streak state once earning/spending is no longer one-sided
+1. add progression beyond coins
+2. add another repeatable earn loop
+3. add level, streak, and shared goals
 
-If continuing imported-mob work, the safer path is:
+If continuing pet/imported-mob work:
 
 1. keep tuning presets in Mob Lab first
-2. generalize the preset/render pipeline only when a second mob forces it
-3. add gameplay pet integration after authoring and look-dev are stable
+2. expand live-room pet behaviors after authoring is stable
+3. add more pet/gameplay loops only after the room-economy loop is solid

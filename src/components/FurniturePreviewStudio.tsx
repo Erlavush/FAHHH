@@ -1,6 +1,6 @@
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ChairModel } from "./ChairModel";
 import { FloorLampModel } from "./FloorLampModel";
 import { FridgeModel } from "./FridgeModel";
@@ -15,8 +15,6 @@ import {
   WallFrameModel
 } from "./StarterFurnitureModels";
 import { BookStackModel, VaseModel } from "./SurfaceDecorModels";
-import { MobLabEditorPanel } from "./mob-lab/MobLabEditorPanel";
-import { MobLabStage } from "./mob-lab/MobLabStage";
 import {
   getFurnitureDefinition,
   type FurnitureCatalogCategory,
@@ -39,6 +37,16 @@ import {
   type PersistedMobLabState
 } from "../lib/mobLabState";
 import type { PreviewStudioMode } from "../app/types";
+
+const MobLabEditorPanel = lazy(async () => {
+  const module = await import("./mob-lab/MobLabEditorPanel");
+  return { default: module.MobLabEditorPanel };
+});
+
+const MobLabStage = lazy(async () => {
+  const module = await import("./mob-lab/MobLabStage");
+  return { default: module.MobLabStage };
+});
 
 type PreviewBackdropMode = "green" | "black" | "white";
 
@@ -708,32 +716,36 @@ export function FurniturePreviewStudio({
                 stageKey={stageKey}
               />
             ) : (
-              <MobLabStage
-                preset={activeMobPreset}
-                selectedPartId={selectedPartId}
-                stageKey={stageKey}
-              />
+              <Suspense fallback={null}>
+                <MobLabStage
+                  preset={activeMobPreset}
+                  selectedPartId={selectedPartId}
+                  stageKey={stageKey}
+                />
+              </Suspense>
             )}
           </div>
         </section>
 
         {mode === "mob_lab" ? (
-          <MobLabEditorPanel
-            importError={importError}
-            onExportPreset={handleExportMobPreset}
-            onOpenImport={handleImportMobPreset}
-            onResetPreset={handleResetMobPreset}
-            onSelectPart={handleSelectPart}
-            onToggleShowCollider={handleToggleShowCollider}
-            onUpdateCollider={handleUpdateCollider}
-            onUpdateIdle={handleUpdateIdle}
-            onUpdateLocomotion={handleUpdateLocomotion}
-            onUpdatePart={handleUpdatePart}
-            onUpdatePhysicsNumber={handleUpdatePhysicsNumber}
-            onUpdateWalk={handleUpdateWalk}
-            preset={activeMobPreset}
-            selectedPartId={selectedPartId}
-          />
+          <Suspense fallback={null}>
+            <MobLabEditorPanel
+              importError={importError}
+              onExportPreset={handleExportMobPreset}
+              onOpenImport={handleImportMobPreset}
+              onResetPreset={handleResetMobPreset}
+              onSelectPart={handleSelectPart}
+              onToggleShowCollider={handleToggleShowCollider}
+              onUpdateCollider={handleUpdateCollider}
+              onUpdateIdle={handleUpdateIdle}
+              onUpdateLocomotion={handleUpdateLocomotion}
+              onUpdatePart={handleUpdatePart}
+              onUpdatePhysicsNumber={handleUpdatePhysicsNumber}
+              onUpdateWalk={handleUpdateWalk}
+              preset={activeMobPreset}
+              selectedPartId={selectedPartId}
+            />
+          </Suspense>
         ) : null}
       </div>
     </div>

@@ -7,56 +7,58 @@
 - local sandbox room builder
 - floor / wall / surface placement
 - stable gizmo and selection flow
+- four-wall wall decor and windows
+- drag-across-wall wall editing
 - Minecraft skin import
 - local persistence
 - ownership-based inventory
 - coin-based buying and selling
-- preview studio for furniture thumbnails
-- preview studio `Mob Lab` for imported-mob look-dev
-- info popovers and static shop previews
+- Preview Studio for furniture thumbnails
+- Preview Studio `Mob Lab` for imported-mob look-dev
+- info popovers and shop previews
 - buyable wall windows with real wall openings
 - real-time world clock with sun/moon lighting controls
 - smooth camera zoom
 - desk PC minigame earn loop
-- generic high-fidelity GLB mob rendering with procedural physics
-- real-time FPS performance monitoring HUD
+- temporary live-room pets through the Pet Store
+- real-time FPS performance monitor HUD
 
 ### Still Missing From The Jam Game
 
-- paired shared room runtime
+- paired shared-room runtime
 - live partner presence
 - player level
 - couple streak
 - second coin earn loop
 - daily quests
 - editable photo frames
-- gameplay pets in the main room
+- richer pet gameplay loops
 - breakup reset flow
 
 ## Recommended Build Order From Here
 
 ### Track 1: Core Gameplay Progression
 
-1. Add a canonical `player progression` layer on top of the current sandbox save.
-2. Add the second real `coin earn loop`, likely:
+1. Add a canonical player progression layer on top of the current sandbox save.
+2. Add the second real coin earn loop, likely:
    - one daily quest loop
    - one additional PC activity
-3. Add level and couple-streak state once earning/spending is no longer one-sided.
+3. Add level and couple-streak state once earning and spending are no longer one-sided.
 
 ### Track 2: Personalization And Pets
 
 1. Add editable/custom picture frames.
 2. Keep using `Mob Lab` as the authoring path for imported mobs and future pets.
-- [x] Promote one tuned imported-mob preset into a real gameplay pet (Raccoon and Cat integrated).
-4. Add more room-density props only after the core loop is working.
+3. Expand the live pet loop beyond the current simple raccoon/cat wander behavior.
+4. Add more room-density props only after the core progression loop is working.
 
 ### Track 3: Shared-Room Architecture
 
-1. Reconcile Firebase/auth/pairing code with the current `roomState.ts` model.
-2. Define a canonical shared-room document shape based on the current registry-driven room schema.
-3. Sync only confirmed room edits first.
-4. Add partner presence after the room-state sync is reliable.
-5. Add breakup reset only after shared progression actually exists.
+1. Define the new shared-room/backend shape directly from the current `roomState.ts` model.
+2. Sync only confirmed room edits first.
+3. Add partner presence after room-state sync is reliable.
+4. Add shared progression after room sync is stable.
+5. Add breakup reset only after shared progression really exists.
 
 ## Current High-Value Next Steps
 
@@ -64,13 +66,13 @@ If the goal is `gameplay progress`, do this next:
 
 1. progression schema
 2. daily quest or second earn loop
-3. level + streak
+3. level plus streak
 
 If the goal is `imported-mob progress`, do this next:
 
 1. tune future presets in `Mob Lab`
-2. expand the `GlbMobPreviewActor` if specific model quirks (e.g. wings, multiple heads) require new attachment points
-3. expand the gameplay pet loop (needs/hunger/mood) now that authoring is stable
+2. expand the imported renderer only when a specific model forces it
+3. deepen gameplay pet loops after authoring stays stable
 
 If the goal is `visual progress`, do this next:
 
@@ -82,11 +84,11 @@ If the goal is `visual progress`, do this next:
 
 - Do not bypass the registry for new furniture.
 - Do not collapse inventory ownership into direct placement again.
-- Do not restart multiplayer from the older `types.ts` shape without reconciling it to the current sandbox schema.
-- Do not build future systems by replacing the current room model wholesale.
+- Do not restart shared-room architecture from an obsolete schema.
+- Do not replace the current room model wholesale.
 - Do not add lots of content before one complete progression loop exists.
 - Do not confuse Mob Lab preview locomotion with gameplay pet AI.
-- Do not remove GLTF cloning or the Mesh-Only Filter from the GLB renderer; they are essential for visual and scene stability.
+- Do not remove GLB cloning or mesh-only filtering from the imported renderer.
 
 ## Jam MVP Definition
 

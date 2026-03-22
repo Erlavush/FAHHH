@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { Ray, Vector3 } from "three";
 import type { RoomFurniturePlacement } from "../src/lib/roomState";
+import {
+  FRONT_WALL_SURFACE_Z,
+  RIGHT_WALL_SURFACE_X
+} from "../src/components/room-view/constants";
 import {
   applyPlacementToItem,
   getPreferredWallSurface,
   resolveFloorPlacement,
   resolveFurnitureRotation,
+  resolvePlacementFromDragRay,
   resolveSpawnPosition,
   resolveSurfacePlacementOnHost,
   resolveWallPlacement
@@ -36,6 +42,22 @@ describe("room view placement resolvers", () => {
     expect(placement.position[2]).toBeCloseTo(-4.83);
     expect(placement.rotationY).toBe(0);
     expect(placement.surface).toBe("wall_back");
+  });
+
+  it("resolves front and right wall placements with the correct locked axis", () => {
+    const frontPlacement = resolveWallPlacement("wall_front", 0.6, 1.4, "poster", true);
+    const rightPlacement = resolveWallPlacement("wall_right", 0.6, 1.4, "poster", true);
+
+    expect(frontPlacement).toEqual({
+      position: [0.5, 1.7, FRONT_WALL_SURFACE_Z],
+      rotationY: Math.PI,
+      surface: "wall_front"
+    });
+    expect(rightPlacement).toEqual({
+      position: [RIGHT_WALL_SURFACE_X, 1.7, 0.5],
+      rotationY: -Math.PI / 2,
+      surface: "wall_right"
+    });
   });
 
   it("resolves snapped surface decor placements against a host", () => {
@@ -86,5 +108,73 @@ describe("room view placement resolvers", () => {
     expect(resolveFurnitureRotation(0.9, true)).toBeCloseTo(Math.PI / 2);
     expect(getPreferredWallSurface([-4.2, 0, -0.8])).toBe("wall_left");
     expect(getPreferredWallSurface([0.2, 0, -4.2])).toBe("wall_back");
+    expect(getPreferredWallSurface([4.2, 0, 0.2])).toBe("wall_right");
+    expect(getPreferredWallSurface([0.2, 0, 4.2])).toBe("wall_front");
+  });
+
+  it("projects drag rays onto the correct wall plane for each wall surface", () => {
+    const frontPlacement = resolvePlacementFromDragRay(
+      new Ray(new Vector3(1.2, 1.6, 0), new Vector3(0, 0, 1)),
+      {
+        furnitureId: "poster-front",
+        type: "poster",
+        surface: "wall_front",
+        rotationY: Math.PI
+      },
+      [],
+      true
+    );
+    const rightPlacement = resolvePlacementFromDragRay(
+      new Ray(new Vector3(0, 1.6, 1.2), new Vector3(1, 0, 0)),
+      {
+        furnitureId: "poster-right",
+        type: "poster",
+        surface: "wall_right",
+        rotationY: -Math.PI / 2
+      },
+      [],
+      true
+    );
+
+    expect(frontPlacement).toEqual({
+      position: [1.5, 1.7, FRONT_WALL_SURFACE_Z],
+      rotationY: Math.PI,
+      surface: "wall_front"
+    });
+    expect(rightPlacement).toEqual({
+      position: [RIGHT_WALL_SURFACE_X, 1.7, 1.5],
+      rotationY: -Math.PI / 2,
+      surface: "wall_right"
+    });
+  });
+
+  it("wraps wall dragging across corners onto adjacent walls", () => {
+    const backToRightPlacement = resolvePlacementFromDragRay(
+      new Ray(new Vector3(1, 1.8, 0), new Vector3(1, 0, -1).normalize()),
+      {
+        furnitureId: "poster-wrap-1",
+        type: "poster",
+        surface: "wall_back",
+        rotationY: 0
+      },
+      [],
+      true
+    );
+    const rightToFrontPlacement = resolvePlacementFromDragRay(
+      new Ray(new Vector3(0, 1.8, 1), new Vector3(1, 0, 1).normalize()),
+      {
+        furnitureId: "poster-wrap-2",
+        type: "poster",
+        surface: "wall_right",
+        rotationY: -Math.PI / 2
+      },
+      [],
+      true
+    );
+
+    expect(backToRightPlacement?.surface).toBe("wall_right");
+    expect(backToRightPlacement?.position[0]).toBe(RIGHT_WALL_SURFACE_X);
+    expect(rightToFrontPlacement?.surface).toBe("wall_front");
+    expect(rightToFrontPlacement?.position[2]).toBe(FRONT_WALL_SURFACE_Z);
   });
 });

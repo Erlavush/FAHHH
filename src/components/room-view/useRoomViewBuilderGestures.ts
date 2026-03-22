@@ -22,6 +22,10 @@ import {
   type DragPlacementState
 } from "./placementResolvers";
 import {
+  getWallParallelCoordinate,
+  isWallSurface
+} from "./helpers";
+import {
   transformDragEuler,
   transformDragPosition,
   transformDragQuaternion,
@@ -363,6 +367,12 @@ export function useRoomViewBuilderGestures({
       }
 
       event.stopPropagation();
+      dragStateRef.current = {
+        ...dragStateRef.current,
+        surface: nextPlacement.surface,
+        rotationY: nextPlacement.rotationY,
+        anchorFurnitureId: nextPlacement.anchorFurnitureId
+      };
       updateFurnitureItem(dragStateRef.current.furnitureId, (item) =>
         applyPlacementToItem(item, nextPlacement)
       );
@@ -400,26 +410,10 @@ export function useRoomViewBuilderGestures({
       );
       transformDragEuler.setFromQuaternion(transformDragQuaternion);
 
-      if (selectedFurniture.surface === "wall_back") {
+      if (isWallSurface(selectedFurniture.surface)) {
         const nextPlacement = resolveWallPlacement(
-          "wall_back",
-          transformDragPosition.x,
-          transformDragPosition.y,
-          selectedFurniture.type,
-          gridSnapEnabled
-        );
-
-        updateFurnitureItem(selectedFurnitureId, (item) => ({
-          ...item,
-          ...nextPlacement
-        }));
-        return;
-      }
-
-      if (selectedFurniture.surface === "wall_left") {
-        const nextPlacement = resolveWallPlacement(
-          "wall_left",
-          transformDragPosition.z,
+          selectedFurniture.surface,
+          getWallParallelCoordinate(selectedFurniture.surface, transformDragPosition),
           transformDragPosition.y,
           selectedFurniture.type,
           gridSnapEnabled
@@ -519,6 +513,12 @@ export function useRoomViewBuilderGestures({
       }
 
       event.stopPropagation();
+      dragStateRef.current = {
+        ...dragStateRef.current,
+        surface: nextPlacement.surface,
+        rotationY: nextPlacement.rotationY,
+        anchorFurnitureId: nextPlacement.anchorFurnitureId
+      };
       updateFurnitureItem(dragStateRef.current.furnitureId, (item) =>
         applyPlacementToItem(item, nextPlacement)
       );

@@ -1,85 +1,77 @@
 # Risk It All: Cozy Couple Room
 
-A browser-first cozy couple-room game foundation built with React, Vite, React Three Fiber, and Firebase-ready skeletons.
+A browser-first cozy couple-room sandbox and authoring playground built with React, Vite, React Three Fiber, and TypeScript.
 
 ## What This Repo Is Right Now
 
-The active product in this repository is a `local sandbox foundation`, not the full multiplayer jam game yet.
+The active product in this repository is a `local solo sandbox` plus an in-app content studio.
 
-What already works in the live runtime:
+It is not the full paired multiplayer game yet.
+
+What already works in the current runtime:
 
 - a single-room 3D sandbox with Minecraft-skin-compatible avatars
 - build mode with floor, wall, and surface placement
-- stable gizmo editing, confirm/cancel/store flow, and smooth camera zoom
-- inventory ownership model with stored vs placed furniture
+- inventory ownership with stored-vs-placed furniture
 - coin-based furniture buying and selling
-- a redesigned room inventory/shop panel with previews and item descriptions
-- a dual-mode preview studio for furniture thumbnails and imported-mob tuning
-- buyable wall windows that open real holes in the back and left walls
-- a real-time world clock with a single cinematic lighting pipeline, blue sky backdrop, and dev controls for locking and scrubbing time
-- a desk PC minigame earn loop with saved best score and cooldown tracking
-- a browser-local Mob Lab with imported raccoon and cat presets, live rig editing, animation tuning, and JSON export/import
-- a checked-in final Alex's Mobs raccoon preset sourced from a tuned JSON
-- a temporary Pet Store flow that lets the player adopt the raccoon for `0` coins into the live room
-- a simple in-room raccoon wander behavior for live pet testing
-- dev-only browser persistence for world data, world settings, and Mob Lab presets
+- four-wall wall decor and window placement
+- drag-across-wall editing for wall decor
+- confirm / cancel / store editing flow with stable gizmo controls
+- a desk PC minigame earn loop
+- a real-time world clock with sun/moon lighting and post-processing
+- a temporary Pet Store plus live in-room raccoon and cat pets
+- a dual-mode Preview Studio for furniture captures and Mob Lab look-dev
+- browser-local persistence for room data, world settings, and Mob Lab state
+- a small performance monitor HUD for runtime FPS feedback
 
 ## Final Game Direction
 
-The final game direction is still `Risk It All`:
+The long-term game direction is still `Risk It All`:
 
-- two partners pair into one persistent room
-- each partner earns coins and levels up
-- the couple keeps a shared streak together
-- furniture, decor, frames, and pets are bought with earned currency
-- the desk PC contains minigames for extra coins
+- two partners pair into one shared room
+- each partner earns coins and progression
+- the couple maintains a shared streak
+- the room is decorated with earned furniture, decor, frames, and pets
+- the desk PC contains repeatable activities and minigames
 - daily quests provide steady progression
-- picture frames can display the couple's own photos
-- pets like cats and dogs make the room feel alive
+- couple memories such as photos make the room personal
 - if the couple breaks up, the shared room and its progress are wiped
 
 ## Most Important Docs
 
-- [AI handoff](/Z:/FAHHHH/docs/AI_HANDOFF.md): current source of truth for another AI or collaborator
-- [Current systems](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md): gameplay/runtime behavior that exists now
-- [Architecture](/Z:/FAHHHH/docs/ARCHITECTURE.md): file ownership and system boundaries
-- [Codebase map](/Z:/FAHHHH/docs/CODEBASE_MAP.md): fastest navigation guide for the current folder layout
-- [Mob Lab guide](/Z:/FAHHHH/docs/MOB_LAB.md): imported-mob workflow, preset structure, and authoring constraints
-- [Roadmap](/Z:/FAHHHH/docs/ROADMAP.md): implemented foundation vs next priorities
-- [Game overview](/Z:/FAHHHH/docs/GAME_OVERVIEW.md): long-term product vision
-- [Diagrams](/Z:/FAHHHH/docs/DIAGRAMS.md): runtime and roadmap diagrams
-- [MCP setup](/Z:/FAHHHH/docs/MCP_SETUP.md): recommended AI-tooling stack for this repo
-- [llms.txt](/Z:/FAHHHH/llms.txt): repo-root AI navigation summary
+- [AI handoff](docs/AI_HANDOFF.md): best source of truth for another AI or teammate
+- [Current systems](docs/CURRENT_SYSTEMS.md): what exists in the runtime today
+- [Architecture](docs/ARCHITECTURE.md): ownership boundaries and module responsibilities
+- [Codebase map](docs/CODEBASE_MAP.md): fastest navigation guide for the current folder layout
+- [Mob Lab guide](docs/MOB_LAB.md): imported-mob authoring pipeline and guardrails
+- [Roadmap](docs/ROADMAP.md): implemented foundation versus next priorities
+- [Game overview](docs/GAME_OVERVIEW.md): long-term product vision
+- [Diagrams](docs/DIAGRAMS.md): runtime and data-flow diagrams
+- [MCP setup](docs/MCP_SETUP.md): recommended AI tooling stack
+- [llms.txt](llms.txt): root-level AI navigation summary
 
-## Current Runtime Truth
+## Current Runtime Entry Points
 
-If you are extending the current playable sandbox, start from:
+Start here when working on the active app:
 
-- [App.tsx](/Z:/FAHHHH/src/App.tsx)
-- [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx)
-- [FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx)
-- [furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts)
-- [roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts)
-- [devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts)
-- [economy.ts](/Z:/FAHHHH/src/lib/economy.ts)
-- [pcMinigame.ts](/Z:/FAHHHH/src/lib/pcMinigame.ts)
-- [furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts)
-- [surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts)
-- [furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts)
-- [wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts)
-- [mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts)
-- [mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts)
-
-Do not treat the older backend/couple-room skeleton as the active runtime schema.
-
-Imported mobs now have two states: Mob Lab authoring and optional live-room integration. The final `alexs_mobs_raccoon` preset is wired into the main room through the temporary Pet Store.
+- [src/App.tsx](src/App.tsx)
+- [src/components/RoomView.tsx](src/components/RoomView.tsx)
+- [src/components/FurniturePreviewStudio.tsx](src/components/FurniturePreviewStudio.tsx)
+- [src/components/room-view](src/components/room-view)
+- [src/components/mob-lab](src/components/mob-lab)
+- [src/lib/roomState.ts](src/lib/roomState.ts)
+- [src/lib/furnitureRegistry.ts](src/lib/furnitureRegistry.ts)
+- [src/lib/devLocalState.ts](src/lib/devLocalState.ts)
+- [src/lib/devWorldSettings.ts](src/lib/devWorldSettings.ts)
+- [src/lib/mobLab.ts](src/lib/mobLab.ts)
+- [src/lib/mobLabState.ts](src/lib/mobLabState.ts)
+- [src/lib/pets.ts](src/lib/pets.ts)
 
 ## Getting Started
 
-1. Copy `.env.example` to `.env`.
-2. Fill in Firebase variables only if you want to work on connected features later.
-3. Install dependencies.
-4. Start the dev server.
+1. Copy `.env.example` to `.env` only if you need local environment variables for future connected features.
+2. Install dependencies.
+3. Start the dev server.
 
 On Windows PowerShell with strict script execution:
 
@@ -95,10 +87,12 @@ cmd /c npm test
 cmd /c npm run build
 ```
 
-If Firebase is not configured, the app runs in browser-only local sandbox mode.
+## Current Persistence Boundary
 
-Important current note:
+The active runtime is browser-local on purpose:
 
-- the active save path in this repo is development-only browser storage
-- `world data` and `world settings` are stored as separate local browser documents
-- this is intended to be replaced later by backend persistence such as Firebase/SQL-backed player saves
+- room/runtime data lives in `devLocalState.ts`
+- world settings and UI state live in `devWorldSettings.ts`
+- Mob Lab authoring state lives in `mobLabState.ts`
+
+The shared-room backend, pairing, and multiplayer sync layer are future work. They are not the active runtime path in this repo.

@@ -260,7 +260,7 @@ export function getPlayerAABB(position: PersistedVector3): AABB {
 function getWallSurfaceRect(placement: RoomFurniturePlacement): SurfaceRect {
   const definition = getFurnitureDefinition(placement.type);
 
-  if (placement.surface === "wall_left") {
+  if (placement.surface === "wall_left" || placement.surface === "wall_right") {
     return createSurfaceRect(
       placement.position[2],
       placement.position[1],

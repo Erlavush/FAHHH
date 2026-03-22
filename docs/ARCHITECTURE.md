@@ -4,390 +4,330 @@
 
 ### App Shell
 
-[App.tsx](/Z:/FAHHHH/src/App.tsx) owns the top-level application state and UI shell:
+[../src/App.tsx](../src/App.tsx) owns the top-level application state and UI shell:
 
 - build-mode toggle
 - inventory panel visibility
 - grid-snap toggle
 - skin import
-- preview studio visibility, mode, and current selection
+- Preview Studio visibility, mode, and current selection
 - coin balance
+- Pet Store adoption flow
 - PC minigame progress and reward handling
 - persisted room state
-- local vs accelerated world clock selection
-- locked time controls
+- world clock mode and locked-time controls
 - Leva dev panel wiring
 - reset room / reset camera actions
-- real-time **Performance Monitor** HUD integration
-- save/load bridge to local storage
+- performance monitor HUD integration
+- save/load bridge to local browser state
 
-`App.tsx` is the orchestrator. It does not simulate the 3D world itself, but it owns the authoritative app-side state that is passed into the scene or the studio.
+The app-shell surface extracted from `App.tsx` lives in [../src/app](../src/app):
 
-The app-shell surface extracted from `App.tsx` now lives in [src/app](/Z:/FAHHHH/src/app):
+- `components`: toolbar, inventory, performance HUD, and info controls
+- `hooks`: world clock, inventory, skin import, and info-popover helpers
+- `types.ts`: shell types shared with the room and Preview Studio
 
-- toolbar and inventory UI in `src/app/components`
-- world clock, inventory, skin import, and info-popover hooks in `src/app/hooks`
-- shared shell types in `src/app/types.ts`
+### Live Room Runtime
 
-### Scene Runtime
+[../src/components/RoomView.tsx](../src/components/RoomView.tsx) now acts as a composition shell for the live scene.
 
-[RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) owns the live game scene:
+It is responsible for:
 
-- Three.js / React Three Fiber scene graph
-- live furniture draft state
-- committed furniture state
-- selection and hover state
-- gizmo and direct-drag editing
-- play-mode interactions
-- player approach / active interaction state
-- camera target reporting
-- world clock to lighting-state conversion
-- furniture interaction activation (`sit`, `lie`, `use_pc`)
-- room shell, walls, and windows
-- wrapper-level sky backdrop + fog tint
-- single cinematic post-processing stack
-- smooth wheel zoom controller
+- wiring the room-view hooks together
+- hosting the `Canvas`
+- composing the shell, player, furniture layers, pets, lights, and effects
+- rendering the edit dock and interaction hint overlays
+- passing authoritative callbacks back to `App.tsx`
 
-Scene-support modules extracted from `RoomView.tsx` now live in [src/components/room-view](/Z:/FAHHHH/src/components/room-view).
+The heavy logic has been extracted into [../src/components/room-view](../src/components/room-view).
 
 ### Preview Studio
 
-[FurniturePreviewStudio.tsx](/Z:/FAHHHH/src/components/FurniturePreviewStudio.tsx) is a standalone content-creation tool inside the app.
+[../src/components/FurniturePreviewStudio.tsx](../src/components/FurniturePreviewStudio.tsx) is a standalone content-creation tool inside the app.
 
-It now has two modes.
+It owns:
 
-#### Furniture Studio
+- studio mode switching between `furniture` and `mob_lab`
+- furniture thumbnail preview staging
+- Mob Lab state hydration and persistence wiring
+- imported-mob preset export/import
+- selected furniture and selected mob coordination
 
-Furniture Studio owns:
+Mob Lab-specific UI and stage modules are lazy-loaded from `src/components/mob-lab` so the base runtime does not eagerly pull in the heavy imported-mob editor path.
 
-- isolated furniture preview stage
-- orthographic isometric capture camera
-- green / black / white backdrops
-- drag-to-orbit inspection
-- fixed save-name guidance for shop thumbnails
+## RoomView Module Breakdown
 
-#### Mob Lab
+### Editing And Placement
 
-Mob Lab owns imported-mob look-dev and tuning:
+- [../src/components/room-view/useRoomFurnitureEditor.ts](../src/components/room-view/useRoomFurnitureEditor.ts)
+  - owns committed-vs-working furniture state
+  - owns selection, hover, and placement-blocked state
+  - owns confirm, cancel, store, rotate, nudge, and wall-swap actions
 
-- small fixed grass-block stage
-- imported-mob preview actor
-- live rig/body-part editing
-- live idle and walk animation tuning
-- deterministic locomotion preview modes
-- collider preview and simple ground-offset tuning
-- preset export/import and browser-local persistence
+- [../src/components/room-view/useRoomViewBuilderGestures.ts](../src/components/room-view/useRoomViewBuilderGestures.ts)
+  - owns pointer capture
+  - owns drag session state
+  - owns direct-drag and pivot handling
+  - owns wall-to-wall drag transitions
 
-Mob Lab is authoring tooling, not gameplay pet runtime.
+- [../src/components/room-view/useRoomViewSpawn.ts](../src/components/room-view/useRoomViewSpawn.ts)
+  - owns spawn-request handling
+  - owns initial search for a collision-safe placement candidate
+
+- [../src/components/room-view/placementResolvers.ts](../src/components/room-view/placementResolvers.ts)
+  - owns pure floor/wall/surface placement math
+  - owns wall drag-plane resolution
+  - owns nearest-wall selection and spawn placement helpers
+
+### Play-Mode Interaction Flow
+
+- [../src/components/room-view/useRoomViewInteractions.ts](../src/components/room-view/useRoomViewInteractions.ts)
+  - owns interaction hover and pending/active interaction state
+  - owns stand requests
+  - owns player-approach behavior for sit/lie/use_pc
+
+- [../src/lib/furnitureInteractions.ts](../src/lib/furnitureInteractions.ts)
+  - owns pure interaction target rules
+  - owns desk chair-zone detection and bed slot logic
+
+### Camera, Canvas, And Renderer Controls
+
+- [../src/components/room-view/useRoomViewCamera.ts](../src/components/room-view/useRoomViewCamera.ts)
+  - owns reset-camera behavior
+  - owns scene-jump behavior
+  - owns zoom target tracking
+  - owns DPR and Canvas config calculation
+
+- [../src/components/room-view/canvasSizing.ts](../src/components/room-view/canvasSizing.ts)
+  - computes safe DPR values and renderer settings to avoid oversized draw buffers
+
+- [../src/components/room-view/CanvasControllers.tsx](../src/components/room-view/CanvasControllers.tsx)
+  - houses camera tracking, exposure syncing, and smooth zoom helpers
+
+### Lighting And Visual Composition
+
+- [../src/components/room-view/useRoomViewLighting.ts](../src/components/room-view/useRoomViewLighting.ts)
+  - derives lighting state from world time and dev settings
+  - builds post-processing config
+
+- [../src/components/room-view/RoomSceneLighting.tsx](../src/components/room-view/RoomSceneLighting.tsx)
+  - renders ambient, hemisphere, sun, moon, and practical lamp lighting
+
+- [../src/components/room-view/RoomPostProcessing.tsx](../src/components/room-view/RoomPostProcessing.tsx)
+  - hosts the effect composer stack
+
+- [../src/components/room-view/WallOcclusionController.tsx](../src/components/room-view/WallOcclusionController.tsx)
+  - toggles room-shell wall visibility based on the active camera angle
+
+### Scene Layers
+
+- [../src/components/room-view/RoomFurnitureLayer.tsx](../src/components/room-view/RoomFurnitureLayer.tsx)
+  - renders non-selected furniture and its proxies
+
+- [../src/components/room-view/RoomSelectedFurnitureLayer.tsx](../src/components/room-view/RoomSelectedFurnitureLayer.tsx)
+  - renders the selected item, pivot controls, and placement actions
+
+- [../src/components/room-view/RoomInteractionProxy.tsx](../src/components/room-view/RoomInteractionProxy.tsx)
+  - provides invisible interaction hit targets for play mode
+
+- [../src/components/room-view/RoomSurfaceDecorSelectionProxy.tsx](../src/components/room-view/RoomSurfaceDecorSelectionProxy.tsx)
+  - provides build-mode selection affordances for surface decor
+
+- [../src/components/room-view/RoomPetActor.tsx](../src/components/room-view/RoomPetActor.tsx)
+  - renders live-room pets and simple wander behavior
 
 ## Core Data Ownership
 
 ### Furniture Registry
 
-[furnitureRegistry.ts](/Z:/FAHHHH/src/lib/furnitureRegistry.ts) is the canonical item taxonomy.
+[../src/lib/furnitureRegistry.ts](../src/lib/furnitureRegistry.ts) is the canonical item taxonomy.
 
 It defines:
 
-- furniture type and label
-- price
-- shop preview image and scale
-- short description
-- model key
+- furniture identity, label, category, and price
 - placement family
-- footprint
-- default rotation
-- interaction metadata
+- footprint and default rotation
+- model selection
 - support-surface metadata
+- interaction metadata
 - wall-opening metadata
+- preview image and short description metadata
 
-All new furniture should enter the project through this registry first.
+All furniture changes should start here.
 
 ### Room State
 
-[roomState.ts](/Z:/FAHHHH/src/lib/roomState.ts) is the active room-builder schema.
+[../src/lib/roomState.ts](../src/lib/roomState.ts) is the active room-builder schema.
 
 It defines:
 
 - `RoomState`
-- `RoomMetadata`
 - `RoomFurniturePlacement`
 - `OwnedFurnitureItem`
-- starter/default room layout
-- cloning helpers
-- placement creation helpers
-- ownership normalization helpers
+- room metadata and starter layout
+- placement cloning and normalization helpers
 
-Key current design decision:
+Important boundary:
 
 - `ownedFurniture` is the ownership/inventory layer
 - `furniture` is only the placed-in-room layer
 
-That separation is central to the current builder and economy design.
-
 ### Sandbox Persistence
 
-[devLocalState.ts](/Z:/FAHHHH/src/lib/devLocalState.ts) owns local sandbox serialization and migration.
+[../src/lib/devLocalState.ts](../src/lib/devLocalState.ts) owns local sandbox serialization and migration.
 
 It handles:
 
 - persisted sandbox versioning
-- runtime validation
+- room-state validation
 - legacy save migration
-- room-layout fallback reset when the code version is newer than the save
+- fallback resets when layout versions are outdated
 
-[devWorldSettings.ts](/Z:/FAHHHH/src/lib/devWorldSettings.ts) owns the separate development-only browser document for:
+[../src/lib/devWorldSettings.ts](../src/lib/devWorldSettings.ts) owns the separate browser document for:
 
-- world clock and lighting settings
-- app-shell state like build mode, inventory, preview studio, and debug visibility
-- custom dev-panel collapsed-section state
+- world clock settings
+- lighting settings
+- build mode, inventory, grid snap, and preview studio UI state
+- dev-panel visibility and collapsed section state
 
 Important boundary:
 
 - `devLocalState.ts` is `world data`
 - `devWorldSettings.ts` is `world settings`
-- both are temporary development/browser persistence and are expected to be replaced later by backend player saves
+- both are temporary local development persistence, not the final shared-room backend
 
-### Economy
+### Pets
 
-[economy.ts](/Z:/FAHHHH/src/lib/economy.ts) is intentionally small right now.
+- [../src/lib/pets.ts](../src/lib/pets.ts) defines live-room pet types and owned-pet records
+- [../src/lib/petPathing.ts](../src/lib/petPathing.ts) defines simple room-safe spawn and wander helpers
 
-It currently defines:
+Pet state lives in the sandbox save, not in Mob Lab state.
 
-- starting coin balance
-- sell-price behavior
+### Imported Mob Schema
 
-The first earn-loop layer now comes from the desk PC minigame.
-
-### PC Minigame
-
-[pcMinigame.ts](/Z:/FAHHHH/src/lib/pcMinigame.ts) owns the first live earn-loop rules.
-
-It currently defines:
-
-- session length
-- cooldown timing
-- reward scaling
-- saved progress shape
-- result application helpers
-
-### Mob Preset Schema
-
-[mobLab.ts](/Z:/FAHHHH/src/lib/mobLab.ts) owns the imported-mob preset schema.
+[../src/lib/mobLab.ts](../src/lib/mobLab.ts) owns the imported-mob preset schema.
 
 It defines:
 
 - `ImportedMobPreset`
-- part roles and geometry layout
-- animation settings
-- locomotion settings
-- physics settings
-- stage framing settings
-- default imported presets
+- box, CEM, and GLB render mode support
+- animation, locomotion, physics, and stage settings
+- default checked-in preset library
 
-### Mob Lab Persistence
+[../src/lib/mobLabState.ts](../src/lib/mobLabState.ts) owns Mob Lab serialization, validation, and migration.
 
-[mobLabState.ts](/Z:/FAHHHH/src/lib/mobLabState.ts) owns browser-local Mob Lab serialization and validation.
-
-It handles:
-
-- Mob Lab schema versioning
-- preset validation
-- fallback to default preset library
-- selected-part persistence per mob id
-
-## Placement and Editing Subsystems
+## Placement And Physics Subsystems
 
 ### Collision
 
-[furnitureCollision.ts](/Z:/FAHHHH/src/lib/furnitureCollision.ts) owns placement blocking.
+[../src/lib/furnitureCollision.ts](../src/lib/furnitureCollision.ts) owns placement blocking.
 
-It currently supports:
+It supports:
 
-- rotated floor footprint overlap
+- rotated floor-footprint overlap
 - player overlap blocking
 - rug exceptions
-- wall overlap on the same wall
-- surface decor overlap on the same host
+- same-wall wall overlap
+- same-host surface overlap
 
 ### Surface Decor
 
-[surfaceDecor.ts](/Z:/FAHHHH/src/lib/surfaceDecor.ts) owns tabletop/surface placement math.
+[../src/lib/surfaceDecor.ts](../src/lib/surfaceDecor.ts) owns surface decor placement math.
 
 It handles:
 
 - identifying valid hosts
 - converting world positions to host-local offsets
 - clamping decor within support-surface bounds
-- snapping decor to sub-block offsets
 - syncing anchored decor when hosts move or rotate
 
-### Interactions
+### Physics Helpers
 
-[furnitureInteractions.ts](/Z:/FAHHHH/src/lib/furnitureInteractions.ts) resolves interaction targets.
-
-It currently supports:
-
-- `sit`
-- `lie`
-- `use_pc`
-
-It also contains:
-
-- chair-zone detection for desks
-- multi-slot support for the bed
-- per-furniture pose offsets
+[../src/lib/physics.ts](../src/lib/physics.ts) contains shared physics math helpers used by pets and scene logic.
 
 ### Wall Openings
 
-[wallOpenings.ts](/Z:/FAHHHH/src/lib/wallOpenings.ts) is a pure geometry helper for segmented walls.
+[../src/lib/wallOpenings.ts](../src/lib/wallOpenings.ts) converts placed windows into segmented wall geometry data for all four walls.
 
-It converts placed window metadata into:
+## Rendering And Asset Stack
 
-- lower wall band
-- opening band
-- upper wall band
-- remaining middle wall segments
-- remaining rail segments
+### Room Assets
 
-This lets `RoomView` open the back and left walls around placed windows without hardcoding each opening in the shell.
+The room is built from:
 
-## Rendering and Visual Stack
-
-### Room Shell and Assets
-
-[RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) composes the visual world from:
-
-- procedural floor and room shell
-- wall segmentation
-- registry-driven furniture models
-- imported GLB/pack wrappers
-- window models
-- avatar model
-
-Key asset files:
-
-- [StarterFurnitureModels.tsx](/Z:/FAHHHH/src/components/StarterFurnitureModels.tsx)
-- [OfficePackModels.tsx](/Z:/FAHHHH/src/components/OfficePackModels.tsx)
-- [WallWindowModel.tsx](/Z:/FAHHHH/src/components/WallWindowModel.tsx)
-- [MinecraftPlayer.tsx](/Z:/FAHHHH/src/components/MinecraftPlayer.tsx)
+- [../src/components/room-view/RoomShell.tsx](../src/components/room-view/RoomShell.tsx)
+- [../src/components/room-view/FloorStage.tsx](../src/components/room-view/FloorStage.tsx)
+- [../src/components/room-view/FurnitureVisual.tsx](../src/components/room-view/FurnitureVisual.tsx)
+- [../src/components/MinecraftPlayer.tsx](../src/components/MinecraftPlayer.tsx)
+- model components such as `StarterFurnitureModels.tsx`, `OfficePackModels.tsx`, and `WallWindowModel.tsx`
 
 ### Imported Mob Rendering
 
-Mob Lab rendering is split across:
+Imported-mob rendering is split across:
 
-- [MobLabStage.tsx](/Z:/FAHHHH/src/components/mob-lab/MobLabStage.tsx)
-- [MobPreviewActor.tsx](/Z:/FAHHHH/src/components/mob-lab/MobPreviewActor.tsx)
-- [GlbMobPreviewActor.tsx](/Z:/FAHHHH/src/components/mob-lab/GlbMobPreviewActor.tsx)
+- [../src/components/mob-lab/ImportedMobActor.tsx](../src/components/mob-lab/ImportedMobActor.tsx)
+- [../src/components/mob-lab/MobPreviewActor.tsx](../src/components/mob-lab/MobPreviewActor.tsx)
+- [../src/components/mob-lab/CemMobPreviewActor.tsx](../src/components/mob-lab/CemMobPreviewActor.tsx)
+- [../src/components/mob-lab/GlbMobPreviewActor.tsx](../src/components/mob-lab/GlbMobPreviewActor.tsx)
 
-Current rendering model:
+Current model:
 
-- supported modes: `legacy_cem` (cuboid) and `high_fidelity_glb` (skeletal)
-- **Skeletal Cloning**: GLB models use `SkeletonUtils.clone` to support multiple simultaneous instances (Room vs Mob Lab)
-- **Procedural Overrides**: animation is applied from preset values plus role-based procedural logic and bone attachments (`attach()`)
-- **Mesh-Only Filtering**: dynamic visibility logic hides variant ghost geometry in CEM/GLB models
-- preview locomotion is deterministic and stage-local
+- `box` mode for simple cuboid rigs
+- `cem` mode for OptiFine/CEM-style trees
+- `glb` mode for skeletal imported models
+- GLB instances must be cloned for multi-instance safety
+- mesh filtering is required for hiding variant ghost geometry
 
-### Time-of-Day Lighting
+### Build-Time Chunking
 
-The scene no longer uses a simple mode enum like `day` or `night`.
+[../vite.config.js](../vite.config.js) manually separates:
 
-Instead:
+- `mob-lab`
+- `react-vendor`
+- `react-three-vendor`
+- `postprocessing-vendor`
+- `three-vendor`
+- `leva-vendor`
+- fallback `vendor`
 
-- `App.tsx` computes the active `worldTimeMinutes`
-- `RoomView.tsx` converts that into `lightingState`
-- `lightingState` drives:
-  - sun position
-  - moon position
-  - directional-light intensities
-  - wrapper-level backdrop gradient
-  - fog tint
-  - hemisphere colors
-  - exposure
-  - AO
-  - bloom
-  - vignette
-  - window day/night rendering cues
+This is now part of the architecture, not just incidental build config.
 
-This is the active world-lighting architecture and should be extended, not bypassed.
+## UI And Data Flow
 
-### Post-Processing
+### Furniture Edit Flow
 
-The current post stack in [RoomView.tsx](/Z:/FAHHHH/src/components/RoomView.tsx) uses:
-
-- N8AO
-- Bloom
-- Vignette
-- Hue/Saturation
-- Brightness/Contrast
-
-Tone mapping is ACES Filmic.
-
-Important current note:
-
-- this is the only active room render path right now
-- the visible blue sky background lives on the room wrapper behind a transparent canvas so post-processing cannot wash it out to white
-
-## UI and Flow Architecture
-
-### Gameplay / Builder Flow
-
-The gameplay/editor flow is:
-
-1. Buy or select an owned item in `App.tsx`.
-2. Create a spawn request tied to an owned furniture id.
-3. Hand the request to `RoomView.tsx`.
-4. `RoomView.tsx` creates a draft placement and lets the player edit it.
-5. Snapshot updates are sent back during editing.
-6. Confirmed placements are committed back to `roomState`.
-
-Important separation:
-
-- `liveFurniturePlacements` tracks in-progress scene state
-- `roomState.furniture` is the committed persisted layout
-
-This split keeps builder editing reversible and stable.
+1. `App.tsx` creates a spawn request or passes the current room placements into `RoomView.tsx`.
+2. `useRoomViewSpawn.ts` resolves an initial candidate placement.
+3. `useRoomFurnitureEditor.ts` owns the working placement state.
+4. `useRoomViewBuilderGestures.ts` updates the working placement during drag or pivot movement.
+5. `useRoomFurnitureEditor.ts` confirms, cancels, stores, or deselects the current edit session.
+6. `RoomView.tsx` reports committed placements back to `App.tsx`.
+7. `App.tsx` persists the next room state through `devLocalState.ts`.
 
 ### Imported-Mob Authoring Flow
 
-The current imported-mob flow is:
+1. Open Preview Studio in `mob_lab` mode.
+2. `FurniturePreviewStudio.tsx` hydrates `mobLabState.ts`.
+3. Stage and editor modules render the selected preset.
+4. Editing changes update browser-local Mob Lab state.
+5. Export JSON or promote a finished preset into runtime code intentionally.
 
-1. Create or extend an `ImportedMobPreset` in `mobLab.ts` or import one as JSON in the browser.
-2. Open Preview Studio in `Mob Lab` mode.
-3. Select the preset and edit rig, animation, locomotion, and collider settings live.
-4. Let `mobLabState.ts` persist working values in local storage.
-5. Export JSON if the tuned preset needs to be preserved or manually checked into the repo later.
+## Future Boundary
 
-Important boundary:
+The repo no longer carries an active Firebase/auth/pairing implementation as a parallel runtime path.
 
-- Preview Studio state is not part of `roomState`
-- Mob Lab persistence is separate from the sandbox save
-- imported mobs are not yet promoted into the live room runtime automatically
+Future shared-room work should:
 
-## Legacy / Future Boundary
-
-There is a second older/future-oriented data shape in the repo:
-
-- [types.ts](/Z:/FAHHHH/src/lib/types.ts)
-- [starterRoom.ts](/Z:/FAHHHH/src/lib/room/starterRoom.ts)
-- [firebase.ts](/Z:/FAHHHH/src/firebase.ts)
-- auth/pairing UI components
-
-These are useful groundwork for the eventual shared-room game, but they are not the active schema for the current sandbox runtime.
-
-Do not restore multiplayer by forcing the current sandbox back into those older shapes. The safer path is the opposite:
-
-- keep the current registry/room-state/builder model
-- map future shared-room persistence and syncing onto it
+- extend the current registry-driven room model
+- preserve `ownedFurniture`, pets, and sandbox progression concepts
+- add backend sync around confirmed room edits rather than replacing the local schema wholesale
 
 ## Important Constraints
 
 - Do not add furniture outside the registry.
 - Do not collapse `ownedFurniture` into placed furniture.
-- Do not break `anchorFurnitureId` + `surfaceLocalOffset` rules for surface decor.
-- Do not reintroduce hardcoded shell-only windows as the main system.
-- Do not replace the current world-clock lighting with ad hoc per-item lighting hacks.
-- Do not treat the legacy backend types as the active room-builder model.
-- Do not treat Mob Lab preview motion as gameplay AI.
-- Do not wire imported mobs into the room runtime unless the task explicitly calls for gameplay pet integration.
-- **Do not bypass GLTF cloning** for multi-instance models (required for scene stability).
-- **Do not remove Mesh-Only filters**; they are required to hide CEM variant ghost geometry.
+- Do not break `anchorFurnitureId` plus `surfaceLocalOffset`.
+- Do not regress four-wall wall support or wall-drag transitions.
+- Do not replace the world-clock lighting pipeline with ad hoc item-specific hacks.
+- Do not merge Mob Lab state into the room sandbox save.
+- Do not bypass GLB cloning or mesh filtering in imported-mob rendering.

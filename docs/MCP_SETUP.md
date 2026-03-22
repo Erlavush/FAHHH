@@ -11,7 +11,7 @@ This repo benefits most from a layered MCP stack instead of one all-purpose serv
 
 ### 1. Context7
 
-Use Context7 as the default docs source for library/API questions. It is the best fit for pulling current, version-aware docs and examples into AI context.
+Use Context7 as the default docs source for library and API questions.
 
 Resolve these libraries first for this repo:
 
@@ -22,8 +22,8 @@ Resolve these libraries first for this repo:
 - `postprocessing` (`^6.38.3`)
 - `react` (`^18.3.1`)
 - `vite` (`^6.0.1`)
+- `vitest` (`^3.0.5`)
 - `leva` (`^0.10.1`)
-- `firebase` (`^11.0.2`)
 
 Best use cases:
 
@@ -74,12 +74,6 @@ Best use cases:
 - material/shader inspection
 - camera/frustum debugging when browser tools are not enough
 
-Recommended stance:
-
-- install only after the baseline stack is working
-- use it for deep scene issues, not generic docs lookup
-- keep Chrome DevTools MCP as the primary runtime debugger
-
 ## Suggested MCP Config
 
 Adapt this to your MCP client's config format:
@@ -124,11 +118,11 @@ For this repo, the highest-signal default behavior is:
 
 Even with MCPs, the most important project-specific context should stay in this repo:
 
-- [llms.txt](/Z:/FAHHHH/llms.txt)
-- [AI_HANDOFF.md](/Z:/FAHHHH/docs/AI_HANDOFF.md)
-- [CODEBASE_MAP.md](/Z:/FAHHHH/docs/CODEBASE_MAP.md)
-- [CURRENT_SYSTEMS.md](/Z:/FAHHHH/docs/CURRENT_SYSTEMS.md)
-- [MOB_LAB.md](/Z:/FAHHHH/docs/MOB_LAB.md)
+- [../llms.txt](../llms.txt)
+- [AI_HANDOFF.md](AI_HANDOFF.md)
+- [CODEBASE_MAP.md](CODEBASE_MAP.md)
+- [CURRENT_SYSTEMS.md](CURRENT_SYSTEMS.md)
+- [MOB_LAB.md](MOB_LAB.md)
 
 This keeps AI tools grounded in the actual game architecture before they reach for upstream docs.
 

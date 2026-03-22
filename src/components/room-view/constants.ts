@@ -48,9 +48,17 @@ export const backWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
   new Vector3(0, 0, 1),
   new Vector3(0, 0, BACK_WALL_SURFACE_Z)
 );
+export const frontWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
+  new Vector3(0, 0, -1),
+  new Vector3(0, 0, FRONT_WALL_SURFACE_Z)
+);
 export const leftWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
   new Vector3(1, 0, 0),
   new Vector3(LEFT_WALL_SURFACE_X, 0, 0)
+);
+export const rightWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
+  new Vector3(-1, 0, 0),
+  new Vector3(RIGHT_WALL_SURFACE_X, 0, 0)
 );
 export const dragPlaneHitPoint = new Vector3();
 export const transformDragPosition = new Vector3();

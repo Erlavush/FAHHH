@@ -501,7 +501,9 @@ export function RoomView({
           }
           canSwapWall={
             selectedFurniture.surface === "wall_back" ||
-            selectedFurniture.surface === "wall_left"
+            selectedFurniture.surface === "wall_left" ||
+            selectedFurniture.surface === "wall_front" ||
+            selectedFurniture.surface === "wall_right"
           }
           canNudgeVertical={
             selectedFurniture.surface === "floor" ||
@@ -557,6 +559,10 @@ function getSelectedSurfaceLabel(
       return "Back wall";
     case "wall_left":
       return "Left wall";
+    case "wall_front":
+      return "Front wall";
+    case "wall_right":
+      return "Right wall";
     default:
       return "Furniture";
   }
