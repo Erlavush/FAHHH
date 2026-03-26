@@ -10,9 +10,11 @@ import { FurnitureInfoControl } from "./FurnitureInfoControl";
 import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
 
 type InventoryPanelProps = {
+  className?: string;
   playerCoins: number;
   walletLabel?: string;
   showPetCatalog?: boolean;
+  showAuthoringActions?: boolean;
   catalogSections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   storedInventorySections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   inventoryByType: Map<FurnitureType, InventoryStats>;
@@ -32,9 +34,11 @@ type InventoryPanelProps = {
 };
 
 export function InventoryPanel({
+  className,
   playerCoins,
   walletLabel = "Coins",
   showPetCatalog = true,
+  showAuthoringActions = true,
   catalogSections,
   storedInventorySections,
   inventoryByType,
@@ -53,7 +57,7 @@ export function InventoryPanel({
   onBuyPet
 }: InventoryPanelProps) {
   return (
-    <aside className="spawn-panel">
+    <aside className={className ? `spawn-panel ${className}` : "spawn-panel"}>
       <div className="spawn-panel__header">
         <span className="spawn-panel__title">Shared Inventory</span>
         <span className="spawn-panel__coins">{playerCoins} {walletLabel.toLowerCase()}</span>
@@ -75,13 +79,15 @@ export function InventoryPanel({
                   <div className="spawn-card__preview">
                     <div className="spawn-card__preview-fallback">
                       <span>Live Pet Test</span>
-                      <button
-                        className="spawn-card__preview-link"
-                        onClick={() => onOpenMobStudio(pet.presetId)}
-                        type="button"
-                      >
-                        Open Mob Lab
-                      </button>
+                      {showAuthoringActions ? (
+                        <button
+                          className="spawn-card__preview-link"
+                          onClick={() => onOpenMobStudio(pet.presetId)}
+                          type="button"
+                        >
+                          Open Mob Lab
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   <div className="spawn-card__content">
@@ -109,13 +115,15 @@ export function InventoryPanel({
                             ? `Adopt for ${pet.price}`
                             : `Need ${pet.price - playerCoins} more`}
                       </button>
-                      <button
-                        className="spawn-card__button spawn-card__button--secondary"
-                        onClick={() => onOpenMobStudio(pet.presetId)}
-                        type="button"
-                      >
-                        Preview
-                      </button>
+                      {showAuthoringActions ? (
+                        <button
+                          className="spawn-card__button spawn-card__button--secondary"
+                          onClick={() => onOpenMobStudio(pet.presetId)}
+                          type="button"
+                        >
+                          Preview
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -146,6 +154,7 @@ export function InventoryPanel({
                     return (
                       <div key={`stored-${entry.type}`} className="spawn-card">
                         <FurniturePreviewThumb
+                          authoringEnabled={showAuthoringActions}
                           label={entry.label}
                           onOpenStudio={() => onOpenStudio(entry.type)}
                           previewSrc={entry.shopPreviewSrc}
@@ -218,6 +227,7 @@ export function InventoryPanel({
               return (
                 <div key={entry.type} className="spawn-card">
                   <FurniturePreviewThumb
+                    authoringEnabled={showAuthoringActions}
                     label={entry.label}
                     onOpenStudio={() => onOpenStudio(entry.type)}
                     previewSrc={entry.shopPreviewSrc}

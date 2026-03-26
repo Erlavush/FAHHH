@@ -13,7 +13,7 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 - [x] **Phase 1: Shared Room Backbone** - Pair one couple to one room and make committed room state authoritative. Completed 2026-03-26.
 - [x] **Phase 2: Live Presence and Co-op Consistency** - Make the room visibly shared and keep concurrent editing predictable. Completed 2026-03-27.
 - [x] **Phase 3: Shared Progression and Ritual Loop** - Add personal progression, shared streak, and one daily reason to return. Completed 2026-03-27.
-- [ ] **Phase 3.1: UI Overhaul and Developer-Player View Split** (INSERTED) - Separate developer-only tooling from the shipped player shell and rebuild the room UI hierarchy.
+- [x] **Phase 3.1: UI Overhaul and Developer-Player View Split** (INSERTED) - Separate developer-only tooling from the shipped player shell and rebuild the room UI hierarchy. Completed 2026-03-27.
 - [ ] **Phase 4: Memories, Pets, and Breakup Stakes** - Finish the emotional fantasy with personalization and meaningful loss.
 
 ## Phase Details
@@ -82,9 +82,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03.1-01: Define the player-shell information architecture and developer/player mode split boundaries
-- [ ] 03.1-02: Rebuild the player-facing HUD, status surfaces, and action layout with clear visual hierarchy
-- [ ] 03.1-03: Reorganize developer tooling access and preview/workbench entry points for faster iteration
+- [x] 03.1-01: Define the player-shell information architecture and developer/player mode split boundaries
+- [x] 03.1-02: Rebuild the player-facing HUD, status surfaces, and action layout with clear visual hierarchy
+- [x] 03.1-03: Reorganize developer tooling access and preview/workbench entry points for faster iteration
 
 ### Phase 4: Memories, Pets, and Breakup Stakes
 **Goal**: Complete the product fantasy with shared memories, a curated shared-room pet path, and the high-stakes reset loop.
@@ -113,5 +113,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 1. Shared Room Backbone | 3/3 | Complete | 2026-03-26 |
 | 2. Live Presence and Co-op Consistency | 3/3 | Complete | 2026-03-27 |
 | 3. Shared Progression and Ritual Loop | 3/3 | Complete | 2026-03-27 |
-| 3.1. UI Overhaul and Developer-Player View Split | 0/3 | Not started | - |
+| 3.1. UI Overhaul and Developer-Player View Split | 3/3 | Complete | 2026-03-27 |
 | 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |

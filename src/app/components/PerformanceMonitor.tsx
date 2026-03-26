@@ -27,34 +27,15 @@ export function PerformanceMonitor() {
   }, []);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: "20px",
-        left: "20px",
-        background: "rgba(0, 0, 0, 0.5)",
-        color: "#00ff00",
-        padding: "4px 8px",
-        borderRadius: "4px",
-        fontFamily: "monospace",
-        fontSize: "12px",
-        pointerEvents: "none",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-        border: "1px solid rgba(0, 255, 0, 0.2)"
-      }}
-    >
+    <div className="performance-monitor">
       <div
-        style={{
-          width: "6px",
-          height: "6px",
-          borderRadius: "50%",
-          background: fps > 50 ? "#00ff00" : fps > 30 ? "#ffff00" : "#ff0000",
-          boxShadow: `0 0 4px ${fps > 50 ? "#00ff00" : fps > 30 ? "#ffff00" : "#ff0000"}`
-        }}
+        className={`performance-monitor__dot ${
+          fps > 50
+            ? "performance-monitor__dot--good"
+            : fps > 30
+              ? "performance-monitor__dot--warn"
+              : "performance-monitor__dot--bad"
+        }`}
       />
       <span>{fps} FPS</span>
     </div>

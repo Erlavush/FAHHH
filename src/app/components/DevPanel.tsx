@@ -40,6 +40,7 @@ type AxisCardProps = {
 };
 
 export type DevPanelProps = {
+  className?: string;
   visible: boolean;
   buildModeEnabled: boolean;
   catalogOpen: boolean;
@@ -343,6 +344,7 @@ function CameraGroup({
 }
 
 export function DevPanel({
+  className,
   visible,
   buildModeEnabled,
   catalogOpen,
@@ -422,7 +424,7 @@ export function DevPanel({
   }
 
   return (
-    <aside className="dev-panel">
+    <aside className={className ? `dev-panel ${className}` : "dev-panel"}>
       <div className="dev-panel__header">DEV PANEL</div>
 
       <Section

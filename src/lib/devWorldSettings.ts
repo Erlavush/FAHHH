@@ -1,4 +1,8 @@
-import type { PreviewStudioMode } from "../app/types";
+import type {
+  AppShellViewMode,
+  DeveloperWorkspaceTab,
+  PreviewStudioMode
+} from "../app/types";
 import {
   FURNITURE_REGISTRY,
   type FurnitureType
@@ -41,6 +45,9 @@ export interface PersistedWorldSettings {
   showCollisionDebug?: boolean;
   showPlayerCollider?: boolean;
   showInteractionMarkers?: boolean;
+  shellViewMode?: AppShellViewMode;
+  developerWorkspaceTab?: DeveloperWorkspaceTab;
+  playerCompanionCardExpanded?: boolean;
 }
 
 function canUseLocalStorage(): boolean {
@@ -61,6 +68,21 @@ function sanitizeNumber(value: unknown): number | undefined {
 
 function sanitizePreviewStudioMode(value: unknown): PreviewStudioMode | undefined {
   return value === "furniture" || value === "mob_lab" ? value : undefined;
+}
+
+function sanitizeShellViewMode(value: unknown): AppShellViewMode | undefined {
+  return value === "player" || value === "developer" ? value : undefined;
+}
+
+function sanitizeDeveloperWorkspaceTab(value: unknown): DeveloperWorkspaceTab | undefined {
+  return value === "room" ||
+    value === "inventory" ||
+    value === "preview_studio" ||
+    value === "mob_lab" ||
+    value === "world" ||
+    value === "session"
+    ? value
+    : undefined;
 }
 
 function sanitizeFurnitureType(value: unknown): FurnitureType | undefined {
@@ -112,7 +134,10 @@ function sanitizeWorldSettings(value: unknown): PersistedWorldSettings {
     devPanelActionsCollapsed: sanitizeBoolean(source.devPanelActionsCollapsed),
     showCollisionDebug: sanitizeBoolean(source.showCollisionDebug),
     showPlayerCollider: sanitizeBoolean(source.showPlayerCollider),
-    showInteractionMarkers: sanitizeBoolean(source.showInteractionMarkers)
+    showInteractionMarkers: sanitizeBoolean(source.showInteractionMarkers),
+    shellViewMode: sanitizeShellViewMode(source.shellViewMode),
+    developerWorkspaceTab: sanitizeDeveloperWorkspaceTab(source.developerWorkspaceTab),
+    playerCompanionCardExpanded: sanitizeBoolean(source.playerCompanionCardExpanded)
   };
 }
 

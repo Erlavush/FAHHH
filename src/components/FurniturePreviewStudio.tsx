@@ -53,6 +53,7 @@ type PreviewBackdropMode = "green" | "black" | "white";
 type FurniturePreviewStudioProps = {
   catalogSections: Array<[FurnitureCatalogCategory, FurnitureDefinition[]]>;
   mode: PreviewStudioMode;
+  presentation?: "overlay" | "workspace";
   selectedType: FurnitureType;
   selectedMobId: string;
   onModeChange: (mode: PreviewStudioMode) => void;
@@ -298,6 +299,7 @@ function tryParseImportedMobPreset(rawText: string): ImportedMobPreset | null {
 export function FurniturePreviewStudio({
   catalogSections,
   mode,
+  presentation = "overlay",
   selectedType,
   selectedMobId,
   onModeChange,
@@ -571,7 +573,13 @@ export function FurniturePreviewStudio({
   }
 
   return (
-    <div className="preview-studio" role="dialog" aria-label="Preview studio">
+    <div
+      className={`preview-studio${
+        presentation === "workspace" ? " preview-studio--workspace" : ""
+      }`}
+      role={presentation === "workspace" ? "region" : "dialog"}
+      aria-label="Preview studio"
+    >
       <input
         ref={importInputRef}
         type="file"

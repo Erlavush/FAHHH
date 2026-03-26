@@ -10,6 +10,16 @@ import type { OwnedFurnitureItem, Vector3Tuple } from "../lib/roomState";
 
 export type PreviewStudioMode = "furniture" | "mob_lab";
 
+export type AppShellViewMode = "player" | "developer";
+
+export type DeveloperWorkspaceTab =
+  | "room"
+  | "inventory"
+  | "preview_studio"
+  | "mob_lab"
+  | "world"
+  | "session";
+
 export type FurnitureSpawnRequest = {
   requestId: number;
   type: FurnitureType;

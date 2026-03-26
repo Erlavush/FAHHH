@@ -43,14 +43,34 @@ import {
 } from "./lib/pets";
 import { pickPetSpawnPosition } from "./lib/petPathing";
 import { DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION } from "./app/constants";
-import { InventoryPanel } from "./app/components/InventoryPanel";
+import { DeveloperSessionPanel } from "./app/components/DeveloperSessionPanel";
+import { DeveloperWorkspaceHeader } from "./app/components/DeveloperWorkspaceHeader";
+import { DeveloperWorkspaceRail } from "./app/components/DeveloperWorkspaceRail";
+import { DeveloperWorkspaceShell } from "./app/components/DeveloperWorkspaceShell";
 import { DevPanel } from "./app/components/DevPanel";
-import { SceneToolbar } from "./app/components/SceneToolbar";
+import { InventoryPanel } from "./app/components/InventoryPanel";
+import { PerformanceMonitor } from "./app/components/PerformanceMonitor";
+import { PlayerActionDock } from "./app/components/PlayerActionDock";
+import { PlayerClockChip } from "./app/components/PlayerClockChip";
+import { PlayerCompanionCard } from "./app/components/PlayerCompanionCard";
+import { PlayerProgressStack } from "./app/components/PlayerProgressStack";
+import { PlayerRoomDetailsSheet } from "./app/components/PlayerRoomDetailsSheet";
+import { PlayerRoomShell } from "./app/components/PlayerRoomShell";
 import { SharedRoomEntryShell } from "./app/components/SharedRoomEntryShell";
-import { SharedRoomStatusStrip } from "./app/components/SharedRoomStatusStrip";
 import { SharedRoomBlockingOverlay } from "./app/components/SharedRoomBlockingOverlay";
+import { ViewModeSwitch } from "./app/components/ViewModeSwitch";
 import { useFurnitureInfoPopover } from "./app/hooks/useFurnitureInfoPopover";
 import { useSharedRoomPresence } from "./app/hooks/useSharedRoomPresence";
+import {
+  getDefaultShellViewMode,
+  getDeveloperQuickActions,
+  getDeveloperSessionPanelState,
+  getDeveloperWorkspaceTabState,
+  getPlayerActionDockState,
+  getPlayerCompanionCardState,
+  getPlayerRoomDetailsState,
+  isDeveloperSurfaceVisible
+} from "./app/shellViewModel";
 import {
   shouldCommitSharedRoomChange,
   useSharedRoomRuntime
@@ -59,6 +79,8 @@ import { useSandboxInventory } from "./app/hooks/useSandboxInventory";
 import { useSkinImport } from "./app/hooks/useSkinImport";
 import { useSandboxWorldClock } from "./app/hooks/useSandboxWorldClock";
 import type {
+  AppShellViewMode,
+  DeveloperWorkspaceTab,
   FurnitureSpawnRequest,
   LocalPlayerPresenceSnapshot,
   PlayerInteractionStatus,
@@ -66,7 +88,6 @@ import type {
   SceneJumpRequest
 } from "./app/types";
 import { ROOM_CAMERA_TARGET } from "./lib/sceneTargets";
-import { PerformanceMonitor } from "./app/components/PerformanceMonitor";
 import {
   loadPersistedWorldSettings,
   savePersistedWorldSettings
@@ -122,6 +143,7 @@ function toPcMinigameProgress(
 }
 
 function App() {
+  const isDev = import.meta.env.DEV;
   const initialSandboxState = useMemo(
     () =>
       loadPersistedSandboxState(
@@ -132,6 +154,16 @@ function App() {
     []
   );
   const initialWorldSettings = useMemo(() => loadPersistedWorldSettings(), []);
+  const [shellViewMode, setShellViewMode] = useState<AppShellViewMode>(() =>
+    getDefaultShellViewMode(isDev, initialWorldSettings.shellViewMode)
+  );
+  const [developerWorkspaceTab, setDeveloperWorkspaceTab] = useState<DeveloperWorkspaceTab>(
+    initialWorldSettings.developerWorkspaceTab ?? "room"
+  );
+  const [playerCompanionCardExpanded, setPlayerCompanionCardExpanded] = useState(
+    initialWorldSettings.playerCompanionCardExpanded ?? false
+  );
+  const [playerRoomDetailsOpen, setPlayerRoomDetailsOpen] = useState(false);
   const [buildModeEnabled, setBuildModeEnabled] = useState(
     initialWorldSettings.buildModeEnabled ?? false
   );
@@ -371,6 +403,9 @@ function App() {
 
   useEffect(() => {
     savePersistedWorldSettings({
+      shellViewMode: isDev ? shellViewMode : "player",
+      developerWorkspaceTab,
+      playerCompanionCardExpanded,
       buildModeEnabled,
       catalogOpen,
       gridSnapEnabled,
@@ -394,6 +429,7 @@ function App() {
   }, [
     buildModeEnabled,
     catalogOpen,
+    developerWorkspaceTab,
     debugOpen,
     devPanelActionsCollapsed,
     devPanelBuildSettingsCollapsed,
@@ -408,9 +444,12 @@ function App() {
     previewStudioOpen,
     previewStudioSelectedMobId,
     previewStudioSelectedType,
+    playerCompanionCardExpanded,
+    shellViewMode,
     showCollisionDebug,
     showInteractionMarkers,
-    showPlayerCollider
+    showPlayerCollider,
+    isDev
   ]);
 
   useEffect(() => {
@@ -484,14 +523,40 @@ function App() {
     setPreviewStudioMode("furniture");
     setPreviewStudioSelectedType(type);
     setPreviewStudioOpen(true);
+    setDeveloperWorkspaceTab("preview_studio");
+    if (isDev) {
+      setShellViewMode("developer");
+    }
     setCatalogOpen(false);
-  }, []);
+  }, [isDev]);
 
   const openMobPreviewStudio = useCallback((mobId: string) => {
     setPreviewStudioMode("mob_lab");
     setPreviewStudioSelectedMobId(mobId);
     setPreviewStudioOpen(true);
+    setDeveloperWorkspaceTab("mob_lab");
+    if (isDev) {
+      setShellViewMode("developer");
+    }
     setCatalogOpen(false);
+  }, [isDev]);
+
+  const handleSelectDeveloperWorkspaceTab = useCallback((nextTab: DeveloperWorkspaceTab) => {
+    setDeveloperWorkspaceTab(nextTab);
+
+    if (nextTab === "preview_studio") {
+      setPreviewStudioMode("furniture");
+      setPreviewStudioOpen(true);
+      return;
+    }
+
+    if (nextTab === "mob_lab") {
+      setPreviewStudioMode("mob_lab");
+      setPreviewStudioOpen(true);
+      return;
+    }
+
+    setPreviewStudioOpen(false);
   }, []);
 
   function commitPlayerCoins(nextCoins: number): void {
@@ -948,6 +1013,93 @@ function App() {
     setCameraResetToken((current) => current + 1);
   }
 
+  const hasUncommittedRoomEdits =
+    pendingSpawnOwnedFurnitureIds.length > 0 ||
+    !placementListsMatch(liveFurniturePlacements, roomState.furniture);
+
+  const handleRefreshRoomState = useCallback(() => {
+    if (
+      sharedRoomActive &&
+      hasUncommittedRoomEdits &&
+      !window.confirm("Discard your unconfirmed changes and load the latest shared room?")
+    ) {
+      return;
+    }
+
+    void sharedRoomRuntime.reloadRoom();
+  }, [hasUncommittedRoomEdits, sharedRoomActive, sharedRoomRuntime]);
+
+  const handleResetSandboxWithConfirmation = useCallback(() => {
+    if (
+      isDev &&
+      !window.confirm(
+        "Reset the local sandbox and developer workspace state? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    handleResetSandbox();
+  }, [isDev, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.revision]);
+
+  const handlePlayerRoomDetailsAction = useCallback(
+    (actionId: "copy_invite" | "refresh_room_state" | "toggle_grid_snap" | "import_skin") => {
+      switch (actionId) {
+        case "refresh_room_state":
+          handleRefreshRoomState();
+          return;
+        case "toggle_grid_snap":
+          setGridSnapEnabled((current) => !current);
+          return;
+        case "import_skin":
+          handleSkinImport();
+          return;
+        case "copy_invite":
+        default:
+          return;
+      }
+    },
+    [handleRefreshRoomState, handleSkinImport]
+  );
+
+  const handlePlayerDockAction = useCallback(
+    (actionId: "build" | "inventory" | "interaction") => {
+      switch (actionId) {
+        case "build":
+          handleToggleBuildMode();
+          return;
+        case "inventory":
+          handleToggleCatalog();
+          return;
+        case "interaction":
+          setStandRequestToken((current) => current + 1);
+          return;
+        default:
+          return;
+      }
+    },
+    [handleToggleBuildMode, handleToggleCatalog]
+  );
+
+  const handleDeveloperQuickAction = useCallback(
+    (actionId: "refresh_room_state" | "reset_camera" | "reset_sandbox") => {
+      switch (actionId) {
+        case "refresh_room_state":
+          handleRefreshRoomState();
+          return;
+        case "reset_camera":
+          handleResetCamera();
+          return;
+        case "reset_sandbox":
+          handleResetSandboxWithConfirmation();
+          return;
+        default:
+          return;
+      }
+    },
+    [handleRefreshRoomState, handleResetSandboxWithConfirmation]
+  );
+
   const levaTheme = useMemo(
     () => ({
       colors: {
@@ -1029,6 +1181,189 @@ function App() {
     playerInteractionStatus?.phase === "active" &&
     playerInteractionStatus.interactionType === "use_pc";
 
+  const effectiveShellViewMode: AppShellViewMode = isDev ? shellViewMode : "player";
+  const developerSurfaceVisible = isDeveloperSurfaceVisible(effectiveShellViewMode, isDev);
+  const inviteCode = sharedRoomRuntime.roomDocument?.inviteCode ?? "";
+  const memberCount = sharedRoomRuntime.roomDocument?.memberIds.length ?? 0;
+  const roomId = sharedRoomRuntime.roomDocument?.roomId ?? null;
+  const developerWorkspaceTabs = getDeveloperWorkspaceTabState(developerWorkspaceTab);
+  const activeDeveloperTab =
+    developerWorkspaceTabs.find((tab) => tab.isActive) ?? developerWorkspaceTabs[0];
+  const playerCompanionCardState = getPlayerCompanionCardState({
+    inviteCode,
+    memberCount,
+    presenceStatus: sharedRoomPresence.presenceStatus,
+    ritualStatus,
+    showInviteCode: !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null,
+    statusMessage: sharedRoomRuntime.statusMessage
+  });
+  const playerActionDockState = getPlayerActionDockState({
+    buildModeEnabled,
+    catalogOpen,
+    playerInteractionStatus
+  });
+  const playerRoomDetailsState = getPlayerRoomDetailsState({
+    gridSnapEnabled,
+    inviteCode,
+    memberCount,
+    roomId,
+    sharedRoomActive
+  });
+  const developerQuickActions = getDeveloperQuickActions(sharedRoomActive);
+  const developerSessionPanelState = getDeveloperSessionPanelState({
+    inviteCode: inviteCode || null,
+    memberCount,
+    presenceStatus: sharedRoomPresence.presenceStatus,
+    roomId,
+    statusMessage: sharedRoomRuntime.statusMessage
+  });
+
+  const sharedRoomOverlayNode = (
+    <>
+      {!sharedRoomActive &&
+      !sharedRoomRuntime.blockingState &&
+      !sharedRoomRuntime.devBypassActive ? (
+        <SharedRoomEntryShell
+          displayName={sharedRoomRuntime.displayName}
+          errorMessage={sharedRoomRuntime.inlineError}
+          onCreateRoom={() => {
+            void sharedRoomRuntime.createRoom(roomStateRef.current, playerCoinsRef.current);
+          }}
+          onDisplayNameChange={sharedRoomRuntime.setDisplayName}
+          onJoinRoom={(code) => {
+            void sharedRoomRuntime.joinRoom(code);
+          }}
+        />
+      ) : null}
+
+      {sharedRoomRuntime.blockingState ? (
+        <SharedRoomBlockingOverlay
+          body={sharedRoomRuntime.blockingState.body}
+          onRetry={
+            sharedRoomRuntime.blockingState.retryable
+              ? () => {
+                  handleRefreshRoomState();
+                }
+              : null
+          }
+          title={sharedRoomRuntime.blockingState.title}
+        />
+      ) : null}
+    </>
+  );
+
+  const roomStageNode = (
+    <Suspense fallback={<div className="canvas-fallback">Loading scene...</div>}>
+      <RoomView
+        acquireEditLock={sharedRoomPresence.acquireEditLock}
+        buildModeEnabled={buildModeEnabled}
+        gridSnapEnabled={gridSnapEnabled}
+        spawnRequest={spawnRequest}
+        cameraResetToken={cameraResetToken}
+        standRequestToken={standRequestToken}
+        initialCameraPosition={cameraPosition}
+        initialPlayerPosition={playerPosition}
+        initialFurniturePlacements={roomState.furniture}
+        pets={ownedPets}
+        skinSrc={skinSrc}
+        localLockedFurnitureIds={sharedRoomPresence.localEditLockIds}
+        onSharedEditConflict={() => {
+          void sharedRoomRuntime.recoverFromStaleSharedEdit();
+        }}
+        worldTimeMinutes={worldTimeMinutes}
+        sunEnabled={sunEnabled}
+        shadowsEnabled={shadowsEnabled}
+        fogEnabled={fogEnabled}
+        fogDensity={fogDensity}
+        ambientMultiplier={ambientMultiplier}
+        sunIntensityMultiplier={sunIntensityMultiplier}
+        brightness={brightness}
+        saturation={saturation}
+        contrast={contrast}
+        showCollisionDebug={showCollisionDebug}
+        showPlayerCollider={showPlayerCollider}
+        showInteractionMarkers={showInteractionMarkers}
+        onCameraPositionChange={handleCameraPositionChange}
+        onLocalPresenceChange={setLocalPresenceSnapshot}
+        onPlayerPositionChange={handlePlayerPositionChange}
+        onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
+        onCommittedFurnitureChange={handleCommittedFurnitureChange}
+        onInteractionStateChange={setPlayerInteractionStatus}
+        partnerLockedFurnitureIds={sharedRoomPresence.partnerEditLockIds}
+        releaseEditLock={sharedRoomPresence.releaseEditLock}
+        remotePresence={sharedRoomPresence.remotePresence}
+        renewEditLock={sharedRoomPresence.renewEditLock}
+        sceneJumpRequest={sceneJumpRequest}
+      />
+    </Suspense>
+  );
+
+  const previewStudioNode = (
+    <Suspense fallback={<div className="preview-studio preview-studio--loading">Loading preview studio...</div>}>
+      <FurniturePreviewStudio
+        catalogSections={catalogSections}
+        mode={previewStudioMode}
+        onClose={() => {
+          setPreviewStudioOpen(false);
+          setDeveloperWorkspaceTab("room");
+        }}
+        onModeChange={(nextMode) => {
+          setPreviewStudioMode(nextMode);
+          setPreviewStudioOpen(true);
+          setDeveloperWorkspaceTab(nextMode === "mob_lab" ? "mob_lab" : "preview_studio");
+        }}
+        onSelectMobChange={setPreviewStudioSelectedMobId}
+        onSelectTypeChange={setPreviewStudioSelectedType}
+        presentation="workspace"
+        selectedMobId={previewStudioSelectedMobId}
+        selectedType={previewStudioSelectedType}
+      />
+    </Suspense>
+  );
+
+  const inventoryPanelNode = (
+    <InventoryPanel
+      catalogSections={catalogSections}
+      className={
+        developerSurfaceVisible ? "spawn-panel--developer-workspace" : "spawn-panel--player-drawer"
+      }
+      hoverPreviewEnabled={hoverPreviewEnabled}
+      inventoryByType={inventoryByType}
+      onBuyFurniture={handleBuyFurniture}
+      onBuyPet={handleBuyPet}
+      onCloseFurnitureInfo={handleCloseFurnitureInfo}
+      onOpenFurnitureInfo={handleOpenFurnitureInfo}
+      onOpenMobStudio={openMobPreviewStudio}
+      onOpenStudio={openPreviewStudio}
+      onPlaceStoredFurniture={handlePlaceStoredFurniture}
+      onSellStoredFurniture={handleSellStoredFurniture}
+      onToggleFurnitureInfo={handleToggleFurnitureInfo}
+      openFurnitureInfoKey={openFurnitureInfoKey}
+      ownedPetTypes={ownedPetTypes}
+      petCatalogEntries={petCatalogEntries}
+      playerCoins={displayedPlayerCoins}
+      showAuthoringActions={developerSurfaceVisible}
+      showPetCatalog={!sharedRoomActive}
+      walletLabel={walletLabel}
+      storedInventorySections={storedInventorySections}
+    />
+  );
+
+  let developerStageNode = roomStageNode;
+
+  if (developerWorkspaceTab === "inventory") {
+    developerStageNode = (
+      <div className="developer-workspace-shell__panel-stage">{inventoryPanelNode}</div>
+    );
+  } else if (
+    developerWorkspaceTab === "preview_studio" ||
+    developerWorkspaceTab === "mob_lab"
+  ) {
+    developerStageNode = (
+      <div className="developer-workspace-shell__panel-stage">{previewStudioNode}</div>
+    );
+  }
+
   return (
     <>
       <Leva
@@ -1043,186 +1378,51 @@ function App() {
         hideCopyButton
       />
       <div className="scene-shell">
-        <PerformanceMonitor />
-        {sharedRoomActive ? (
-          <>
-            <SharedRoomStatusStrip
-              inviteCode={sharedRoomRuntime.roomDocument?.inviteCode ?? ""}
-              memberCount={sharedRoomRuntime.roomDocument?.memberIds.length ?? 0}
-              onReloadLatest={() => {
-                void sharedRoomRuntime.reloadRoom();
-              }}
-              presenceStatus={sharedRoomPresence.presenceStatus}
-              ritualStatus={ritualStatus}
-              roomId={sharedRoomRuntime.roomDocument?.roomId ?? ""}
-              showInviteCard={
-                !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null
-              }
-              showRoomIdentity={!sharedRoomRuntime.devBypassActive}
-              statusMessage={sharedRoomRuntime.statusMessage}
-            />
-            <DevPanel
-              visible={debugOpen}
-              buildModeEnabled={buildModeEnabled}
-              catalogOpen={catalogOpen}
-              gridSnapEnabled={gridSnapEnabled}
-              buildSettingsCollapsed={devPanelBuildSettingsCollapsed}
-              playerStateCollapsed={devPanelPlayerStateCollapsed}
-              playerCoordinatesCollapsed={devPanelPlayerCoordinatesCollapsed}
-              cameraPropertiesCollapsed={devPanelCameraPropertiesCollapsed}
-              worldSettingsCollapsed={devPanelWorldSettingsCollapsed}
-              lightingFxCollapsed={devPanelLightingFxCollapsed}
-              collisionDebugCollapsed={devPanelCollisionDebugCollapsed}
-              actionsCollapsed={devPanelActionsCollapsed}
-              playerCoins={displayedPlayerCoins}
-              playerInteractionLabel={playerInteractionStatus?.label ?? "None"}
-              playerPosition={playerPosition}
-              cameraPosition={cameraPosition}
-              cameraTarget={ROOM_CAMERA_TARGET}
-              worldTimeLabel={worldTimeLabel}
-              useMinecraftTime={useMinecraftTime}
-              minecraftTimeHours={minecraftTimeHours}
-              timeLocked={timeLocked}
-              lockedTimeHours={lockedTimeHours}
-              sunEnabled={sunEnabled}
-              shadowsEnabled={shadowsEnabled}
-              fogEnabled={fogEnabled}
-              fogDensity={fogDensity}
-              ambientMultiplier={ambientMultiplier}
-              sunIntensityMultiplier={sunIntensityMultiplier}
-              brightness={brightness}
-              saturation={saturation}
-              contrast={contrast}
-              showCollisionDebug={showCollisionDebug}
-              showPlayerCollider={showPlayerCollider}
-              showInteractionMarkers={showInteractionMarkers}
-              onToggleBuildMode={handleToggleBuildMode}
-              onToggleCatalog={handleToggleCatalog}
-              onToggleGridSnap={() => setGridSnapEnabled((current) => !current)}
-              onBuildSettingsCollapsedChange={setDevPanelBuildSettingsCollapsed}
-              onPlayerStateCollapsedChange={setDevPanelPlayerStateCollapsed}
-              onPlayerCoordinatesCollapsedChange={setDevPanelPlayerCoordinatesCollapsed}
-              onCameraPropertiesCollapsedChange={setDevPanelCameraPropertiesCollapsed}
-              onWorldSettingsCollapsedChange={setDevPanelWorldSettingsCollapsed}
-              onLightingFxCollapsedChange={setDevPanelLightingFxCollapsed}
-              onCollisionDebugCollapsedChange={setDevPanelCollisionDebugCollapsed}
-              onActionsCollapsedChange={setDevPanelActionsCollapsed}
-              onPlayerCoinsCommit={commitPlayerCoins}
-              onPlayerAxisCommit={commitPlayerAxis}
-              onCameraAxisCommit={commitCameraAxis}
-              onApplyTransforms={applyTransformChanges}
-              onResetCamera={handleResetCamera}
-              onResetSandbox={handleResetSandbox}
-              onUseMinecraftTimeChange={setUseMinecraftTime}
-              onMinecraftTimeHoursCommit={setMinecraftTimeHours}
-              onTimeLockedChange={setTimeLockedEnabled}
-              onLockedTimeHoursCommit={setLockedTimeHours}
-              onSyncLockedTime={syncLockedTimeToLocalTime}
-              onSunEnabledChange={setSunEnabled}
-              onShadowsEnabledChange={setShadowsEnabled}
-              onFogEnabledChange={setFogEnabled}
-              onFogDensityCommit={setFogDensity}
-              onAmbientMultiplierCommit={setAmbientMultiplier}
-              onSunIntensityMultiplierCommit={setSunIntensityMultiplier}
-              onBrightnessCommit={setBrightness}
-              onSaturationCommit={setSaturation}
-              onContrastCommit={setContrast}
-              onShowCollisionDebugChange={setShowCollisionDebug}
-              onShowPlayerColliderChange={setShowPlayerCollider}
-              onShowInteractionMarkersChange={setShowInteractionMarkers}
-            />
-            <SceneToolbar
-              buildModeEnabled={buildModeEnabled}
-              catalogOpen={catalogOpen}
-              debugOpen={debugOpen}
-              gridSnapEnabled={gridSnapEnabled}
-              onImportSkin={handleSkinImport}
-              onResetCamera={handleResetCamera}
-              onResetRoom={handleResetSandbox}
-              onStandRequest={() => setStandRequestToken((current) => current + 1)}
-              onToggleBuildMode={handleToggleBuildMode}
-              onToggleCatalog={handleToggleCatalog}
-              onToggleDebug={() => setDebugOpen((current) => !current)}
-              onToggleGridSnap={() => setGridSnapEnabled((current) => !current)}
-              onTogglePreviewStudio={() => setPreviewStudioOpen((current) => !current)}
-              playerCoins={displayedPlayerCoins}
-              playerInteractionStatus={playerInteractionStatus}
-              playerLevel={playerLevel}
-              playerXp={playerXp}
-              playerXpNextLevel={playerXpNextLevel}
-              previewStudioOpen={previewStudioOpen}
-              timeLocked={timeLocked}
-              walletLabel={walletLabel}
-              worldTimeLabel={worldTimeLabel}
-            />
-
-            {catalogOpen ? (
-          <InventoryPanel
-            catalogSections={catalogSections}
-            hoverPreviewEnabled={hoverPreviewEnabled}
-            inventoryByType={inventoryByType}
-            onBuyFurniture={handleBuyFurniture}
-            onBuyPet={handleBuyPet}
-            onCloseFurnitureInfo={handleCloseFurnitureInfo}
-            onOpenFurnitureInfo={handleOpenFurnitureInfo}
-            onOpenMobStudio={openMobPreviewStudio}
-            onOpenStudio={openPreviewStudio}
-            onPlaceStoredFurniture={handlePlaceStoredFurniture}
-            onSellStoredFurniture={handleSellStoredFurniture}
-            onToggleFurnitureInfo={handleToggleFurnitureInfo}
-            openFurnitureInfoKey={openFurnitureInfoKey}
-            ownedPetTypes={ownedPetTypes}
-            petCatalogEntries={petCatalogEntries}
-            playerCoins={displayedPlayerCoins}
-            showPetCatalog={!sharedRoomActive}
-            walletLabel={walletLabel}
-            storedInventorySections={storedInventorySections}
-          />
-            ) : null}
-
-            {previewStudioOpen ? (
-          <Suspense fallback={<div className="preview-studio preview-studio--loading">Loading preview studio...</div>}>
-            <FurniturePreviewStudio
-              catalogSections={catalogSections}
-              mode={previewStudioMode}
-              onClose={() => setPreviewStudioOpen(false)}
-              onModeChange={setPreviewStudioMode}
-              onSelectMobChange={setPreviewStudioSelectedMobId}
-              onSelectTypeChange={setPreviewStudioSelectedType}
-              selectedMobId={previewStudioSelectedMobId}
-              selectedType={previewStudioSelectedType}
-            />
-          </Suspense>
-            ) : null}
-
-            {skinError ? <div className="scene-note">{skinError}</div> : null}
-
-            <input
-              ref={skinInputRef}
-              type="file"
-              accept=".png,image/png"
-              className="hidden-input"
-              onChange={handleSkinFileChange}
-            />
-
-            <Suspense fallback={<div className="canvas-fallback">Loading scene...</div>}>
-              <RoomView
-                acquireEditLock={sharedRoomPresence.acquireEditLock}
+        {developerSurfaceVisible ? (
+          <DeveloperWorkspaceShell
+            header={
+              <DeveloperWorkspaceHeader
+                activeTabLabel={activeDeveloperTab.label}
+                inspectorVisible={debugOpen}
+                modeSwitch={
+                  isDev ? (
+                    <ViewModeSwitch
+                      onChange={setShellViewMode}
+                      value={effectiveShellViewMode}
+                    />
+                  ) : null
+                }
+                onQuickAction={handleDeveloperQuickAction}
+                onToggleInspector={() => setDebugOpen((current) => !current)}
+                quickActions={developerQuickActions}
+                roomId={roomId}
+              />
+            }
+            inspector={
+              <DevPanel
+                className="dev-panel--workspace"
+                visible={debugOpen}
                 buildModeEnabled={buildModeEnabled}
+                catalogOpen={catalogOpen}
                 gridSnapEnabled={gridSnapEnabled}
-                spawnRequest={spawnRequest}
-                cameraResetToken={cameraResetToken}
-                standRequestToken={standRequestToken}
-                initialCameraPosition={cameraPosition}
-                initialPlayerPosition={playerPosition}
-                initialFurniturePlacements={roomState.furniture}
-                pets={ownedPets}
-                skinSrc={skinSrc}
-                localLockedFurnitureIds={sharedRoomPresence.localEditLockIds}
-                onSharedEditConflict={() => {
-                  void sharedRoomRuntime.recoverFromStaleSharedEdit();
-                }}
-                worldTimeMinutes={worldTimeMinutes}
+                buildSettingsCollapsed={devPanelBuildSettingsCollapsed}
+                playerStateCollapsed={devPanelPlayerStateCollapsed}
+                playerCoordinatesCollapsed={devPanelPlayerCoordinatesCollapsed}
+                cameraPropertiesCollapsed={devPanelCameraPropertiesCollapsed}
+                worldSettingsCollapsed={devPanelWorldSettingsCollapsed}
+                lightingFxCollapsed={devPanelLightingFxCollapsed}
+                collisionDebugCollapsed={devPanelCollisionDebugCollapsed}
+                actionsCollapsed={devPanelActionsCollapsed}
+                playerCoins={displayedPlayerCoins}
+                playerInteractionLabel={playerInteractionStatus?.label ?? "None"}
+                playerPosition={playerPosition}
+                cameraPosition={cameraPosition}
+                cameraTarget={ROOM_CAMERA_TARGET}
+                worldTimeLabel={worldTimeLabel}
+                useMinecraftTime={useMinecraftTime}
+                minecraftTimeHours={minecraftTimeHours}
+                timeLocked={timeLocked}
+                lockedTimeHours={lockedTimeHours}
                 sunEnabled={sunEnabled}
                 shadowsEnabled={shadowsEnabled}
                 fogEnabled={fogEnabled}
@@ -1235,63 +1435,137 @@ function App() {
                 showCollisionDebug={showCollisionDebug}
                 showPlayerCollider={showPlayerCollider}
                 showInteractionMarkers={showInteractionMarkers}
-                onCameraPositionChange={handleCameraPositionChange}
-                onLocalPresenceChange={setLocalPresenceSnapshot}
-                onPlayerPositionChange={handlePlayerPositionChange}
-                onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
-                onCommittedFurnitureChange={handleCommittedFurnitureChange}
-                onInteractionStateChange={setPlayerInteractionStatus}
-                partnerLockedFurnitureIds={sharedRoomPresence.partnerEditLockIds}
-                releaseEditLock={sharedRoomPresence.releaseEditLock}
-                remotePresence={sharedRoomPresence.remotePresence}
-                renewEditLock={sharedRoomPresence.renewEditLock}
-                sceneJumpRequest={sceneJumpRequest}
+                onToggleBuildMode={handleToggleBuildMode}
+                onToggleCatalog={handleToggleCatalog}
+                onToggleGridSnap={() => setGridSnapEnabled((current) => !current)}
+                onBuildSettingsCollapsedChange={setDevPanelBuildSettingsCollapsed}
+                onPlayerStateCollapsedChange={setDevPanelPlayerStateCollapsed}
+                onPlayerCoordinatesCollapsedChange={setDevPanelPlayerCoordinatesCollapsed}
+                onCameraPropertiesCollapsedChange={setDevPanelCameraPropertiesCollapsed}
+                onWorldSettingsCollapsedChange={setDevPanelWorldSettingsCollapsed}
+                onLightingFxCollapsedChange={setDevPanelLightingFxCollapsed}
+                onCollisionDebugCollapsedChange={setDevPanelCollisionDebugCollapsed}
+                onActionsCollapsedChange={setDevPanelActionsCollapsed}
+                onPlayerCoinsCommit={commitPlayerCoins}
+                onPlayerAxisCommit={commitPlayerAxis}
+                onCameraAxisCommit={commitCameraAxis}
+                onApplyTransforms={applyTransformChanges}
+                onResetCamera={handleResetCamera}
+                onResetSandbox={handleResetSandboxWithConfirmation}
+                onUseMinecraftTimeChange={setUseMinecraftTime}
+                onMinecraftTimeHoursCommit={setMinecraftTimeHours}
+                onTimeLockedChange={setTimeLockedEnabled}
+                onLockedTimeHoursCommit={setLockedTimeHours}
+                onSyncLockedTime={syncLockedTimeToLocalTime}
+                onSunEnabledChange={setSunEnabled}
+                onShadowsEnabledChange={setShadowsEnabled}
+                onFogEnabledChange={setFogEnabled}
+                onFogDensityCommit={setFogDensity}
+                onAmbientMultiplierCommit={setAmbientMultiplier}
+                onSunIntensityMultiplierCommit={setSunIntensityMultiplier}
+                onBrightnessCommit={setBrightness}
+                onSaturationCommit={setSaturation}
+                onContrastCommit={setContrast}
+                onShowCollisionDebugChange={setShowCollisionDebug}
+                onShowPlayerColliderChange={setShowPlayerCollider}
+                onShowInteractionMarkersChange={setShowInteractionMarkers}
               />
-            </Suspense>
-            {pcMinigameActive ? (
-              <PcMinigameOverlay
-                currentCoins={displayedPlayerCoins}
-                dailyRitualBonusCoins={sharedPcResult?.dailyRitualBonusCoins ?? 0}
-                dailyRitualBonusXp={sharedPcResult?.dailyRitualBonusXp ?? 0}
-                dailyRitualStatus={sharedPcResult?.dailyRitualStatus ?? null}
-                onComplete={handlePcMinigameComplete}
-                onExit={handleExitPcMinigame}
-                progress={displayedPcMinigameProgress}
-                streakCount={sharedPcResult?.streakCount ?? ritualStatus.streakCount}
-              />
-            ) : null}
-          </>
-        ) : null}
-
-        {!sharedRoomActive &&
-        !sharedRoomRuntime.blockingState &&
-        !sharedRoomRuntime.devBypassActive ? (
-          <SharedRoomEntryShell
-            displayName={sharedRoomRuntime.displayName}
-            errorMessage={sharedRoomRuntime.inlineError}
-            onCreateRoom={() => {
-              void sharedRoomRuntime.createRoom(roomStateRef.current, playerCoinsRef.current);
-            }}
-            onDisplayNameChange={sharedRoomRuntime.setDisplayName}
-            onJoinRoom={(code) => {
-              void sharedRoomRuntime.joinRoom(code);
-            }}
-          />
-        ) : null}
-
-        {sharedRoomRuntime.blockingState ? (
-          <SharedRoomBlockingOverlay
-            body={sharedRoomRuntime.blockingState.body}
-            onRetry={
-              sharedRoomRuntime.blockingState.retryable
-                ? () => {
-                    void sharedRoomRuntime.reloadRoom();
-                  }
-                : null
             }
-            title={sharedRoomRuntime.blockingState.title}
+            overlays={sharedRoomOverlayNode}
+            rail={
+              <DeveloperWorkspaceRail
+                onSelectTab={handleSelectDeveloperWorkspaceTab}
+                tabs={developerWorkspaceTabs}
+              />
+            }
+            stage={developerStageNode}
+            utility={
+              <div className="developer-workspace-shell__utility-stack">
+                <DeveloperSessionPanel
+                  onRefreshRoomState={sharedRoomActive ? handleRefreshRoomState : null}
+                  state={developerSessionPanelState}
+                />
+                <PerformanceMonitor />
+                {skinError ? <div className="scene-note scene-note--inline">{skinError}</div> : null}
+              </div>
+            }
           />
-        ) : null}
+        ) : (
+          <PlayerRoomShell
+            bottomCenter={
+              <PlayerActionDock
+                actions={playerActionDockState.actions}
+                onAction={handlePlayerDockAction}
+                statusLabel={playerActionDockState.statusLabel}
+              />
+            }
+            bottomLeft={
+              <PlayerProgressStack
+                coins={displayedPlayerCoins}
+                playerLevel={playerLevel}
+                playerXp={playerXp}
+                playerXpNextLevel={playerXpNextLevel}
+                streakCount={ritualStatus.streakCount}
+                walletLabel={walletLabel}
+              />
+            }
+            drawer={catalogOpen ? inventoryPanelNode : null}
+            overlays={
+              <>
+                <PlayerRoomDetailsSheet
+                  onAction={handlePlayerRoomDetailsAction}
+                  onClose={() => setPlayerRoomDetailsOpen(false)}
+                  open={playerRoomDetailsOpen}
+                  state={playerRoomDetailsState}
+                />
+                {pcMinigameActive ? (
+                  <PcMinigameOverlay
+                    currentCoins={displayedPlayerCoins}
+                    dailyRitualBonusCoins={sharedPcResult?.dailyRitualBonusCoins ?? 0}
+                    dailyRitualBonusXp={sharedPcResult?.dailyRitualBonusXp ?? 0}
+                    dailyRitualStatus={sharedPcResult?.dailyRitualStatus ?? null}
+                    onComplete={handlePcMinigameComplete}
+                    onExit={handleExitPcMinigame}
+                    progress={displayedPcMinigameProgress}
+                    streakCount={sharedPcResult?.streakCount ?? ritualStatus.streakCount}
+                  />
+                ) : null}
+                {sharedRoomOverlayNode}
+              </>
+            }
+            stage={roomStageNode}
+            topLeft={<PlayerClockChip label={worldTimeLabel} timeLocked={timeLocked} />}
+            topRight={
+              <div className="player-room-shell__top-right-stack">
+                <PlayerCompanionCard
+                  expanded={playerCompanionCardExpanded}
+                  onOpenDetails={() => setPlayerRoomDetailsOpen(true)}
+                  onToggleExpanded={() =>
+                    setPlayerCompanionCardExpanded((current) => !current)
+                  }
+                  state={playerCompanionCardState}
+                />
+                {skinError ? <div className="scene-note scene-note--inline">{skinError}</div> : null}
+              </div>
+            }
+            viewSwitch={
+              isDev ? (
+                <ViewModeSwitch
+                  onChange={setShellViewMode}
+                  value={effectiveShellViewMode}
+                />
+              ) : null
+            }
+          />
+        )}
+
+        <input
+          ref={skinInputRef}
+          type="file"
+          accept=".png,image/png"
+          className="hidden-input"
+          onChange={handleSkinFileChange}
+        />
       </div>
     </>
   );

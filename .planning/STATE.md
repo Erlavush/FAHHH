@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 03.1 UI-SPEC approved
-last_updated: "2026-03-26T20:34:19.461Z"
-last_activity: 2026-03-27 -- Inserted urgent Phase 03.1 UI Overhaul and Developer-Player View Split
+status: in_progress
+stopped_at: Phase 03.1 execution complete
+last_updated: "2026-03-27T05:12:53.5251535+08:00"
+last_activity: 2026-03-27 -- Completed Phase 03.1 UI Overhaul and Developer-Player View Split
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 60
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
+  percent: 80
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 03.1 - ui-overhaul-and-developer-player-view-split
+**Current focus:** Phase 4 - memories-pets-and-breakup-stakes
 
 ## Current Position
 
-Phase: 03.1 (ui-overhaul-and-developer-player-view-split) - READY
+Phase: 04 (memories-pets-and-breakup-stakes) - READY TO PLAN
 Plan: 0 of 3
-Status: Phase 03 complete; Phase 03.1 urgent insertion not started
-Last activity: 2026-03-27 -- Inserted urgent Phase 03.1 UI Overhaul and Developer-Player View Split
+Status: Phase 03.1 complete; Phase 4 not started
+Last activity: 2026-03-27 -- Completed Phase 03.1 UI Overhaul and Developer-Player View Split
 
-Progress: [######----] 60%
+Progress: [########--] 80%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
+- Total plans completed: 12
 - Average duration: 7 min
 - Total execution time: 0.0 hours
 
@@ -47,10 +47,11 @@ Progress: [######----] 60%
 | 01 | 3 | 3 min | 1 min |
 | 02 | 3 | 48 min | 16 min |
 | 03 | 3 | 0 min | 0 min |
+| 03.1 | 3 | 1 session | 1 session |
 
 **Recent Trend:**
 
-- Last 5 plans: 02-02, 02-03, 03-01, 03-02, 03-03
+- Last 5 plans: 03-02, 03-03, 03.1-01, 03.1-02, 03.1-03
 - Trend: On track
 
 ## Quick Tasks Completed
@@ -77,10 +78,14 @@ Recent decisions affecting current work:
 - [Phase 02]: Partner waiting and reconnecting UX is presence-freshness-driven - Shipped builds use live presence freshness rather than room commits to show waiting, joined, reconnecting, returned, and together states.
 - [Phase 02]: Same-item shared edits use TTL soft locks - Lock ownership now lives beside presence transport instead of inside canonical room documents.
 - [Phase 02]: Stale same-item edits recover through canonical reload - The runtime now reloads the authoritative room when local lock assumptions go stale instead of preserving a drifting draft.
+- [Phase 03.1]: Player and developer shells are separate runtime views - The shipped room HUD now lives in Player View while Dev Panel, diagnostics, Preview Studio, and Mob Lab stay behind a persisted developer workspace.
+- [Phase 03.1]: Secondary room actions moved out of the shipped HUD - Refresh room state, grid snap, and skin import now live in the player room-details sheet instead of the always-visible toolbar.
+- [Phase 03.1]: Preview Studio and Mob Lab are embedded developer workbench surfaces - Authoring tools no longer float over the player shell and instead render inside the developer workspace stage.
 
 ### Roadmap Evolution
 
 - Phase 03.1 inserted after Phase 03: UI Overhaul and Developer-Player View Split (URGENT)
+- Phase 03.1 completed: Player shell and developer workspace split is now the live runtime baseline.
 
 ### Pending Todos
 
@@ -90,18 +95,16 @@ Recent decisions affecting current work:
 - [ ] [RA-01] [Implement Unrestricted Vertical Placement](file:///z:/FAHHHH/.planning/todos/room-architecture/vertical-placement-freedom.md)
 - [ ] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
 - [ ] [AP-01] [Bulk mod asset import](file:///z:/FAHHHH/.planning/todos/asset-pipeline/bulk-mod-asset-import.md)
-- [ ] Phase 03.1: Separate developer tooling from the player-facing shell and overhaul runtime UI hierarchy.
 - [ ] Phase 4: Promote one shared memory object, one curated shared-room pet path, and breakup-reset stakes.
 
 ### Blockers/Concerns
 
 - Backend and auth provider for one-couple, one-room ownership is not selected yet.
-- Phase 03.1 must land before more player-facing feature UI so the shipped shell and the development workspace stop competing for the same screen space.
-- Phase 4 context exists, but it is now downstream of the inserted UI overhaul and should be planned after Phase 03.1.
+- Phase 4 context now builds on the new player shell and developer workspace split; future UI work should target the correct surface explicitly.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 bypasses that gap for shared-room documents, but the legacy validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-26T20:34:19.458Z
-Stopped at: Phase 03.1 UI-SPEC approved
-Resume file: .planning/phases/03.1-ui-overhaul-and-developer-player-view-split/03.1-UI-SPEC.md
+Last session: 2026-03-27T05:12:53.5251535+08:00
+Stopped at: Phase 03.1 execution complete
+Resume file: .planning/ROADMAP.md
