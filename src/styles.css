@@ -1933,6 +1933,22 @@ body {
   gap: 8px;
 }
 
+.room-item-busy {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.room-item-busy strong {
+  color: #d9b07c;
+  font: 700 13px/1.2 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.room-item-busy span {
+  color: #f3e7d8;
+  font: 500 12px/1.35 "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
 .edit-dock__button,
 .edit-dock__icon-btn {
   height: 38px;

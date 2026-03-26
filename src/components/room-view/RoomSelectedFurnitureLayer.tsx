@@ -19,6 +19,7 @@ import type { RoomFurniturePlacement } from "../../lib/roomState";
 export type RoomSelectedFurnitureLayerProps = {
   buildModeEnabled: boolean;
   hoveredInteractableFurnitureId: string | null;
+  isBusyByPartner: boolean;
   isPlacementBlocked: boolean;
   nightFactor: number;
   onCancelPlacement: () => void;
@@ -52,6 +53,7 @@ export type RoomSelectedFurnitureLayerProps = {
 export function RoomSelectedFurnitureLayer({
   buildModeEnabled,
   hoveredInteractableFurnitureId,
+  isBusyByPartner,
   isPlacementBlocked,
   nightFactor,
   onCancelPlacement,
@@ -107,6 +109,7 @@ export function RoomSelectedFurnitureLayer({
     buildModeEnabled && isVisible && selectedFurnitureMatrix && !prefersTouchControls;
   const shouldRenderFallbackActor = isVisible && !shouldUsePivotControls;
   const actionOffset = getPlacementActionOffset(selectedFurniture);
+  const isBlocked = isPlacementBlocked || isBusyByPartner;
 
   return (
     <>
@@ -143,7 +146,7 @@ export function RoomSelectedFurnitureLayer({
             applyTransform={false}
             item={selectedFurniture}
             buildModeEnabled={buildModeEnabled}
-            blocked={isPlacementBlocked}
+            blocked={isBlocked}
             hovered={false}
             hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
             interactionHovered={
@@ -168,7 +171,7 @@ export function RoomSelectedFurnitureLayer({
         <RoomFurnitureActor
           item={selectedFurniture}
           buildModeEnabled={buildModeEnabled}
-          blocked={buildModeEnabled && isPlacementBlocked}
+          blocked={buildModeEnabled && isBlocked}
           hovered={false}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
           interactionHovered={
@@ -198,7 +201,7 @@ export function RoomSelectedFurnitureLayer({
           onCancel={onCancelPlacement}
           onStore={onStorePlacement}
           onConfirm={onConfirmPlacement}
-          confirmDisabled={isPlacementBlocked}
+          confirmDisabled={isBlocked}
         />
       ) : null}
     </>

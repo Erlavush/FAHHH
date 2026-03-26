@@ -1,4 +1,6 @@
 type EditDockProps = {
+  busyHelper?: string | null;
+  busyTitle?: string | null;
   itemLabel: string;
   surfaceLabel: string;
   blocked: boolean;
@@ -16,6 +18,8 @@ type EditDockProps = {
 };
 
 export function EditDock({
+  busyHelper = null,
+  busyTitle = null,
   itemLabel,
   surfaceLabel,
   blocked,
@@ -31,17 +35,29 @@ export function EditDock({
   onSwapWall,
   onDeselect
 }: EditDockProps) {
+  const isBusyNoticeVisible = busyTitle !== null && busyHelper !== null;
+
   return (
     <div className="edit-dock">
       <div className="edit-dock__summary">
         <strong>{itemLabel}</strong>
-        <span>{blocked ? "Blocked" : surfaceLabel}</span>
+        <span>{isBusyNoticeVisible ? "Busy item" : blocked ? "Blocked" : surfaceLabel}</span>
       </div>
 
       <div className="edit-dock__divider" />
 
+      {isBusyNoticeVisible ? (
+        <>
+          <div className="room-item-busy">
+            <strong>{busyTitle}</strong>
+            <span>{busyHelper}</span>
+          </div>
+          <div className="edit-dock__divider" />
+        </>
+      ) : null}
+
       <div className="edit-dock__actions">
-        {canRotate ? (
+        {!isBusyNoticeVisible && canRotate ? (
           <>
             <button className="edit-dock__icon-btn" onClick={onRotateLeft} title="Rotate Left" type="button">
               Turn L
@@ -53,35 +69,39 @@ export function EditDock({
           </>
         ) : null}
 
-        <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">
-          Left
-        </button>
-        {canNudgeVertical ? (
+        {!isBusyNoticeVisible ? (
           <>
-            <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">
-              Up
+            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeHorizontal} title="Move Left" type="button">
+              Left
             </button>
-            <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">
-              Down
+            {canNudgeVertical ? (
+              <>
+                <button className="edit-dock__icon-btn" onClick={onNudgePositiveVertical} title="Move Up" type="button">
+                  Up
+                </button>
+                <button className="edit-dock__icon-btn" onClick={onNudgeNegativeVertical} title="Move Down" type="button">
+                  Down
+                </button>
+              </>
+            ) : null}
+            <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">
+              Right
             </button>
-          </>
-        ) : null}
-        <button className="edit-dock__icon-btn" onClick={onNudgePositiveHorizontal} title="Move Right" type="button">
-          Right
-        </button>
 
-        {canSwapWall ? (
-          <>
-            <div className="edit-dock__divider" />
-            <button className="edit-dock__button" onClick={onSwapWall} type="button">
-              Swap Wall
-            </button>
+            {canSwapWall ? (
+              <>
+                <div className="edit-dock__divider" />
+                <button className="edit-dock__button" onClick={onSwapWall} type="button">
+                  Swap Wall
+                </button>
+              </>
+            ) : null}
           </>
         ) : null}
 
         <div className="edit-dock__divider" />
         <button className="edit-dock__button edit-dock__button--secondary" onClick={onDeselect} type="button">
-          Deselect
+          {isBusyNoticeVisible ? "Close" : "Deselect"}
         </button>
       </div>
     </div>

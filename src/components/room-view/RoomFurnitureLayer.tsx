@@ -5,6 +5,7 @@ import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 export type RoomFurnitureLayerProps = {
   buildModeEnabled: boolean;
+  busyFurnitureIds: ReadonlySet<string>;
   furniture: RoomFurniturePlacement[];
   hoveredFurnitureId: string | null;
   hoveredInteractableFurnitureId: string | null;
@@ -34,6 +35,7 @@ export type RoomFurnitureLayerProps = {
 
 export function RoomFurnitureLayer({
   buildModeEnabled,
+  busyFurnitureIds,
   furniture,
   hoveredFurnitureId,
   hoveredInteractableFurnitureId,
@@ -70,7 +72,7 @@ export function RoomFurnitureLayer({
             key={item.id}
             item={item}
             buildModeEnabled={buildModeEnabled}
-            blocked={false}
+            blocked={buildModeEnabled && busyFurnitureIds.has(item.id)}
             hovered={
               buildModeEnabled &&
               hoveredFurnitureId === item.id &&

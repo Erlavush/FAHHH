@@ -69,12 +69,32 @@ function createSharedPresenceStore(
   loadRoomPresence: SharedPresenceStore["loadRoomPresence"]
 ): SharedPresenceStore {
   return {
+    acquireEditLock: vi.fn().mockResolvedValue({
+      roomId: "shared-room-1",
+      updatedAt: new Date(Date.now()).toISOString(),
+      locks: []
+    }),
+    loadRoomLocks: vi.fn().mockResolvedValue({
+      roomId: "shared-room-1",
+      updatedAt: new Date(Date.now()).toISOString(),
+      locks: []
+    }),
     upsertPresence: vi.fn().mockImplementation(async ({ presence }) => presence),
     loadRoomPresence,
     leavePresence: vi.fn().mockResolvedValue({
       roomId: "shared-room-1",
       updatedAt: new Date(Date.now()).toISOString(),
       presences: []
+    }),
+    releaseEditLock: vi.fn().mockResolvedValue({
+      roomId: "shared-room-1",
+      updatedAt: new Date(Date.now()).toISOString(),
+      locks: []
+    }),
+    renewEditLock: vi.fn().mockResolvedValue({
+      roomId: "shared-room-1",
+      updatedAt: new Date(Date.now()).toISOString(),
+      locks: []
     })
   };
 }

@@ -47,6 +47,7 @@ import { useRoomViewSpawn } from "./room-view/useRoomViewSpawn";
 import { WallOcclusionController } from "./room-view/WallOcclusionController";
 
 interface RoomViewProps {
+  acquireEditLock: (furnitureId: string) => Promise<boolean>;
   buildModeEnabled: boolean;
   gridSnapEnabled: boolean;
   spawnRequest: FurnitureSpawnRequest | null;
@@ -57,6 +58,8 @@ interface RoomViewProps {
   initialFurniturePlacements: RoomFurniturePlacement[];
   pets: OwnedPet[];
   skinSrc: string | null;
+  localLockedFurnitureIds: ReadonlySet<string>;
+  onSharedEditConflict: () => void;
   worldTimeMinutes: number;
   sunEnabled: boolean;
   shadowsEnabled: boolean;
@@ -76,11 +79,15 @@ interface RoomViewProps {
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
+  partnerLockedFurnitureIds: ReadonlySet<string>;
+  releaseEditLock: (furnitureId: string) => Promise<void>;
   remotePresence: SharedPresenceSnapshot | null;
+  renewEditLock: (furnitureId: string) => Promise<boolean>;
   sceneJumpRequest: SceneJumpRequest | null;
 }
 
 export function RoomView({
+  acquireEditLock,
   buildModeEnabled,
   gridSnapEnabled,
   spawnRequest,
@@ -91,6 +98,8 @@ export function RoomView({
   initialFurniturePlacements,
   pets,
   skinSrc,
+  localLockedFurnitureIds,
+  onSharedEditConflict,
   worldTimeMinutes,
   sunEnabled,
   shadowsEnabled,
@@ -110,7 +119,10 @@ export function RoomView({
   onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
   onInteractionStateChange,
+  partnerLockedFurnitureIds,
+  releaseEditLock,
   remotePresence,
+  renewEditLock,
   sceneJumpRequest
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
@@ -135,10 +147,12 @@ export function RoomView({
   });
 
   const {
+    busyFurniture,
     committedFurniture,
     furniture,
     hoveredFurnitureId,
     isPlacementBlocked,
+    isSelectedFurnitureBusyByPartner,
     selectedFurniture,
     selectedFurnitureId,
     beginNewFurnitureEditing,
@@ -156,12 +170,18 @@ export function RoomView({
     setHoveredFurnitureId,
     updateFurnitureItem
   } = useRoomFurnitureEditor({
+    acquireEditLock,
     buildModeEnabled,
     gridSnapEnabled,
     initialFurniturePlacements,
+    localLockedFurnitureIds,
+    onSharedEditConflict,
     playerWorldPosition,
     onFurnitureSnapshotChange,
-    onCommittedFurnitureChange
+    onCommittedFurnitureChange,
+    partnerLockedFurnitureIds,
+    releaseEditLock,
+    renewEditLock
   });
 
   const {
@@ -355,6 +375,8 @@ export function RoomView({
     playerPresenceActivity
   ]);
 
+  const editDockFurniture = selectedFurniture ?? busyFurniture;
+
   return (
     <div
       className="canvas-wrap"
@@ -504,6 +526,7 @@ export function RoomView({
         })}
         <RoomFurnitureLayer
           buildModeEnabled={buildModeEnabled}
+          busyFurnitureIds={partnerLockedFurnitureIds}
           furniture={furniture}
           hoveredFurnitureId={hoveredFurnitureId}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
@@ -524,6 +547,7 @@ export function RoomView({
         <RoomSelectedFurnitureLayer
           buildModeEnabled={buildModeEnabled}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
+          isBusyByPartner={isSelectedFurnitureBusyByPartner}
           isPlacementBlocked={isPlacementBlocked}
           nightFactor={lightingState.nightFactor}
           onCancelPlacement={handleCancelFurniturePlacement}
@@ -562,25 +586,39 @@ export function RoomView({
         />
         <CameraTracker onCameraPositionChange={onCameraPositionChange} />
       </Canvas>
-      {buildModeEnabled && selectedFurniture ? (
+      {buildModeEnabled && editDockFurniture ? (
         <EditDock
-          itemLabel={getFurnitureDefinition(selectedFurniture.type).label}
-          surfaceLabel={getSelectedSurfaceLabel(selectedFurniture.surface)}
-          blocked={isPlacementBlocked}
+          busyHelper={
+            busyFurniture && !selectedFurniture
+              ? "Try another item or wait a moment."
+              : null
+          }
+          busyTitle={
+            busyFurniture && !selectedFurniture
+              ? "Your partner is editing this item"
+              : null
+          }
+          itemLabel={getFurnitureDefinition(editDockFurniture.type).label}
+          surfaceLabel={getSelectedSurfaceLabel(editDockFurniture.surface)}
+          blocked={
+            busyFurniture && !selectedFurniture
+              ? true
+              : isPlacementBlocked || isSelectedFurnitureBusyByPartner
+          }
           canRotate={
-            selectedFurniture.surface === "floor" ||
-            selectedFurniture.surface === "surface"
+            editDockFurniture.surface === "floor" ||
+            editDockFurniture.surface === "surface"
           }
           canSwapWall={
-            selectedFurniture.surface === "wall_back" ||
-            selectedFurniture.surface === "wall_left" ||
-            selectedFurniture.surface === "wall_front" ||
-            selectedFurniture.surface === "wall_right"
+            editDockFurniture.surface === "wall_back" ||
+            editDockFurniture.surface === "wall_left" ||
+            editDockFurniture.surface === "wall_front" ||
+            editDockFurniture.surface === "wall_right"
           }
           canNudgeVertical={
-            selectedFurniture.surface === "floor" ||
-            selectedFurniture.surface === "surface" ||
-            !hasFixedWallVerticalPlacement(selectedFurniture.type)
+            editDockFurniture.surface === "floor" ||
+            editDockFurniture.surface === "surface" ||
+            !hasFixedWallVerticalPlacement(editDockFurniture.type)
           }
           onNudgeNegativeHorizontal={() => {
             handleNudgeSelectedFurniture(-1);

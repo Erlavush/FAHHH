@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -42,21 +43,35 @@ import {
 } from "./placementResolvers";
 
 type UseRoomFurnitureEditorOptions = {
+  acquireEditLock?: (furnitureId: string) => Promise<boolean>;
   buildModeEnabled: boolean;
   gridSnapEnabled: boolean;
   initialFurniturePlacements: RoomFurniturePlacement[];
+  localLockedFurnitureIds?: ReadonlySet<string>;
+  onSharedEditConflict?: () => void;
   playerWorldPosition: Vector3Tuple;
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
+  partnerLockedFurnitureIds?: ReadonlySet<string>;
+  releaseEditLock?: (furnitureId: string) => Promise<void>;
+  renewEditLock?: (furnitureId: string) => Promise<boolean>;
 };
 
+const LOCK_RENEW_INTERVAL_MS = 2500;
+
 export function useRoomFurnitureEditor({
+  acquireEditLock,
   buildModeEnabled,
   gridSnapEnabled,
   initialFurniturePlacements,
+  localLockedFurnitureIds = new Set<string>(),
+  onSharedEditConflict,
   playerWorldPosition,
   onFurnitureSnapshotChange,
-  onCommittedFurnitureChange
+  onCommittedFurnitureChange,
+  partnerLockedFurnitureIds = new Set<string>(),
+  releaseEditLock,
+  renewEditLock
 }: UseRoomFurnitureEditorOptions) {
   const initialFurnitureRef = useRef(
     cloneFurniturePlacements(initialFurniturePlacements)
@@ -85,10 +100,16 @@ export function useRoomFurnitureEditor({
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(
     null
   );
+  const [busyFurnitureId, setBusyFurnitureId] = useState<string | null>(null);
+  const selectedFurnitureIdRef = useRef<string | null>(selectedFurnitureId);
 
   const selectedFurniture = useMemo(
     () => findFurniturePlacement(furniture, selectedFurnitureId),
     [furniture, selectedFurnitureId]
+  );
+  const busyFurniture = useMemo(
+    () => findFurniturePlacement(furniture, busyFurnitureId),
+    [busyFurnitureId, furniture]
   );
   const placementBlockReason = useMemo<CollisionReason | null>(() => {
     if (!selectedFurniture) {
@@ -102,7 +123,57 @@ export function useRoomFurnitureEditor({
     );
   }, [furniture, playerWorldPosition, selectedFurniture]);
   const isPlacementBlocked = placementBlockReason !== null;
+  const isSelectedFurnitureBusyByPartner =
+    selectedFurnitureId !== null &&
+    partnerLockedFurnitureIds.has(selectedFurnitureId) &&
+    !localLockedFurnitureIds.has(selectedFurnitureId);
   const selectedSurface = selectedFurniture?.surface ?? "floor";
+  const sharedLockingEnabled =
+    acquireEditLock !== undefined ||
+    renewEditLock !== undefined ||
+    releaseEditLock !== undefined ||
+    partnerLockedFurnitureIds.size > 0 ||
+    localLockedFurnitureIds.size > 0;
+
+  useEffect(() => {
+    selectedFurnitureIdRef.current = selectedFurnitureId;
+  }, [selectedFurnitureId]);
+
+  const itemRequiresEditLock = useCallback(
+    (furnitureId: string | null) =>
+      Boolean(
+        furnitureId && committedFurniture.some((item) => item.id === furnitureId)
+      ),
+    [committedFurniture]
+  );
+
+  const releaseExistingEditLock = useCallback(
+    (furnitureId: string | null) => {
+      if (!furnitureId || !itemRequiresEditLock(furnitureId) || !releaseEditLock) {
+        return;
+      }
+
+      void releaseEditLock(furnitureId);
+    },
+    [itemRequiresEditLock, releaseEditLock]
+  );
+
+  const handleStaleSharedEdit = useCallback(
+    (furnitureId: string | null) => {
+      if (!furnitureId) {
+        return;
+      }
+
+      releaseExistingEditLock(furnitureId);
+      delete furnitureEditStartRef.current[furnitureId];
+      setBusyFurnitureId(furnitureId);
+      setFurniture(cloneFurniturePlacements(committedFurniture));
+      setSelectedFurnitureId(null);
+      setHoveredFurnitureId(furnitureId);
+      onSharedEditConflict?.();
+    },
+    [committedFurniture, onSharedEditConflict, releaseExistingEditLock]
+  );
 
   useEffect(() => {
     if (placementListsMatch(lastReportedFurnitureRef.current, furniture)) {
@@ -140,25 +211,35 @@ export function useRoomFurnitureEditor({
     }
 
     const nextPlacements = cloneFurniturePlacements(initialFurniturePlacements);
+    releaseExistingEditLock(selectedFurnitureIdRef.current);
     lastSyncedInitialFurnitureRef.current = nextPlacements;
     lastReportedCommittedFurnitureRef.current = nextPlacements;
     setCommittedFurniture(nextPlacements);
     setFurniture(nextPlacements);
+    setBusyFurnitureId(null);
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
     furnitureEditStartRef.current = {};
-  }, [initialFurniturePlacements]);
+  }, [initialFurniturePlacements, releaseExistingEditLock]);
 
   useEffect(() => {
     if (buildModeEnabled) {
       return;
     }
 
+    releaseExistingEditLock(selectedFurnitureIdRef.current);
     setFurniture(cloneFurniturePlacements(committedFurniture));
+    setBusyFurnitureId(null);
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
     furnitureEditStartRef.current = {};
-  }, [buildModeEnabled, committedFurniture]);
+  }, [buildModeEnabled, committedFurniture, releaseExistingEditLock]);
+
+  useEffect(() => {
+    if (busyFurnitureId && !partnerLockedFurnitureIds.has(busyFurnitureId)) {
+      setBusyFurnitureId(null);
+    }
+  }, [busyFurnitureId, partnerLockedFurnitureIds]);
 
   useEffect(() => {
     if (!selectedFurnitureId || selectedFurniture) {
@@ -171,6 +252,64 @@ export function useRoomFurnitureEditor({
       current === selectedFurnitureId ? null : current
     );
   }, [selectedFurniture, selectedFurnitureId]);
+
+  useEffect(() => {
+    if (
+      !selectedFurnitureId ||
+      !sharedLockingEnabled ||
+      !itemRequiresEditLock(selectedFurnitureId) ||
+      localLockedFurnitureIds.has(selectedFurnitureId)
+    ) {
+      return;
+    }
+
+    handleStaleSharedEdit(selectedFurnitureId);
+  }, [
+    handleStaleSharedEdit,
+    itemRequiresEditLock,
+    localLockedFurnitureIds,
+    selectedFurnitureId,
+    sharedLockingEnabled
+  ]);
+
+  useEffect(() => {
+    if (
+      !selectedFurnitureId ||
+      !sharedLockingEnabled ||
+      !itemRequiresEditLock(selectedFurnitureId) ||
+      !renewEditLock
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const activeFurnitureId = selectedFurnitureId;
+    const renewId = window.setInterval(() => {
+      void renewEditLock(activeFurnitureId).then((isStillHeld) => {
+        if (!cancelled && !isStillHeld) {
+          handleStaleSharedEdit(activeFurnitureId);
+        }
+      });
+    }, LOCK_RENEW_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(renewId);
+    };
+  }, [
+    handleStaleSharedEdit,
+    itemRequiresEditLock,
+    renewEditLock,
+    selectedFurnitureId,
+    sharedLockingEnabled
+  ]);
+
+  useEffect(
+    () => () => {
+      releaseExistingEditLock(selectedFurnitureIdRef.current);
+    },
+    [releaseExistingEditLock]
+  );
 
   function updateFurnitureItem(
     furnitureId: string,
@@ -255,6 +394,7 @@ export function useRoomFurnitureEditor({
     cancelDraft: boolean
   ) {
     if (furnitureId) {
+      releaseExistingEditLock(furnitureId);
       if (cancelDraft && hasDraftChanges(furnitureId)) {
         cancelFurnitureDraft(furnitureId);
       } else {
@@ -262,17 +402,40 @@ export function useRoomFurnitureEditor({
       }
     }
 
+    setBusyFurnitureId(null);
     setSelectedFurnitureId(null);
     setHoveredFurnitureId(null);
   }
 
-  function selectFurnitureForEditing(furnitureId: string) {
+  async function selectFurnitureForEditing(furnitureId: string) {
+    if (selectedFurnitureId && selectedFurnitureId !== furnitureId) {
+      finishFurnitureEditingSession(selectedFurnitureId, true);
+    }
+
     const baseItem =
       committedFurniture.find((item) => item.id === furnitureId) ??
       furniture.find((item) => item.id === furnitureId);
 
     if (!baseItem) {
       return;
+    }
+
+    if (partnerLockedFurnitureIds.has(furnitureId)) {
+      setBusyFurnitureId(furnitureId);
+      setSelectedFurnitureId(null);
+      setHoveredFurnitureId(furnitureId);
+      return;
+    }
+
+    if (sharedLockingEnabled && itemRequiresEditLock(furnitureId) && acquireEditLock) {
+      const lockAcquired = await acquireEditLock(furnitureId);
+
+      if (!lockAcquired) {
+        setBusyFurnitureId(furnitureId);
+        setSelectedFurnitureId(null);
+        setHoveredFurnitureId(furnitureId);
+        return;
+      }
     }
 
     if (!(furnitureId in furnitureEditStartRef.current)) {
@@ -282,10 +445,12 @@ export function useRoomFurnitureEditor({
         : null;
     }
 
+    setBusyFurnitureId(null);
     setSelectedFurnitureId(furnitureId);
   }
 
   function beginNewFurnitureEditing(furnitureId: string) {
+    setBusyFurnitureId(null);
     setSelectedFurnitureId(furnitureId);
     setHoveredFurnitureId(furnitureId);
     furnitureEditStartRef.current[furnitureId] = null;
@@ -550,6 +715,12 @@ export function useRoomFurnitureEditor({
   }
 
   function handleDeselectFurniture() {
+    if (!selectedFurnitureId && busyFurnitureId) {
+      setBusyFurnitureId(null);
+      setHoveredFurnitureId(null);
+      return;
+    }
+
     finishFurnitureEditingSession(selectedFurnitureId, true);
   }
 
@@ -558,15 +729,27 @@ export function useRoomFurnitureEditor({
       return;
     }
 
+    if (
+      sharedLockingEnabled &&
+      itemRequiresEditLock(selectedFurnitureId) &&
+      !localLockedFurnitureIds.has(selectedFurnitureId)
+    ) {
+    handleStaleSharedEdit(selectedFurnitureId);
+    return;
+  }
+
     setCommittedFurniture(cloneFurniturePlacements(furniture));
     finishFurnitureEditingSession(selectedFurnitureId, false);
   }
 
   return {
+    busyFurniture,
+    busyFurnitureId,
     committedFurniture,
     furniture,
     hoveredFurnitureId,
     isPlacementBlocked,
+    isSelectedFurnitureBusyByPartner,
     placementBlockReason,
     selectedFurniture,
     selectedFurnitureId,

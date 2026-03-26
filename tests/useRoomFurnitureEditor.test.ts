@@ -31,12 +31,18 @@ function makePoster(
 type HookValue = ReturnType<typeof useRoomFurnitureEditor>;
 
 type HarnessProps = {
+  acquireEditLock?: (furnitureId: string) => Promise<boolean>;
   buildModeEnabled: boolean;
   gridSnapEnabled: boolean;
   initialFurniturePlacements: RoomFurniturePlacement[];
+  localLockedFurnitureIds?: ReadonlySet<string>;
+  onSharedEditConflict?: () => void;
   playerWorldPosition: [number, number, number];
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
+  partnerLockedFurnitureIds?: ReadonlySet<string>;
+  releaseEditLock?: (furnitureId: string) => Promise<void>;
+  renewEditLock?: (furnitureId: string) => Promise<boolean>;
 };
 
 let latestHookValue: HookValue | null = null;
@@ -136,5 +142,92 @@ describe("useRoomFurnitureEditor", () => {
       -4.83
     ]);
     expect(latestHookValue?.furniture[0]?.position).toEqual([1.2, 2, -4.83]);
+  });
+
+  it("different items remain editable concurrently", async () => {
+    const initialPlacements = [
+      makePoster("poster-1", [0, 2, -4.83]),
+      makePoster("poster-2", [1.5, 2, -4.83])
+    ];
+    const acquireEditLock = vi.fn().mockResolvedValue(true);
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(HookHarness, {
+          acquireEditLock,
+          buildModeEnabled: true,
+          gridSnapEnabled: true,
+          initialFurniturePlacements: initialPlacements,
+          localLockedFurnitureIds: new Set(["poster-1"]),
+          onCommittedFurnitureChange: vi.fn(),
+          onFurnitureSnapshotChange: vi.fn(),
+          partnerLockedFurnitureIds: new Set(["poster-2"]),
+          playerWorldPosition: [6, 0, 6]
+        })
+      );
+    });
+
+    await act(async () => {
+      await latestHookValue?.selectFurnitureForEditing("poster-1");
+    });
+
+    expect(acquireEditLock).toHaveBeenCalledWith("poster-1");
+    expect(latestHookValue?.selectedFurnitureId).toBe("poster-1");
+    expect(latestHookValue?.busyFurnitureId).toBeNull();
+  });
+
+  it("clears the busy item once the partner-held lock releases", async () => {
+    const initialPlacements = [
+      makePoster("poster-1", [0, 2, -4.83]),
+      makePoster("poster-2", [1.5, 2, -4.83])
+    ];
+    const acquireEditLock = vi.fn().mockResolvedValue(true);
+    const renderHarness = (
+      partnerLockedFurnitureIds: ReadonlySet<string>,
+      localLockedFurnitureIds: ReadonlySet<string>
+    ) => {
+      act(() => {
+        root?.render(
+          createElement(HookHarness, {
+            acquireEditLock,
+            buildModeEnabled: true,
+            gridSnapEnabled: true,
+            initialFurniturePlacements: initialPlacements,
+            localLockedFurnitureIds,
+            onCommittedFurnitureChange: vi.fn(),
+            onFurnitureSnapshotChange: vi.fn(),
+            partnerLockedFurnitureIds,
+            playerWorldPosition: [6, 0, 6]
+          })
+        );
+      });
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    renderHarness(new Set(["poster-2"]), new Set());
+
+    await act(async () => {
+      await latestHookValue?.selectFurnitureForEditing("poster-2");
+    });
+
+    expect(latestHookValue?.selectedFurnitureId).toBeNull();
+    expect(latestHookValue?.busyFurnitureId).toBe("poster-2");
+
+    renderHarness(new Set(), new Set(["poster-2"]));
+
+    await act(async () => {
+      await latestHookValue?.selectFurnitureForEditing("poster-2");
+    });
+
+    expect(acquireEditLock).toHaveBeenCalledWith("poster-2");
+    expect(latestHookValue?.busyFurnitureId).toBeNull();
+    expect(latestHookValue?.selectedFurnitureId).toBe("poster-2");
   });
 });
