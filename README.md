@@ -39,12 +39,18 @@ The long-term game direction is still `Risk It All`:
 
 ## Most Important Docs
 
+- [.planning/PROJECT.md](.planning/PROJECT.md): active GSD project brief and scope
+- [.planning/ROADMAP.md](.planning/ROADMAP.md): active GSD phase roadmap
+- [.planning/STATE.md](.planning/STATE.md): current GSD execution state
+- [.planning/codebase/ARCHITECTURE.md](.planning/codebase/ARCHITECTURE.md): refreshed brownfield ownership map
+- [.planning/codebase/STRUCTURE.md](.planning/codebase/STRUCTURE.md): folder-by-folder navigation guide
+- [.planning/codebase/CONCERNS.md](.planning/codebase/CONCERNS.md): known risks and debt before editing
 - [AI handoff](docs/AI_HANDOFF.md): best source of truth for another AI or teammate
 - [Current systems](docs/CURRENT_SYSTEMS.md): what exists in the runtime today
 - [Architecture](docs/ARCHITECTURE.md): ownership boundaries and module responsibilities
 - [Codebase map](docs/CODEBASE_MAP.md): fastest navigation guide for the current folder layout
 - [Mob Lab guide](docs/MOB_LAB.md): imported-mob authoring pipeline and guardrails
-- [Roadmap](docs/ROADMAP.md): implemented foundation versus next priorities
+- [Implementation roadmap](docs/ROADMAP.md): non-GSD product roadmap snapshot
 - [Game overview](docs/GAME_OVERVIEW.md): long-term product vision
 - [Diagrams](docs/DIAGRAMS.md): runtime and data-flow diagrams
 - [MCP setup](docs/MCP_SETUP.md): recommended AI tooling stack
@@ -63,9 +69,14 @@ Start here when working on the active app:
 - [src/lib/furnitureRegistry.ts](src/lib/furnitureRegistry.ts)
 - [src/lib/devLocalState.ts](src/lib/devLocalState.ts)
 - [src/lib/devWorldSettings.ts](src/lib/devWorldSettings.ts)
+- [src/app/clock.ts](src/app/clock.ts)
+- [src/app/hooks/useSandboxWorldClock.ts](src/app/hooks/useSandboxWorldClock.ts)
+- [src/lib/gameLoop.ts](src/lib/gameLoop.ts)
+- [src/lib/roomPlacementEquality.ts](src/lib/roomPlacementEquality.ts)
 - [src/lib/mobLab.ts](src/lib/mobLab.ts)
 - [src/lib/mobLabState.ts](src/lib/mobLabState.ts)
 - [src/lib/pets.ts](src/lib/pets.ts)
+- [vite.config.js](vite.config.js)
 
 ## Getting Started
 
@@ -96,3 +107,7 @@ The active runtime is browser-local on purpose:
 - Mob Lab authoring state lives in `mobLabState.ts`
 
 The shared-room backend, pairing, and multiplayer sync layer are future work. They are not the active runtime path in this repo.
+
+Known current concern:
+
+- `devLocalState.ts` still validates persisted placement surfaces against `floor`, `wall_back`, `wall_left`, and `surface` only, so `wall_front` and `wall_right` saves should be treated as at risk until that validator is fixed.

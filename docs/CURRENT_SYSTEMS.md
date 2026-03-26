@@ -1,5 +1,7 @@
 # Current Systems
 
+For file ownership, structure, tests, and risk boundaries, pair this document with [../.planning/codebase](../.planning/codebase).
+
 ## Status Summary
 
 ### Implemented Now
@@ -363,6 +365,8 @@ Important current facts:
 - world-data save schema version is `6`
 - world settings are separate from world data on purpose
 - the browser-local save path is intended for development and local sandbox use
+- Firebase-shaped `.env` placeholders and rules files still exist in the repo, but the active runtime in `src/` is browser-local only
+- `devLocalState.ts` currently validates persisted placement surfaces against `floor`, `wall_back`, `wall_left`, and `surface` only, so `wall_front` and `wall_right` placements are at risk during load until that validator is fixed
 
 Mob Lab authoring state is stored separately through [../src/lib/mobLabState.ts](../src/lib/mobLabState.ts).
 
@@ -417,3 +421,4 @@ Important interpretation:
 - art-set cohesion is still mixed across assets
 - advanced pet behavior does not exist yet
 - shared-room backend and pairing are not implemented
+- persisted `wall_front` and `wall_right` placements are not fully protected by the current local save validator

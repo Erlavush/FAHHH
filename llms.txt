@@ -2,6 +2,12 @@
 > Browser-first cozy couple-room sandbox built with React, Vite, React Three Fiber, and TypeScript. The active runtime today is a local single-room sandbox plus an in-app Preview Studio and Mob Lab. Shared-room backend and pairing are future work, not the current app path.
 
 ## Canonical Docs
+- [.planning/PROJECT.md](.planning/PROJECT.md): active GSD project brief and scope.
+- [.planning/ROADMAP.md](.planning/ROADMAP.md): active GSD phase roadmap.
+- [.planning/STATE.md](.planning/STATE.md): current execution status inside the GSD flow.
+- [.planning/codebase/ARCHITECTURE.md](.planning/codebase/ARCHITECTURE.md): refreshed brownfield architecture and ownership map.
+- [.planning/codebase/STRUCTURE.md](.planning/codebase/STRUCTURE.md): directory map and navigation rules.
+- [.planning/codebase/CONCERNS.md](.planning/codebase/CONCERNS.md): current technical risks and debt hotspots.
 - [README](README.md): project overview, setup, and current runtime summary.
 - [AI handoff](docs/AI_HANDOFF.md): detailed runtime truth, guardrails, and next-step guidance.
 - [Current systems](docs/CURRENT_SYSTEMS.md): gameplay and runtime behavior that exists now.
@@ -30,6 +36,7 @@
 - Wall decor can be dragged across room corners onto a different wall.
 - The active sandbox room schema is `DEFAULT_ROOM_LAYOUT_VERSION = 6`.
 - The active persisted sandbox schema is `version: 6`.
+- `src/lib/devLocalState.ts` still omits `wall_front` and `wall_right` in persisted placement-surface validation, so those saves are currently at risk during load/migration.
 - Mob Lab persistence is separate and currently uses schema `version: 2`.
 - Live pets currently come from `PET_REGISTRY` and are limited to the temporary raccoon and cat integrations.
 
@@ -44,9 +51,11 @@
 
 ## Navigation Heuristics
 - For toolbar, inventory, or app-shell UI, start in `src/app` and `src/App.tsx`.
+- For world clock or time-of-day behavior, inspect `src/app/hooks/useSandboxWorldClock.ts`, `src/app/clock.ts`, and `src/lib/gameLoop.ts`.
 - For live 3D room behavior, start in `src/components/RoomView.tsx`, then inspect `src/components/room-view`.
 - For furniture/shop content, start in `src/lib/furnitureRegistry.ts`.
 - For room save behavior, start in `src/lib/roomState.ts`, `src/lib/devLocalState.ts`, and `src/lib/devWorldSettings.ts`.
+- For redundant edit reporting or placement diff suppression, inspect `src/lib/roomPlacementEquality.ts`.
 - For pets, inspect `src/lib/pets.ts`, `src/lib/petPathing.ts`, and `src/components/room-view/RoomPetActor.tsx`.
 - For imported mobs, inspect `src/components/FurniturePreviewStudio.tsx`, `src/components/mob-lab`, `src/lib/mobLab.ts`, and `src/lib/mobLabState.ts`.
 

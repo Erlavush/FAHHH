@@ -1,5 +1,7 @@
 # Architecture
 
+For the refreshed brownfield ownership map and current concern list, also read [../.planning/codebase/ARCHITECTURE.md](../.planning/codebase/ARCHITECTURE.md) and [../.planning/codebase/CONCERNS.md](../.planning/codebase/CONCERNS.md).
+
 ## Runtime Ownership Map
 
 ### App Shell
@@ -25,7 +27,20 @@ The app-shell surface extracted from `App.tsx` lives in [../src/app](../src/app)
 
 - `components`: toolbar, inventory, performance HUD, and info controls
 - `hooks`: world clock, inventory, skin import, and info-popover helpers
+- `clock.ts`: minute wrapping, time formatting, and control-value conversion helpers for the world clock UI
 - `types.ts`: shell types shared with the room and Preview Studio
+
+### World Clock Runtime
+
+- [../src/app/hooks/useSandboxWorldClock.ts](../src/app/hooks/useSandboxWorldClock.ts)
+  - owns local-time, Minecraft-time, and locked-time orchestration
+  - bridges toolbar controls to persisted world settings
+
+- [../src/app/clock.ts](../src/app/clock.ts)
+  - owns clock-minute normalization and display formatting helpers
+
+- [../src/lib/gameLoop.ts](../src/lib/gameLoop.ts)
+  - owns the tick-based Minecraft-time loop used by the world-clock hook
 
 ### Live Room Runtime
 
@@ -171,6 +186,12 @@ Important boundary:
 
 - `ownedFurniture` is the ownership/inventory layer
 - `furniture` is only the placed-in-room layer
+
+### Placement Equality
+
+[../src/lib/roomPlacementEquality.ts](../src/lib/roomPlacementEquality.ts) provides epsilon-based placement comparisons.
+
+It is used by `App.tsx`, `RoomView.tsx`, and `useRoomFurnitureEditor.ts` to suppress redundant edit reporting and avoid unnecessary state churn while furniture is being edited.
 
 ### Sandbox Persistence
 

@@ -20,6 +20,24 @@ The current shipped-in-code systems include:
 - a temporary Pet Store plus live in-room raccoon and cat pets
 - browser-local persistence for room data, world settings, and Mob Lab state
 
+## Planning And Mapping State
+
+The repo is now running under the GSD workflow. Use these files together:
+
+- [../.planning/PROJECT.md](../.planning/PROJECT.md)
+- [../.planning/ROADMAP.md](../.planning/ROADMAP.md)
+- [../.planning/STATE.md](../.planning/STATE.md)
+- [../.planning/codebase/ARCHITECTURE.md](../.planning/codebase/ARCHITECTURE.md)
+- [../.planning/codebase/STRUCTURE.md](../.planning/codebase/STRUCTURE.md)
+- [../.planning/codebase/TESTING.md](../.planning/codebase/TESTING.md)
+- [../.planning/codebase/CONCERNS.md](../.planning/codebase/CONCERNS.md)
+
+Interpretation:
+
+- `docs/*` explains the product and major brownfield behavior
+- `.planning/*` is the active execution state for GSD
+- `.planning/codebase/*` is the refreshed implementation map to use before editing
+
 ## Current Runtime Truth
 
 These files define the actual running sandbox:
@@ -33,6 +51,10 @@ These files define the actual running sandbox:
 - [../src/lib/roomState.ts](../src/lib/roomState.ts)
 - [../src/lib/devLocalState.ts](../src/lib/devLocalState.ts)
 - [../src/lib/devWorldSettings.ts](../src/lib/devWorldSettings.ts)
+- [../src/app/hooks/useSandboxWorldClock.ts](../src/app/hooks/useSandboxWorldClock.ts)
+- [../src/app/clock.ts](../src/app/clock.ts)
+- [../src/lib/gameLoop.ts](../src/lib/gameLoop.ts)
+- [../src/lib/roomPlacementEquality.ts](../src/lib/roomPlacementEquality.ts)
 - [../src/lib/economy.ts](../src/lib/economy.ts)
 - [../src/lib/pcMinigame.ts](../src/lib/pcMinigame.ts)
 - [../src/lib/furnitureCollision.ts](../src/lib/furnitureCollision.ts)
@@ -44,6 +66,7 @@ These files define the actual running sandbox:
 - [../src/lib/mobLabState.ts](../src/lib/mobLabState.ts)
 - [../src/lib/pets.ts](../src/lib/pets.ts)
 - [../src/lib/petPathing.ts](../src/lib/petPathing.ts)
+- [../vite.config.js](../vite.config.js)
 
 ## The Two Active 3D Contexts
 
@@ -209,6 +232,7 @@ Important current facts:
 - persisted sandbox schema is `version: 6`
 - old `version: 5` saves are normalized forward
 - outdated layout versions reset to the current fallback starter room
+- `isValidPlacementSurface` in `devLocalState.ts` currently accepts `floor`, `wall_back`, `wall_left`, and `surface`, but not `wall_front` or `wall_right`; persisted placements on those walls are therefore at risk until that validator is fixed
 
 [../src/lib/devWorldSettings.ts](../src/lib/devWorldSettings.ts) separately persists:
 
@@ -258,6 +282,13 @@ Standard verification commands are:
 
 - `cmd /c npm test`
 - `cmd /c npm run build`
+
+## Known Codebase Risks
+
+- [../src/lib/devLocalState.ts](../src/lib/devLocalState.ts) has a real persistence-validation gap for `wall_front` and `wall_right`.
+- [../src/App.tsx](../src/App.tsx) and [../src/components/FurniturePreviewStudio.tsx](../src/components/FurniturePreviewStudio.tsx) still act as large orchestrators even after recent extractions.
+- Firebase-shaped env vars and rules files remain in the repo, but the active runtime inside `src/` is browser-local and does not currently import a live backend path.
+- The expanded risk inventory now lives in [../.planning/codebase/CONCERNS.md](../.planning/codebase/CONCERNS.md).
 
 ## Legacy Boundary
 

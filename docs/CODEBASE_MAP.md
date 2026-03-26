@@ -2,20 +2,41 @@
 
 This document is the fastest way to orient yourself in the current repo.
 
+For the expanded GSD map, also read [../.planning/codebase](../.planning/codebase).
+
 ## Active Runtime Entry Points
 
 - `src/App.tsx`: top-level sandbox orchestrator
 - `src/components/RoomView.tsx`: live room composition shell
 - `src/components/FurniturePreviewStudio.tsx`: furniture capture and Mob Lab host
+- `src/app/hooks/useSandboxWorldClock.ts`: world-clock orchestration and persisted time controls
+- `src/app/clock.ts`: clock conversion and formatting helpers
 - `src/lib/roomState.ts`: active room schema and starter layout
 - `src/lib/furnitureRegistry.ts`: canonical furniture catalog
 - `src/lib/devLocalState.ts`: room/runtime persistence and migration
 - `src/lib/devWorldSettings.ts`: world-settings persistence
+- `src/lib/gameLoop.ts`: Minecraft-time tick loop used by the toolbar clock
+- `src/lib/roomPlacementEquality.ts`: placement diff helpers used to suppress redundant room updates
 - `src/lib/mobLab.ts`: imported-mob preset schema and defaults
 - `src/lib/mobLabState.ts`: Mob Lab persistence
 - `src/lib/pets.ts`: live-room pet registry
+- `vite.config.js`: build-time manual chunking and Vitest environment config
 
 ## Top-Level Folder Rules
+
+### `.planning/codebase`
+
+This folder contains the refreshed brownfield map generated for the GSD workflow.
+
+Use it when you need:
+
+- stack and tooling facts
+- integration boundaries
+- current architecture ownership
+- folder-level navigation
+- coding conventions
+- testing guidance
+- risk and debt inventory
 
 ### `src/app`
 
@@ -168,10 +189,12 @@ The most important clusters are:
 ## Fast Navigation Heuristics
 
 - If the change is UI-shell only, start in `src/app`.
+- If the change affects time-of-day behavior or world-clock controls, inspect `src/app/hooks/useSandboxWorldClock.ts`, `src/app/clock.ts`, and `src/lib/gameLoop.ts`.
 - If the change affects the live room, start in `src/components/RoomView.tsx`, then inspect `src/components/room-view`.
 - If the change affects Preview Studio furniture capture, start in `src/components/FurniturePreviewStudio.tsx`.
 - If the change affects imported mobs, inspect `src/components/FurniturePreviewStudio.tsx`, `src/components/mob-lab`, `src/lib/mobLab.ts`, and `src/lib/mobLabState.ts`.
 - If the change affects room save behavior, inspect `src/lib/roomState.ts`, `src/lib/devLocalState.ts`, and `src/lib/devWorldSettings.ts`.
+- If the change affects repeated edit commits or room-state diffing, inspect `src/lib/roomPlacementEquality.ts`.
 - If the change affects wall placement, inspect `src/components/room-view/placementResolvers.ts`, `src/components/room-view/helpers.ts`, `src/components/room-view/useRoomViewBuilderGestures.ts`, and `src/lib/furnitureCollision.ts`.
 - If the change affects pets, inspect `src/lib/pets.ts`, `src/lib/petPathing.ts`, and `src/components/room-view/RoomPetActor.tsx`.
 - If you are adding furniture, begin with `src/lib/furnitureRegistry.ts` before touching rendering.
@@ -192,3 +215,7 @@ The active runtime is built around:
 - `pets.ts`
 
 The older backend/auth/pairing path is not a parallel runtime in the current repo anymore. Future shared-room work should extend the current sandbox schema instead of replacing it.
+
+Current known concern:
+
+- `src/lib/devLocalState.ts` still omits `wall_front` and `wall_right` from persisted placement-surface validation. See [../.planning/codebase/CONCERNS.md](../.planning/codebase/CONCERNS.md).
