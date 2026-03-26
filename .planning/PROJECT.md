@@ -23,11 +23,12 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] Development builds auto-enter a deterministic shared room for iteration, while shipped builds keep the real create/join flow. Validated in Phase 2 Plan 02.
 - [x] Each partner can see when the other partner joins, reconnects, or leaves through non-blocking presence status UX. Validated in Phase 2 Plan 02.
 - [x] Same-item shared-room edits use soft locks and stale local assumptions recover by canonical reload instead of silent drift. Validated in Phase 2 Plan 03.
+- [x] Each shared-room partner keeps a persistent personal wallet, XP, level, and desk-PC history inside the canonical room document. Validated in Phase 3.
+- [x] The live room shell surfaces personal wallet/XP plus shared streak and ritual state without a separate dashboard. Validated in Phase 3.
+- [x] The desk PC now drives a shared daily ritual that grants both partners a bonus on the second distinct same-day completion. Validated in Phase 3.
 
 ### Active
 
-- [ ] Individual progression and shared couple streak exist on top of the current sandbox model.
-- [ ] At least one daily ritual drives repeated return play together.
 - [ ] Shared memories such as editable photo frames make the room personal.
 - [ ] Shared-room pet presence and breakup-reset stakes work without regressing the current sandbox foundation.
 
@@ -50,9 +51,9 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 ## Current State
 
-- Phase 2 is complete. The shared-room runtime now covers live partner presence, subtle join/reconnect/leave status UX, deterministic dev bypass, soft same-item edit locks, and canonical reload recovery for stale shared edits.
-- Shared-room commits remain authoritative for confirmed room mutations, while live presence updates, item locks, camera/player transforms, and authoring-tool persistence stay outside canonical room revisions.
-- Remaining milestone work is progression and ritual loops, memory/pet promotion, and breakup stakes.
+- Phase 3 is complete. The shared-room runtime now carries canonical personal progression, desk-PC ritual history, daily streak state, and conflict-aware replay for progression-affecting mutations.
+- Shared-room commits remain authoritative for confirmed room and progression mutations, while live presence updates, item locks, camera/player transforms, and authoring-tool persistence stay outside canonical room revisions.
+- Remaining milestone work is shared memories, shared-room pet promotion, and breakup stakes.
 
 ## Constraints
 
@@ -99,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after Phase 2 completion*
+*Last updated: 2026-03-27 after Phase 3 completion*

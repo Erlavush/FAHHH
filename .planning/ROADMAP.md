@@ -12,7 +12,7 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 
 - [x] **Phase 1: Shared Room Backbone** - Pair one couple to one room and make committed room state authoritative. Completed 2026-03-26.
 - [x] **Phase 2: Live Presence and Co-op Consistency** - Make the room visibly shared and keep concurrent editing predictable. Completed 2026-03-27.
-- [ ] **Phase 3: Shared Progression and Ritual Loop** - Add personal progression, shared streak, and one daily reason to return.
+- [x] **Phase 3: Shared Progression and Ritual Loop** - Add personal progression, shared streak, and one daily reason to return. Completed 2026-03-27.
 - [ ] **Phase 4: Memories, Pets, and Breakup Stakes** - Finish the emotional fantasy with personalization and meaningful loss.
 
 ## Phase Details
@@ -64,9 +64,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Define canonical player and couple progression data plus UI surfaces
-- [ ] 03-02: Connect desk-PC rewards and one daily ritual to the new progression model
-- [ ] 03-03: Persist streak logic, recovery behavior, and reconnect-safe progression updates
+- [x] 03-01: Define canonical player and couple progression data plus UI surfaces
+- [x] 03-02: Connect desk-PC rewards and one daily ritual to the new progression model
+- [x] 03-03: Persist streak logic, recovery behavior, and reconnect-safe progression updates
 
 ### Phase 4: Memories, Pets, and Breakup Stakes
 **Goal**: Complete the product fantasy with shared memories, a curated shared-room pet path, and the high-stakes reset loop.
@@ -94,5 +94,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Shared Room Backbone | 3/3 | Complete | 2026-03-26 |
 | 2. Live Presence and Co-op Consistency | 3/3 | Complete | 2026-03-27 |
-| 3. Shared Progression and Ritual Loop | 0/3 | Not started | - |
+| 3. Shared Progression and Ritual Loop | 3/3 | Complete | 2026-03-27 |
 | 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |

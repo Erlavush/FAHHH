@@ -23,13 +23,13 @@
 
 ### Progression
 
-- [ ] **PROG-01**: Each partner has persistent individual coins and level progression.
-- [ ] **PROG-02**: Couple has a shared streak that updates from repeatable room activity.
-- [ ] **PROG-03**: Shared progression state is visible in the UI and survives refresh and reconnect.
+- [x] **PROG-01**: Each partner has persistent individual coins and level progression.
+- [x] **PROG-02**: Couple has a shared streak that updates from repeatable room activity.
+- [x] **PROG-03**: Shared progression state is visible in the UI and survives refresh and reconnect.
 
 ### Rituals
 
-- [ ] **RITL-01**: Couple can complete at least one daily quest or ritual that grants progression.
+- [x] **RITL-01**: Couple can complete at least one daily quest or ritual that grants progression.
 
 ### Personalization
 
@@ -77,10 +77,10 @@
 | PRES-01 | Phase 2 | Complete |
 | PRES-02 | Phase 2 | Complete |
 | PRES-03 | Phase 2 | Complete |
-| PROG-01 | Phase 3 | Pending |
-| PROG-02 | Phase 3 | Pending |
-| PROG-03 | Phase 3 | Pending |
-| RITL-01 | Phase 3 | Pending |
+| PROG-01 | Phase 3 | Complete |
+| PROG-02 | Phase 3 | Complete |
+| PROG-03 | Phase 3 | Complete |
+| RITL-01 | Phase 3 | Complete |
 | MEMR-01 | Phase 4 | Pending |
 | PETS-01 | Phase 4 | Pending |
 | STAK-01 | Phase 4 | Pending |
@@ -93,4 +93,4 @@
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-27 after Phase 2 completion*
+*Last updated: 2026-03-27 after Phase 3 completion*
