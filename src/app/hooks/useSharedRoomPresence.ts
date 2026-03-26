@@ -9,6 +9,19 @@ import type { SharedPlayerProfile } from "../../lib/sharedRoomTypes";
 import type { LocalPlayerPresenceSnapshot } from "../types";
 
 export type SharedPresenceFreshness = "offline" | "live" | "holding" | "reconnecting";
+export type SharedPresenceStatusTitle =
+  | "Waiting for partner"
+  | "Partner joined"
+  | "Partner reconnecting"
+  | "Partner is back"
+  | "Together now";
+
+export interface SharedPresenceStatus {
+  body: string;
+  isBlocking: false;
+  title: SharedPresenceStatusTitle;
+  tone: "presence" | "success" | "attention";
+}
 
 export interface UseSharedRoomPresenceOptions {
   enabled: boolean;
@@ -24,6 +37,7 @@ const PRESENCE_PUBLISH_INTERVAL_MS = 500;
 const PRESENCE_POLL_INTERVAL_MS = 1000;
 const PRESENCE_LIVE_THRESHOLD_MS = 2500;
 const PRESENCE_HOLD_THRESHOLD_MS = 6000;
+const PRESENCE_STATUS_SETTLE_MS = 2200;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -89,6 +103,49 @@ export function derivePresenceFreshness(
   return "reconnecting";
 }
 
+export function createSharedPresenceStatus(
+  title: SharedPresenceStatusTitle
+): SharedPresenceStatus {
+  switch (title) {
+    case "Partner joined":
+      return {
+        title,
+        body: "Your partner just entered the room.",
+        isBlocking: false,
+        tone: "presence"
+      };
+    case "Partner reconnecting":
+      return {
+        title,
+        body: "Holding the last known partner position while presence reconnects.",
+        isBlocking: false,
+        tone: "attention"
+      };
+    case "Partner is back":
+      return {
+        title,
+        body: "Presence is live again and the room stays usable.",
+        isBlocking: false,
+        tone: "success"
+      };
+    case "Together now":
+      return {
+        title,
+        body: "Both partners are live in the shared room.",
+        isBlocking: false,
+        tone: "success"
+      };
+    case "Waiting for partner":
+    default:
+      return {
+        title: "Waiting for partner",
+        body: "The room stays usable while your partner is away.",
+        isBlocking: false,
+        tone: "presence"
+      };
+  }
+}
+
 export function useSharedRoomPresence({
   enabled,
   localPresence,
@@ -99,8 +156,21 @@ export function useSharedRoomPresence({
   skinSrc
 }: UseSharedRoomPresenceOptions) {
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [presenceStatus, setPresenceStatus] = useState<SharedPresenceStatus>(
+    createSharedPresenceStatus("Waiting for partner")
+  );
   const [roomPresence, setRoomPresence] = useState<SharedPresenceRoomSnapshot | null>(null);
+  const hadLivePartnerRef = useRef(false);
   const latestPresenceRef = useRef<SharedPresenceSnapshot | null>(null);
+  const previousFreshnessRef = useRef<SharedPresenceFreshness>("offline");
+  const statusTimeoutRef = useRef<number | null>(null);
+
+  const clearStatusTimeout = useCallback(() => {
+    if (statusTimeoutRef.current !== null) {
+      window.clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!enabled || !roomId || !localPresence) {
@@ -183,6 +253,8 @@ export function useSharedRoomPresence({
     };
   }, [enabled, localPresence, publishPresence, roomId]);
 
+  useEffect(() => clearStatusTimeout, [clearStatusTimeout]);
+
   useEffect(() => {
     if (!enabled || !roomId) {
       return;
@@ -206,11 +278,55 @@ export function useSharedRoomPresence({
     return presences.find((presence) => presence.playerId !== profile.playerId) ?? null;
   }, [partnerId, profile.playerId, roomPresence?.presences]);
 
+  const remotePresenceFreshness = derivePresenceFreshness(remotePresence);
+
+  useEffect(() => {
+    hadLivePartnerRef.current = false;
+    previousFreshnessRef.current = "offline";
+    clearStatusTimeout();
+    setPresenceStatus(createSharedPresenceStatus("Waiting for partner"));
+  }, [clearStatusTimeout, roomId]);
+
+  useEffect(() => {
+    const previousFreshness = previousFreshnessRef.current;
+
+    clearStatusTimeout();
+
+    if (remotePresenceFreshness === "live") {
+      if (!hadLivePartnerRef.current) {
+        hadLivePartnerRef.current = true;
+        setPresenceStatus(createSharedPresenceStatus("Partner joined"));
+        statusTimeoutRef.current = window.setTimeout(() => {
+          setPresenceStatus(createSharedPresenceStatus("Together now"));
+          statusTimeoutRef.current = null;
+        }, PRESENCE_STATUS_SETTLE_MS);
+      } else if (previousFreshness !== "live") {
+        setPresenceStatus(createSharedPresenceStatus("Partner is back"));
+        statusTimeoutRef.current = window.setTimeout(() => {
+          setPresenceStatus(createSharedPresenceStatus("Together now"));
+          statusTimeoutRef.current = null;
+        }, PRESENCE_STATUS_SETTLE_MS);
+      } else {
+        setPresenceStatus(createSharedPresenceStatus("Together now"));
+      }
+    } else if (
+      remotePresenceFreshness === "holding" ||
+      remotePresenceFreshness === "reconnecting"
+    ) {
+      setPresenceStatus(createSharedPresenceStatus("Partner reconnecting"));
+    } else {
+      setPresenceStatus(createSharedPresenceStatus("Waiting for partner"));
+    }
+
+    previousFreshnessRef.current = remotePresenceFreshness;
+  }, [clearStatusTimeout, remotePresenceFreshness]);
+
   return {
     clearInlineError: () => setInlineError(null),
     inlineError,
+    presenceStatus,
     remotePresence,
-    remotePresenceFreshness: derivePresenceFreshness(remotePresence),
+    remotePresenceFreshness,
     roomPresence
   };
 }

@@ -72,6 +72,15 @@ body {
   backdrop-filter: blur(18px);
 }
 
+.shared-room-status--presence {
+  width: min(760px, calc(100vw - 36px));
+  padding: 12px 16px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border-color: rgba(137, 183, 216, 0.26);
+  background:
+    linear-gradient(180deg, rgba(39, 50, 65, 0.92), rgba(33, 42, 55, 0.9));
+}
+
 .shared-room-status__identity,
 .shared-room-status__content,
 .shared-room-status__actions {
@@ -106,6 +115,18 @@ body {
   font: 700 18px/1.1 var(--shared-room-font-display);
 }
 
+.shared-room-status__title--presence {
+  color: #89b7d8;
+}
+
+.shared-room-status__title--success {
+  color: #6faf83;
+}
+
+.shared-room-status__title--attention {
+  color: #d9b07c;
+}
+
 .shared-room-status__content span {
   color: var(--shared-room-muted);
   font: 500 13px/1.4 var(--shared-room-font-body);
@@ -126,6 +147,10 @@ body {
   border: 1px solid rgba(111, 175, 131, 0.28);
   border-radius: 999px;
   background: rgba(244, 234, 223, 0.08);
+}
+
+.shared-room-status--presence .shared-room-status__invite-card {
+  border-color: rgba(137, 183, 216, 0.28);
 }
 
 .shared-room-status__button {
