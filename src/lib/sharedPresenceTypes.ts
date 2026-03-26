@@ -34,12 +34,51 @@ export interface SharedPresenceRoomSnapshot {
   updatedAt: string;
 }
 
+export interface SharedEditLock {
+  roomId: string;
+  furnitureId: string;
+  playerId: string;
+  displayName: string;
+  expiresAt: string;
+  updatedAt: string;
+}
+
+export interface SharedEditLockRoomSnapshot {
+  roomId: string;
+  locks: SharedEditLock[];
+  updatedAt: string;
+}
+
 export interface UpsertSharedPresenceInput {
   presence: SharedPresenceSnapshot;
 }
 
 export interface LoadSharedRoomPresenceInput {
   roomId: string;
+}
+
+export interface LoadSharedRoomLocksInput {
+  roomId: string;
+}
+
+export interface AcquireSharedEditLockInput {
+  roomId: string;
+  furnitureId: string;
+  playerId: string;
+  displayName: string;
+}
+
+export interface RenewSharedEditLockInput {
+  roomId: string;
+  furnitureId: string;
+  playerId: string;
+  displayName: string;
+}
+
+export interface ReleaseSharedEditLockInput {
+  roomId: string;
+  furnitureId: string;
+  playerId: string;
 }
 
 export interface LeaveSharedPresenceInput {

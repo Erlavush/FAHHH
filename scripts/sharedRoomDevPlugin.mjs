@@ -7,6 +7,8 @@ import {
   validateSharedRoomDocument
 } from "../src/lib/sharedRoomValidation";
 import {
+  validateSharedEditLock,
+  validateSharedEditLockRoomSnapshot,
   validateSharedPresenceRoomSnapshot,
   validateSharedPresenceSnapshot
 } from "../src/lib/sharedPresenceValidation";
@@ -14,6 +16,7 @@ import {
 export const SHARED_ROOM_DEV_DB_FILENAME = "shared-room-dev-db.json";
 export const DEV_SHARED_ROOM_ID = "dev-shared-room";
 export const DEV_SHARED_ROOM_INVITE_CODE = "DEVROOM";
+export const SHARED_EDIT_LOCK_TTL_MS = 5000;
 
 class SharedRoomHttpError extends Error {
   constructor(message, status) {
@@ -28,7 +31,8 @@ export function createEmptySharedRoomDevDatabase() {
     profiles: {},
     invites: {},
     rooms: {},
-    presenceByRoom: {}
+    presenceByRoom: {},
+    locksByRoom: {}
   };
 }
 
@@ -44,8 +48,8 @@ export function createInviteCode() {
   return randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
 }
 
-function createTimestamp() {
-  return new Date().toISOString();
+function createTimestamp(timestampMs = Date.now()) {
+  return new Date(timestampMs).toISOString();
 }
 
 function ensureValidProfile(profile) {
@@ -74,7 +78,8 @@ export async function readSharedRoomDevDatabase(databasePath) {
       profiles: parsedDatabase?.profiles ?? {},
       invites: parsedDatabase?.invites ?? {},
       rooms: parsedDatabase?.rooms ?? {},
-      presenceByRoom: parsedDatabase?.presenceByRoom ?? {}
+      presenceByRoom: parsedDatabase?.presenceByRoom ?? {},
+      locksByRoom: parsedDatabase?.locksByRoom ?? {}
     };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
@@ -291,6 +296,14 @@ function createEmptySharedPresenceRoomSnapshot(roomId, updatedAt = createTimesta
   });
 }
 
+function createEmptySharedEditLockRoomSnapshot(roomId, updatedAt = createTimestamp()) {
+  return validateSharedEditLockRoomSnapshot({
+    roomId,
+    locks: [],
+    updatedAt
+  });
+}
+
 function loadSharedRoomPresenceSnapshotInDatabase(database, roomId) {
   loadSharedRoomInDatabase(database, roomId);
 
@@ -305,6 +318,48 @@ function loadSharedRoomPresenceSnapshotInDatabase(database, roomId) {
   const validatedPresence = validateSharedPresenceRoomSnapshot(roomPresence);
   database.presenceByRoom[roomId] = validatedPresence;
   return validatedPresence;
+}
+
+function pruneExpiredRoomLocks(roomLocks, now = Date.now()) {
+  const nextLocks = roomLocks.locks.filter((lock) => {
+    const expiresAt = Date.parse(lock.expiresAt);
+    return Number.isFinite(expiresAt) && expiresAt > now;
+  });
+
+  if (nextLocks.length === roomLocks.locks.length) {
+    return roomLocks;
+  }
+
+  return validateSharedEditLockRoomSnapshot({
+    roomId: roomLocks.roomId,
+    locks: nextLocks,
+    updatedAt: createTimestamp(now)
+  });
+}
+
+function loadSharedRoomLockSnapshotInDatabase(database, roomId) {
+  loadSharedRoomInDatabase(database, roomId);
+
+  const roomLocks = database.locksByRoom[roomId];
+
+  if (!roomLocks) {
+    const emptySnapshot = createEmptySharedEditLockRoomSnapshot(roomId);
+    database.locksByRoom[roomId] = emptySnapshot;
+    return emptySnapshot;
+  }
+
+  const validatedLocks = validateSharedEditLockRoomSnapshot(roomLocks);
+  const nextRoomLocks = pruneExpiredRoomLocks(validatedLocks);
+  database.locksByRoom[roomId] = nextRoomLocks;
+  return nextRoomLocks;
+}
+
+function requireLockField(value, fieldName) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new SharedRoomHttpError(`${fieldName} is required`, 400);
+  }
+
+  return value.trim();
 }
 
 export function upsertSharedPresenceInDatabase(database, input) {
@@ -363,6 +418,111 @@ export function leaveSharedPresenceInDatabase(database, input) {
   database.presenceByRoom[roomId] = nextRoomPresence;
 
   return nextRoomPresence;
+}
+
+export function loadRoomLocksInDatabase(database, roomId) {
+  return loadSharedRoomLockSnapshotInDatabase(database, roomId);
+}
+
+export function acquireEditLockInDatabase(database, input) {
+  const roomId = requireLockField(input?.roomId, "Room id");
+  const furnitureId = requireLockField(input?.furnitureId, "Furniture id");
+  const playerId = requireLockField(input?.playerId, "Player id");
+  const displayName = requireLockField(input?.displayName, "Display name");
+  const roomDocument = loadSharedRoomInDatabase(database, roomId);
+  const timestampMs = Date.now();
+  const timestamp = createTimestamp(timestampMs);
+
+  ensurePlayerBelongsToSharedRoom(roomDocument, playerId);
+
+  const roomLocks = loadSharedRoomLockSnapshotInDatabase(database, roomId);
+  const existingLock = roomLocks.locks.find((lock) => lock.furnitureId === furnitureId);
+
+  if (existingLock && existingLock.playerId !== playerId) {
+    throw new SharedRoomHttpError("Your partner is editing this item", 409);
+  }
+
+  const nextLock = validateSharedEditLock({
+    roomId,
+    furnitureId,
+    playerId,
+    displayName,
+    expiresAt: createTimestamp(timestampMs + SHARED_EDIT_LOCK_TTL_MS),
+    updatedAt: timestamp
+  });
+  const nextRoomLocks = validateSharedEditLockRoomSnapshot({
+    roomId,
+    locks: [
+      ...roomLocks.locks.filter((lock) => lock.furnitureId !== furnitureId),
+      nextLock
+    ],
+    updatedAt: timestamp
+  });
+
+  database.locksByRoom[roomId] = nextRoomLocks;
+
+  return nextRoomLocks;
+}
+
+export function renewEditLockInDatabase(database, input) {
+  const roomId = requireLockField(input?.roomId, "Room id");
+  const furnitureId = requireLockField(input?.furnitureId, "Furniture id");
+  const playerId = requireLockField(input?.playerId, "Player id");
+  const displayName = requireLockField(input?.displayName, "Display name");
+  const roomDocument = loadSharedRoomInDatabase(database, roomId);
+  const timestampMs = Date.now();
+  const timestamp = createTimestamp(timestampMs);
+
+  ensurePlayerBelongsToSharedRoom(roomDocument, playerId);
+
+  const roomLocks = loadSharedRoomLockSnapshotInDatabase(database, roomId);
+  const existingLock = roomLocks.locks.find((lock) => lock.furnitureId === furnitureId);
+
+  if (!existingLock || existingLock.playerId !== playerId) {
+    throw new SharedRoomHttpError("Edit lock is no longer active", 410);
+  }
+
+  const nextLock = validateSharedEditLock({
+    ...existingLock,
+    displayName,
+    expiresAt: createTimestamp(timestampMs + SHARED_EDIT_LOCK_TTL_MS),
+    updatedAt: timestamp
+  });
+  const nextRoomLocks = validateSharedEditLockRoomSnapshot({
+    roomId,
+    locks: [
+      ...roomLocks.locks.filter((lock) => lock.furnitureId !== furnitureId),
+      nextLock
+    ],
+    updatedAt: timestamp
+  });
+
+  database.locksByRoom[roomId] = nextRoomLocks;
+
+  return nextRoomLocks;
+}
+
+export function releaseEditLockInDatabase(database, input) {
+  const roomId = requireLockField(input?.roomId, "Room id");
+  const furnitureId = requireLockField(input?.furnitureId, "Furniture id");
+  const playerId = requireLockField(input?.playerId, "Player id");
+  const roomDocument = loadSharedRoomInDatabase(database, roomId);
+  const timestamp = createTimestamp();
+
+  ensurePlayerBelongsToSharedRoom(roomDocument, playerId);
+
+  const roomLocks = loadSharedRoomLockSnapshotInDatabase(database, roomId);
+  const nextRoomLocks = validateSharedEditLockRoomSnapshot({
+    roomId,
+    locks: roomLocks.locks.filter(
+      (lock) => !(lock.furnitureId === furnitureId && lock.playerId === playerId)
+    ),
+    updatedAt: timestamp
+  });
+
+  database.locksByRoom[roomId] = nextRoomLocks;
+
+  return nextRoomLocks;
 }
 
 async function readRequestJson(request) {
@@ -462,6 +622,43 @@ export function sharedRoomDevPlugin() {
             );
             const roomPresence = loadRoomPresenceInDatabase(database, roomId);
             writeJson(response, 200, roomPresence);
+            return;
+          }
+
+          if (
+            method === "GET" &&
+            requestUrl.pathname.startsWith("/api/dev/shared-room/locks/room/")
+          ) {
+            const roomId = decodeURIComponent(
+              requestUrl.pathname.slice("/api/dev/shared-room/locks/room/".length)
+            );
+            const roomLocks = loadRoomLocksInDatabase(database, roomId);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomLocks);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/locks/acquire") {
+            const requestBody = await readRequestJson(request);
+            const roomLocks = acquireEditLockInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomLocks);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/locks/renew") {
+            const requestBody = await readRequestJson(request);
+            const roomLocks = renewEditLockInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomLocks);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/locks/release") {
+            const requestBody = await readRequestJson(request);
+            const roomLocks = releaseEditLockInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomLocks);
             return;
           }
 

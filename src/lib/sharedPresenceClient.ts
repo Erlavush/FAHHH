@@ -1,12 +1,18 @@
 import type {
+  AcquireSharedEditLockInput,
   LeaveSharedPresenceInput,
+  LoadSharedRoomLocksInput,
   LoadSharedRoomPresenceInput,
+  ReleaseSharedEditLockInput,
+  RenewSharedEditLockInput,
+  SharedEditLockRoomSnapshot,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot,
   UpsertSharedPresenceInput
 } from "./sharedPresenceTypes";
 import type { SharedPresenceStore } from "./sharedPresenceStore";
 import {
+  validateSharedEditLockRoomSnapshot,
   validateSharedPresenceRoomSnapshot,
   validateSharedPresenceSnapshot
 } from "./sharedPresenceValidation";
@@ -59,6 +65,31 @@ export function createSharedPresenceStore(
   fetchImpl: SharedPresenceFetch = fetch
 ): SharedPresenceStore {
   return {
+    acquireEditLock(
+      input: AcquireSharedEditLockInput
+    ): Promise<SharedEditLockRoomSnapshot> {
+      return fetchValidatedResponse(
+        fetchImpl,
+        "/api/dev/shared-room/locks/acquire",
+        validateSharedEditLockRoomSnapshot,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(input)
+        }
+      );
+    },
+    loadRoomLocks(
+      input: LoadSharedRoomLocksInput
+    ): Promise<SharedEditLockRoomSnapshot> {
+      return fetchValidatedResponse(
+        fetchImpl,
+        `/api/dev/shared-room/locks/room/${encodeURIComponent(input.roomId)}`,
+        validateSharedEditLockRoomSnapshot
+      );
+    },
     upsertPresence(input: UpsertSharedPresenceInput): Promise<SharedPresenceSnapshot> {
       return fetchValidatedResponse(
         fetchImpl,
@@ -87,6 +118,38 @@ export function createSharedPresenceStore(
         fetchImpl,
         "/api/dev/shared-room/presence/leave",
         validateSharedPresenceRoomSnapshot,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(input)
+        }
+      );
+    },
+    releaseEditLock(
+      input: ReleaseSharedEditLockInput
+    ): Promise<SharedEditLockRoomSnapshot> {
+      return fetchValidatedResponse(
+        fetchImpl,
+        "/api/dev/shared-room/locks/release",
+        validateSharedEditLockRoomSnapshot,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(input)
+        }
+      );
+    },
+    renewEditLock(
+      input: RenewSharedEditLockInput
+    ): Promise<SharedEditLockRoomSnapshot> {
+      return fetchValidatedResponse(
+        fetchImpl,
+        "/api/dev/shared-room/locks/renew",
+        validateSharedEditLockRoomSnapshot,
         {
           method: "POST",
           headers: {

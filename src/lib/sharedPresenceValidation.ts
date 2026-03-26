@@ -1,6 +1,12 @@
 import type { Vector3Tuple } from "./roomState";
 import type {
+  AcquireSharedEditLockInput,
+  LoadSharedRoomLocksInput,
+  ReleaseSharedEditLockInput,
+  RenewSharedEditLockInput,
   SharedPresenceActivity,
+  SharedEditLock,
+  SharedEditLockRoomSnapshot,
   SharedPresencePose,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot
@@ -79,6 +85,65 @@ export function isValidSharedPresenceRoomSnapshot(
   );
 }
 
+export function isValidSharedEditLock(value: unknown): value is SharedEditLock {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    typeof value.furnitureId === "string" &&
+    typeof value.playerId === "string" &&
+    typeof value.displayName === "string" &&
+    isIsoDateString(value.expiresAt) &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
+export function isValidSharedEditLockRoomSnapshot(
+  value: unknown
+): value is SharedEditLockRoomSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    Array.isArray(value.locks) &&
+    value.locks.every(isValidSharedEditLock) &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
+export function isValidLoadSharedRoomLocksInput(
+  value: unknown
+): value is LoadSharedRoomLocksInput {
+  return isRecord(value) && typeof value.roomId === "string";
+}
+
+export function isValidAcquireSharedEditLockInput(
+  value: unknown
+): value is AcquireSharedEditLockInput {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    typeof value.furnitureId === "string" &&
+    typeof value.playerId === "string" &&
+    typeof value.displayName === "string"
+  );
+}
+
+export function isValidRenewSharedEditLockInput(
+  value: unknown
+): value is RenewSharedEditLockInput {
+  return isValidAcquireSharedEditLockInput(value);
+}
+
+export function isValidReleaseSharedEditLockInput(
+  value: unknown
+): value is ReleaseSharedEditLockInput {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    typeof value.furnitureId === "string" &&
+    typeof value.playerId === "string"
+  );
+}
+
 export function validateSharedPresenceSnapshot(
   value: unknown
 ): SharedPresenceSnapshot {
@@ -117,5 +182,31 @@ export function validateSharedPresenceRoomSnapshot(
     roomId: roomSnapshot.roomId,
     updatedAt: roomSnapshot.updatedAt,
     presences: roomSnapshot.presences.map(validateSharedPresenceSnapshot)
+  };
+}
+
+export function validateSharedEditLock(value: unknown): SharedEditLock {
+  if (!isValidSharedEditLock(value)) {
+    throw new Error("Invalid shared edit lock");
+  }
+
+  return {
+    ...(value as SharedEditLock)
+  };
+}
+
+export function validateSharedEditLockRoomSnapshot(
+  value: unknown
+): SharedEditLockRoomSnapshot {
+  if (!isValidSharedEditLockRoomSnapshot(value)) {
+    throw new Error("Invalid shared edit lock room snapshot");
+  }
+
+  const roomSnapshot = value as SharedEditLockRoomSnapshot;
+
+  return {
+    roomId: roomSnapshot.roomId,
+    updatedAt: roomSnapshot.updatedAt,
+    locks: roomSnapshot.locks.map(validateSharedEditLock)
   };
 }
