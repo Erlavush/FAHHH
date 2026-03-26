@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Online Foundation
 status: in_progress
-stopped_at: Milestone v1.1 initialized
-last_updated: "2026-03-27T06:43:02.5845729+08:00"
+stopped_at: Phase 5 context gathered
+last_updated: "2026-03-27T07:14:47.8462873+08:00"
 last_activity: 2026-03-27 -- Started milestone v1.1 Online Foundation
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 Phase: 05 (online-backend-and-couple-ownership) - NOT STARTED
 Plan: -
-Status: Milestone initialized; requirements and roadmap defined, ready to discuss Phase 05
+Status: Phase 05 context captured and ready for planning
 Last activity: 2026-03-27 -- Started milestone v1.1 Online Foundation
 
 Progress: [----------] 0%
@@ -121,13 +121,13 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Backend and auth provider for one-couple, one-room ownership is still not selected.
+- Phase 05 backend/auth defaults are now captured in `.planning/phases/05-online-backend-and-couple-ownership/05-CONTEXT.md` and still need implementation planning.
 - The current shared-room stack is still local/dev oriented, so Phase 05 has real migration and compatibility risk.
 - Phases 2, 3.1, and 4 are missing `VERIFICATION.md`, so v1.1 must not repeat that milestone-audit debt.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; shared-room runtime bypasses that gap today, but the validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-27T06:43:02.5845729+08:00
-Stopped at: Milestone v1.1 initialized
-Resume file: .planning/STATE.md
+Last session: 2026-03-27T07:14:47.8462873+08:00
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-online-backend-and-couple-ownership/05-CONTEXT.md
