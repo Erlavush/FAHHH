@@ -620,6 +620,10 @@ function App() {
   }
 
   function handleBuyPet(type: PetType): void {
+    if (sharedRoomActive) {
+      return;
+    }
+
     const petDefinition = PET_REGISTRY[type];
 
     if (ownedPetTypes.has(type) || !trySpendCoins(petDefinition.price)) {
@@ -1170,6 +1174,7 @@ function App() {
             ownedPetTypes={ownedPetTypes}
             petCatalogEntries={petCatalogEntries}
             playerCoins={displayedPlayerCoins}
+            showPetCatalog={!sharedRoomActive}
             walletLabel={walletLabel}
             storedInventorySections={storedInventorySections}
           />

@@ -12,6 +12,7 @@ import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
 type InventoryPanelProps = {
   playerCoins: number;
   walletLabel?: string;
+  showPetCatalog?: boolean;
   catalogSections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   storedInventorySections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   inventoryByType: Map<FurnitureType, InventoryStats>;
@@ -33,6 +34,7 @@ type InventoryPanelProps = {
 export function InventoryPanel({
   playerCoins,
   walletLabel = "Coins",
+  showPetCatalog = true,
   catalogSections,
   storedInventorySections,
   inventoryByType,
@@ -60,7 +62,7 @@ export function InventoryPanel({
         {walletLabel} pays for new furniture. Purchased furniture becomes shared room inventory.
       </p>
 
-      {petCatalogEntries.length > 0 ? (
+      {showPetCatalog && petCatalogEntries.length > 0 ? (
         <section className="spawn-section">
           <span className="spawn-section__title">Pet Store</span>
           <div className="spawn-grid">
