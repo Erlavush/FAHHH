@@ -1,0 +1,121 @@
+import type { Vector3Tuple } from "./roomState";
+import type {
+  SharedPresenceActivity,
+  SharedPresencePose,
+  SharedPresenceRoomSnapshot,
+  SharedPresenceSnapshot
+} from "./sharedPresenceTypes";
+
+const VALID_SHARED_PRESENCE_ACTIVITIES: SharedPresenceActivity[] = [
+  "idle",
+  "walking",
+  "sit",
+  "lie",
+  "use_pc"
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isIsoDateString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isValidVector3Tuple(value: unknown): value is Vector3Tuple {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+  );
+}
+
+export function isValidSharedPresenceActivity(
+  value: unknown
+): value is SharedPresenceActivity {
+  return VALID_SHARED_PRESENCE_ACTIVITIES.includes(value as SharedPresenceActivity);
+}
+
+export function isValidSharedPresencePose(value: unknown): value is SharedPresencePose {
+  return (
+    isRecord(value) &&
+    (value.type === "sit" || value.type === "lie" || value.type === "use_pc") &&
+    isValidVector3Tuple(value.position) &&
+    typeof value.rotationY === "number" &&
+    Number.isFinite(value.rotationY) &&
+    (!("poseOffset" in value) ||
+      value.poseOffset === undefined ||
+      isValidVector3Tuple(value.poseOffset))
+  );
+}
+
+export function isValidSharedPresenceSnapshot(
+  value: unknown
+): value is SharedPresenceSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    typeof value.playerId === "string" &&
+    typeof value.displayName === "string" &&
+    (typeof value.skinSrc === "string" || value.skinSrc === null) &&
+    isValidVector3Tuple(value.position) &&
+    typeof value.facingY === "number" &&
+    Number.isFinite(value.facingY) &&
+    isValidSharedPresenceActivity(value.activity) &&
+    (value.pose === null || isValidSharedPresencePose(value.pose)) &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
+export function isValidSharedPresenceRoomSnapshot(
+  value: unknown
+): value is SharedPresenceRoomSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.roomId === "string" &&
+    Array.isArray(value.presences) &&
+    value.presences.every(isValidSharedPresenceSnapshot) &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
+export function validateSharedPresenceSnapshot(
+  value: unknown
+): SharedPresenceSnapshot {
+  if (!isValidSharedPresenceSnapshot(value)) {
+    throw new Error("Invalid shared presence snapshot");
+  }
+
+  const snapshot = value as SharedPresenceSnapshot;
+
+  return {
+    ...snapshot,
+    position: [...snapshot.position] as Vector3Tuple,
+    facingY: snapshot.facingY,
+    pose: snapshot.pose
+      ? {
+          ...snapshot.pose,
+          position: [...snapshot.pose.position] as Vector3Tuple,
+          poseOffset: snapshot.pose.poseOffset
+            ? ([...snapshot.pose.poseOffset] as Vector3Tuple)
+            : undefined
+        }
+      : null
+  };
+}
+
+export function validateSharedPresenceRoomSnapshot(
+  value: unknown
+): SharedPresenceRoomSnapshot {
+  if (!isValidSharedPresenceRoomSnapshot(value)) {
+    throw new Error("Invalid shared room presence snapshot");
+  }
+
+  const roomSnapshot = value as SharedPresenceRoomSnapshot;
+
+  return {
+    roomId: roomSnapshot.roomId,
+    updatedAt: roomSnapshot.updatedAt,
+    presences: roomSnapshot.presences.map(validateSharedPresenceSnapshot)
+  };
+}
