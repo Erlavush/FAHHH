@@ -10,7 +10,7 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 - Integer phases (1, 2, 3): planned milestone work
 - Decimal phases (2.1, 2.2): urgent insertions if needed later
 
-- [ ] **Phase 1: Shared Room Backbone** - Pair one couple to one room and make committed room state authoritative.
+- [x] **Phase 1: Shared Room Backbone** - Pair one couple to one room and make committed room state authoritative. Completed 2026-03-26.
 - [ ] **Phase 2: Live Presence and Co-op Consistency** - Make the room visibly shared and keep concurrent editing predictable.
 - [ ] **Phase 3: Shared Progression and Ritual Loop** - Add personal progression, shared streak, and one daily reason to return.
 - [ ] **Phase 4: Memories, Pets, and Breakup Stakes** - Finish the emotional fantasy with personalization and meaningful loss.
@@ -32,7 +32,7 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 Plans:
 - [x] 01-01: Define shared room identity, pairing flow, and migration contract from solo saves
 - [x] 01-02: Add authoritative shared-room persistence adapters around the current room schema
-- [ ] 01-03: Sync committed room-edit operations while preserving ownership-versus-placement rules
+- [x] 01-03: Sync committed room-edit operations while preserving ownership-versus-placement rules
 
 ### Phase 2: Live Presence and Co-op Consistency
 **Goal**: Make the shared room feel alive for two people while concurrent actions converge predictably.
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Shared Room Backbone | 2/3 | In Progress | - |
+| 1. Shared Room Backbone | 3/3 | Complete | 2026-03-26 |
 | 2. Live Presence and Co-op Consistency | 0/3 | Not started | - |
 | 3. Shared Progression and Ritual Loop | 0/3 | Not started | - |
 | 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |

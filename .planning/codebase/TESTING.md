@@ -16,6 +16,7 @@
 ```bash
 cmd /c npm test                                # Run the suite once
 cmd /c npx vitest run tests/roomState.test.ts  # Run a single file
+cmd /c npx vitest run tests/sharedRoomRuntime.test.ts  # Run shared-room runtime coverage
 cmd /c npx vitest --watch                      # Watch mode (not scripted, but supported)
 ```
 
@@ -33,6 +34,8 @@ tests/
 |-- economy.test.ts
 |-- furnitureCollision.test.ts
 |-- furnitureInteractions.test.ts
+|-- sharedRoomRuntime.test.ts
+|-- sharedRoomStore.test.ts
 |-- mobLabState.test.ts
 |-- roomState.test.ts
 |-- roomViewLighting.test.ts
@@ -50,7 +53,7 @@ tests/
 **Patterns:**
 - Pure utility tests dominate the suite
 - Arrange/act/assert is often implicit, with inline helper creators near the top of each file
-- DOM-oriented tests opt into `jsdom` explicitly when needed, for example `tests/useRoomFurnitureEditor.test.ts`
+- DOM-oriented tests opt into `jsdom` explicitly when needed, for example `tests/useRoomFurnitureEditor.test.ts` and `tests/sharedRoomRuntime.test.ts`
 
 ## Mocking
 
@@ -63,7 +66,7 @@ tests/
 
 **What to Mock:**
 - Callback boundaries for hooks and editor orchestration
-- Browser APIs such as `localStorage` through the jsdom environment
+- Browser APIs such as `localStorage` and clipboard-adjacent UI flows through the jsdom environment
 
 **What NOT to Mock:**
 - Pure domain math and registry helpers
@@ -96,10 +99,11 @@ cmd /c npx vitest run --coverage
 
 **Unit Tests:**
 - Main test type in this repo
-- Cover room state, economy, lighting, collisions, pets, spawn logic, surface decor, wall openings, and Mob Lab validation
+- Cover room state, economy, lighting, collisions, pets, spawn logic, surface decor, wall openings, shared-room validation/store rules, and Mob Lab validation
 
 **Integration / Hook Tests:**
 - Light integration-style coverage exists for hooks such as `useRoomFurnitureEditor`
+- Shared-room runtime bootstrap and canonical helper behavior now also have focused hook coverage in `tests/sharedRoomRuntime.test.ts`
 
 **E2E Tests:**
 - None found
@@ -121,4 +125,3 @@ cmd /c npx vitest run --coverage
 
 *Testing analysis: 2026-03-26*
 *Update when test patterns change*
-

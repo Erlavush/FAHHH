@@ -7,17 +7,18 @@
 **Overall:** Client-side React 3D sandbox with an embedded authoring studio and a domain-heavy utility layer
 
 **Key Characteristics:**
-- Single-browser runtime with `localStorage` persistence
+- Hybrid Phase 1 runtime: canonical shared-room documents for the live room plus browser-local persistence for shell settings and authoring data
 - App-shell orchestration in one top-level React component: `src/App.tsx`
+- Shared-room bootstrap and status orchestration extracted into `src/app/hooks/useSharedRoomRuntime.ts` plus dedicated shared-room shell components
 - Live room logic split into focused modules under `src/components/room-view/`
 - Authoring-only Preview Studio and Mob Lab split from gameplay and lazy-loaded from `src/components/FurniturePreviewStudio.tsx`
-- Registry-driven furniture and room-state domain model under `src/lib/`
+- Registry-driven furniture and room-state domain model under `src/lib/`, now wrapped by a replaceable `SharedRoomStore` boundary for Phase 1
 
 ## Layers
 
 **Shell Layer:**
-- Purpose: own global UI state and wire gameplay surfaces together
-- Contains: toolbar, inventory, debug panel, preview-studio toggles, persistence hooks
+- Purpose: own global UI state, shared-room bootstrap, and wire gameplay surfaces together
+- Contains: toolbar, inventory, debug panel, shared-room entry/status/overlay UI, preview-studio toggles, persistence hooks
 - Key files: `src/App.tsx`, `src/app/components/*`, `src/app/hooks/*`, `src/app/types.ts`
 - Depends on: domain layer and live room / preview surfaces
 - Used by: browser entry point `src/main.tsx`
@@ -39,19 +40,19 @@
 **Domain Layer:**
 - Purpose: define room schema, furniture registry, persistence, interactions, collisions, economy, pets, and lighting math
 - Contains: mostly pure utilities and schema helpers
-- Key files: `src/lib/roomState.ts`, `src/lib/furnitureRegistry.ts`, `src/lib/devLocalState.ts`, `src/lib/devWorldSettings.ts`, `src/lib/furnitureCollision.ts`, `src/lib/furnitureInteractions.ts`
+- Key files: `src/lib/roomState.ts`, `src/lib/furnitureRegistry.ts`, `src/lib/devLocalState.ts`, `src/lib/devWorldSettings.ts`, `src/lib/sharedRoomStore.ts`, `src/lib/sharedRoomClient.ts`, `src/lib/sharedRoomSession.ts`, `src/lib/sharedRoomValidation.ts`, `src/lib/furnitureCollision.ts`, `src/lib/furnitureInteractions.ts`
 - Depends on: TypeScript + Three math where needed
 - Used by: both live room and authoring layers
 
 ## Data Flow
 
-**Sandbox Runtime Flow:**
+**Shared Room Runtime Flow:**
 1. Browser mounts `src/main.tsx`
-2. `src/App.tsx` loads sandbox state via `src/lib/devLocalState.ts` and world settings via `src/lib/devWorldSettings.ts`
-3. App-level React state drives toolbar, inventory, PC minigame, preview studio, pets, and room props
-4. `src/components/RoomView.tsx` composes room-view hooks and scene layers
-5. Room callbacks return committed placements and player/camera changes to `App.tsx`
-6. `App.tsx` persists the next browser-local state back through the persistence helpers
+2. `src/App.tsx` loads safe local fallback sandbox state via `src/lib/devLocalState.ts`, world settings via `src/lib/devWorldSettings.ts`, and shared-room bootstrap state through `src/app/hooks/useSharedRoomRuntime.ts`
+3. If no shared-room session exists, the app renders `SharedRoomEntryShell`; if a session exists but canonical room state is still loading, the app renders `SharedRoomBlockingOverlay`
+4. Create, join, load, and commit requests flow through `src/lib/sharedRoomClient.ts` into the Phase 1 Vite middleware and file-backed shared-room store
+5. Once the canonical room document arrives, `src/App.tsx` adopts the shared `RoomState` and shared coins while keeping transient drag state, camera state, player state, and authoring persistence local
+6. `src/components/RoomView.tsx` continues to compose room-view hooks and scene layers, but only committed placement changes route back through the shared-room store
 
 **Preview Studio / Mob Lab Flow:**
 1. `src/App.tsx` lazy-loads `src/components/FurniturePreviewStudio.tsx`
@@ -61,7 +62,8 @@
 
 **State Management:**
 - Primary state management is React local state plus hooks in `src/App.tsx`
-- Persistent state is browser-local, not networked
+- Live room authority is now the canonical shared-room document returned by the shared-room store
+- Browser-local persistence still owns world settings, safe fallback sandbox state, Mob Lab state, and lightweight shared profile/session state
 - Equality helpers in `src/lib/roomPlacementEquality.ts` reduce unnecessary updates for placements and vectors
 
 ## Key Abstractions
@@ -80,6 +82,16 @@
 - Purpose: isolate editing, gestures, camera, lighting, interactions, and spawn behavior
 - Examples: `useRoomFurnitureEditor.ts`, `useRoomViewBuilderGestures.ts`, `useRoomViewCamera.ts`, `useRoomViewLighting.ts`, `useRoomViewSpawn.ts`
 - Pattern: hook-per-concern orchestration
+
+**Shared Room Runtime:**
+- Purpose: bootstrap lightweight shared profiles/sessions, load canonical room documents, expose blocking/status states, and commit authoritative shared-room mutations
+- Location: `src/app/hooks/useSharedRoomRuntime.ts`
+- Pattern: app-shell runtime hook that wraps the `SharedRoomStore` boundary
+
+**Shared Room Store Boundary:**
+- Purpose: isolate create/join/load/commit operations from the live room runtime and keep the dev file store replaceable
+- Location: `src/lib/sharedRoomStore.ts`, `src/lib/sharedRoomClient.ts`, `scripts/sharedRoomDevPlugin.mjs`
+- Pattern: typed store interface plus dev-only Vite middleware
 
 **Imported Mob Presets:**
 - Purpose: define authorable imported mobs for Preview Studio and future pet promotion
@@ -126,7 +138,7 @@
 ## Cross-Cutting Concerns
 
 **Persistence:**
-- `src/lib/devLocalState.ts`, `src/lib/devWorldSettings.ts`, and `src/lib/mobLabState.ts`
+- `src/lib/devLocalState.ts`, `src/lib/devWorldSettings.ts`, `src/lib/mobLabState.ts`, `src/lib/sharedRoomSession.ts`, and the shared-room store/client path
 
 **Lighting and World Time:**
 - `src/app/clock.ts`, `src/lib/gameLoop.ts`, `src/lib/worldLighting.ts`, `src/components/room-view/useRoomViewLighting.ts`
@@ -138,4 +150,3 @@
 
 *Architecture analysis: 2026-03-26*
 *Update when major patterns change*
-

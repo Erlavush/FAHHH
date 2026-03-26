@@ -20,17 +20,17 @@
 ## Known Bugs
 
 **Front and right wall placements are not accepted by persisted sandbox validation:**
-- Symptoms: persisted room state can reject or reset placements on `wall_front` and `wall_right` after reload
+- Symptoms: the legacy sandbox persistence path can still reject or reset placements on `wall_front` and `wall_right` after reload
 - Trigger: any saved room data that includes front/right wall furniture in `src/lib/devLocalState.ts`
-- Workaround: none in code; this should be fixed before shared-room persistence work builds on top of it
+- Workaround: Phase 1 shared-room persistence bypasses this validator, but the local sandbox path is still stale
 - Root cause: `isValidPlacementSurface()` in `src/lib/devLocalState.ts` only accepts `floor`, `wall_back`, `wall_left`, and `surface`
 
 ## Security Considerations
 
 **Client-only ownership and persistence:**
-- Risk: room ownership and coins are fully client-editable today
-- Current mitigation: acceptable for the current local sandbox
-- Recommendations: treat `ownerId`, coins, and room state as untrusted once a shared backend is introduced
+- Risk: Phase 1 shared-room ownership, invite codes, and coins are still fully client-editable through the dev file store
+- Current mitigation: acceptable for the temporary development backend
+- Recommendations: treat `ownerId`, invite codes, coins, and room state as untrusted once the real shared backend lands
 
 **Mob preset import is local and user-supplied:**
 - Risk: imported JSON can still carry unexpected asset paths or malformed-but-accepted content if future promotion paths become automated
@@ -62,10 +62,10 @@
 ## Scaling Limits
 
 **Current runtime scope:**
-- Current capacity: one browser-local sandbox with no shared backend
-- Limit: multiplayer, pairing, and shared persistence are not implemented
-- Symptoms at limit: any attempt to treat current client state as authoritative shared state will fail conceptually, not just operationally
-- Scaling path: add a real identity, room document, and validated shared persistence layer around the current room schema
+- Current capacity: invite-based shared room backed by a dev-only file store plus browser-local shell settings and authoring persistence
+- Limit: no production backend/auth, no live partner presence, no server trust boundary
+- Symptoms at limit: two people can share canonical room contents in dev, but real multiplayer guarantees and authenticated room ownership do not exist yet
+- Scaling path: replace the dev file store with a real authenticated backend while preserving the `SharedRoomStore` boundary
 
 ## Dependencies at Risk
 
@@ -81,16 +81,16 @@
 
 ## Missing Critical Features
 
-**No shared-room backend or pairing layer yet:**
-- Problem: the product roadmap depends on shared room identity and live presence, but the active runtime is still solo/local
-- Current workaround: none; the repo explicitly treats this as future work
-- Blocks: shared room, partner presence, streaks, breakup stakes
+**No real backend/auth beyond the dev shared-room store:**
+- Problem: Phase 1 proves the canonical room flow locally, but it does not yet solve authenticated room ownership or deployable multi-user networking
+- Current workaround: Vite middleware plus `.data/shared-room-dev-db.json`
+- Blocks: production pairing, trustworthy coins/ownership, deployable multi-user room sync
 - Implementation complexity: high
 
 **No browser-driven end-to-end verification of the room flow:**
 - Problem: current tests are strong on pure logic but do not validate the full play/build/persist UI loop
 - Current workaround: manual testing in the running app
-- Blocks: confident refactors of complex editor interactions
+- Blocks: confident refactors of complex editor interactions and create/join/reload shared-room UX
 - Implementation complexity: medium
 
 ## Test Coverage Gaps
@@ -111,4 +111,3 @@
 
 *Concerns audit: 2026-03-26*
 *Update as issues are fixed or new ones discovered*
-

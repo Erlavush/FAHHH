@@ -39,11 +39,11 @@ FAHHHH/
 
 **`scripts/`**
 - Purpose: manual content pipeline tooling
-- Key file: `scripts/generate_minecraft_vanilla_cat_rig.mjs`
+- Key files: `scripts/generate_minecraft_vanilla_cat_rig.mjs`, `scripts/sharedRoomDevPlugin.mjs`
 
 **`src/app/`**
 - Purpose: app-shell support code extracted from `App.tsx`
-- Key files: `src/app/components/SceneToolbar.tsx`, `src/app/components/InventoryPanel.tsx`, `src/app/hooks/useSandboxWorldClock.ts`, `src/app/types.ts`
+- Key files: `src/app/components/SceneToolbar.tsx`, `src/app/components/InventoryPanel.tsx`, `src/app/components/SharedRoomEntryShell.tsx`, `src/app/components/SharedRoomStatusStrip.tsx`, `src/app/hooks/useSandboxWorldClock.ts`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/app/types.ts`
 
 **`src/components/room-view/`**
 - Purpose: live room runtime modules
@@ -55,11 +55,11 @@ FAHHHH/
 
 **`src/lib/`**
 - Purpose: gameplay/domain layer and persistence helpers
-- Key files: `roomState.ts`, `furnitureRegistry.ts`, `devLocalState.ts`, `devWorldSettings.ts`, `mobLab.ts`, `mobLabState.ts`, `pets.ts`, `petPathing.ts`
+- Key files: `roomState.ts`, `furnitureRegistry.ts`, `devLocalState.ts`, `devWorldSettings.ts`, `sharedRoomStore.ts`, `sharedRoomClient.ts`, `sharedRoomSession.ts`, `sharedRoomValidation.ts`, `mobLab.ts`, `mobLabState.ts`, `pets.ts`, `petPathing.ts`
 
 **`tests/`**
 - Purpose: focused Vitest coverage for domain rules and room-view helpers
-- Contains: separate test files mirroring major modules and features
+- Contains: separate test files mirroring major modules and features, including shared-room store/runtime regressions
 
 ## Key File Locations
 
@@ -78,6 +78,7 @@ FAHHHH/
 **Core Logic:**
 - `src/lib/roomState.ts` - room and ownership schema
 - `src/lib/furnitureRegistry.ts` - canonical furniture taxonomy
+- `src/lib/sharedRoomStore.ts` / `src/lib/sharedRoomClient.ts` - shared-room persistence boundary and browser client
 - `src/lib/furnitureCollision.ts` - placement blocking rules
 - `src/lib/furnitureInteractions.ts` - sit/lie/use_pc targeting
 - `src/lib/worldLighting.ts` - world lighting math
@@ -110,6 +111,8 @@ FAHHHH/
 **Shell UI or app-level state:**
 - Primary code: `src/app/` or `src/App.tsx`
 - Tests: `tests/` with a matching feature name
+- Shared-room entry, blocking, and status UI belong under `src/app/components/`
+- Shared-room bootstrap/load/commit orchestration belongs under `src/app/hooks/`
 
 **Live room feature or placement behavior:**
 - Primary code: `src/components/room-view/` and supporting `src/lib/`
@@ -123,6 +126,10 @@ FAHHHH/
 **Shared domain helpers:**
 - Primary code: `src/lib/`
 - Tests: `tests/<module>.test.ts`
+
+**Dev shared backend work:**
+- Primary code: `src/lib/sharedRoom*.ts` and `scripts/sharedRoomDevPlugin.mjs`
+- Tests: `tests/sharedRoomStore.test.ts`, `tests/sharedRoomValidation.test.ts`, `tests/sharedRoomRuntime.test.ts`
 
 ## Special Directories
 
@@ -145,4 +152,3 @@ FAHHHH/
 
 *Structure analysis: 2026-03-26*
 *Update when directory structure changes*
-

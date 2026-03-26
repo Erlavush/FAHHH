@@ -17,10 +17,12 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] User can earn coins through the desk PC minigame and persist sandbox progress locally.
 - [x] User can preview furniture and author imported mobs and pets through Preview Studio and Mob Lab.
 - [x] User can run the room with four-wall windows, world-clock lighting, and local pet prototypes.
+- [x] Couple can create or join one shared room via invite code and load the same canonical room document. Validated in Phase 1.
+- [x] Confirmed shared-room buy, place, store, sell, and remove flows persist through the shared-room store without collapsing ownership into placement. Validated in Phase 1.
+- [x] Shared-room state survives refresh and reconnect against the dev file-backed shared-room store while keeping Preview Studio and Mob Lab persistence separate. Validated in Phase 1.
 
 ### Active
 
-- [ ] Couple can pair into one shared room and load the same committed room state.
 - [ ] Both partners can see each other live in the room while shared state stays consistent.
 - [ ] Individual progression and shared couple streak exist on top of the current sandbox model.
 - [ ] At least one daily ritual drives repeated return play together.
@@ -44,6 +46,12 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - The existing room schema, furniture registry, placement math, and preview tooling are stable assets that future phases should reuse rather than rewrite.
 - The missing product slice is not "make a room builder"; it is "turn this room builder into a shared couple experience."
 
+## Current State
+
+- Phase 1 is complete. The live runtime now starts at an invite-based shared-room shell and loads canonical room state from the dev shared-room store before rendering the room.
+- Shared-room commits are now authoritative for confirmed room mutations, while live drag previews, camera/player transforms, and authoring-tool persistence stay local.
+- Remaining milestone work is live partner presence, progression and ritual loops, memory/pet promotion, and breakup stakes.
+
 ## Constraints
 
 - **Architecture**: Extend `roomState.ts`, `furnitureRegistry.ts`, and the current sandbox data model - replacing them would throw away proven brownfield behavior.
@@ -60,10 +68,13 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Treat initialization as brownfield, not greenfield | The repo already contains working systems and detailed architecture docs | Good |
 | Use the solo sandbox as validated foundation and scope the roadmap around missing jam-MVP systems | Prevents re-planning features that already exist | Good |
 | Extend the current room schema for shared-room sync instead of reviving deleted legacy architecture | Repo docs explicitly warn against restoring obsolete backend paths | Pending |
-| Sync only committed room edits first, then layer live presence and shared progression | Matches current edit flow and reduces conflict complexity | Pending |
+| Sync only committed room edits first, then layer live presence and shared progression | Matches current edit flow and reduces conflict complexity | Good |
 | Keep Mob Lab as the pet and imported-model authoring path while shared-room pet behavior stays runtime-specific | Preserves the existing separation between tooling and gameplay state | Good |
 | Treat `.planning/codebase/*` as the canonical brownfield map during GSD execution | The repo is moving into GSD flow and needs one implementation navigation source | Good |
 | Document inactive backend placeholders separately from active runtime architecture | Prevents planning against stale Firebase-shaped artifacts | Good |
+| Phase 1 pairing uses invite codes plus lightweight local profiles, not full auth | Fits jam scope while still supporting reconnect and exclusive one-couple rooms | Good |
+| Phase 1 shared persistence stays behind a replaceable `SharedRoomStore` and dev file-backed Vite backend | Preserves a clean boundary for the real backend later | Good |
+| Phase 1 conflict handling is last-save-wins after canonical reload, with committed edits only | Keeps shared edits predictable without pretending live drag sync already exists | Good |
 
 ## Evolution
 
@@ -83,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after codebase mapping refresh*
+*Last updated: 2026-03-26 after Phase 1 completion*

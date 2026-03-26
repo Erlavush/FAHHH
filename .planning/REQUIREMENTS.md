@@ -7,13 +7,13 @@
 
 ### Pairing
 
-- [ ] **PAIR-01**: Couple can create or join one shared room that represents their relationship.
+- [x] **PAIR-01**: Couple can create or join one shared room that represents their relationship.
 
 ### Shared Room
 
-- [ ] **ROOM-01**: Both partners load the same committed room layout, owned furniture state, and shared decor when entering the shared room.
-- [ ] **ROOM-02**: Confirmed place, store, sell, and remove actions update shared room state without duplicating or losing owned items.
-- [ ] **ROOM-03**: Shared room state survives refresh, reconnect, and migration from the current solo sandbox model.
+- [x] **ROOM-01**: Both partners load the same committed room layout, owned furniture state, and shared decor when entering the shared room.
+- [x] **ROOM-02**: Confirmed place, store, sell, and remove actions update shared room state without duplicating or losing owned items.
+- [x] **ROOM-03**: Shared room state survives refresh, reconnect, and migration from the current solo sandbox model.
 
 ### Presence
 
@@ -70,10 +70,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PAIR-01 | Phase 1 | Pending |
-| ROOM-01 | Phase 1 | Pending |
-| ROOM-02 | Phase 1 | Pending |
-| ROOM-03 | Phase 1 | Pending |
+| PAIR-01 | Phase 1 | Complete |
+| ROOM-01 | Phase 1 | Complete |
+| ROOM-02 | Phase 1 | Complete |
+| ROOM-03 | Phase 1 | Complete |
 | PRES-01 | Phase 2 | Pending |
 | PRES-02 | Phase 2 | Pending |
 | PRES-03 | Phase 2 | Pending |
@@ -93,4 +93,4 @@
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after initial definition*
+*Last updated: 2026-03-26 after Phase 1 completion*
