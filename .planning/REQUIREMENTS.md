@@ -18,7 +18,7 @@
 ### Presence
 
 - [x] **PRES-01**: Each partner can see the other partner's avatar position and facing in the room.
-- [ ] **PRES-02**: Each partner can see when the other partner joins, reconnects, or leaves.
+- [x] **PRES-02**: Each partner can see when the other partner joins, reconnects, or leaves.
 - [ ] **PRES-03**: When both partners edit near the same time, the room converges on one predictable committed result.
 
 ### Progression
@@ -75,7 +75,7 @@
 | ROOM-02 | Phase 1 | Complete |
 | ROOM-03 | Phase 1 | Complete |
 | PRES-01 | Phase 2 | Complete |
-| PRES-02 | Phase 2 | Pending |
+| PRES-02 | Phase 2 | Complete |
 | PRES-03 | Phase 2 | Pending |
 | PROG-01 | Phase 3 | Pending |
 | PROG-02 | Phase 3 | Pending |
@@ -93,4 +93,4 @@
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after Phase 1 completion*
+*Last updated: 2026-03-26 after Phase 2 plan 02 completion*

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-26T15:30:12.074Z"
-last_activity: 2026-03-26 -- Completed 02-01 live presence transport and remote avatar rendering
+stopped_at: Executing 02-03-PLAN.md
+last_updated: "2026-03-26T15:47:29.856Z"
+last_activity: 2026-03-26 -- Completed 02-02 dev bypass and partner presence session UX
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 02 — live-presence-and-co-op-consistency
+**Current focus:** Phase 02 - live-presence-and-co-op-consistency
 
 ## Current Position
 
-Phase: 02 (live-presence-and-co-op-consistency) — EXECUTING
-Plan: 2 of 3
+Phase: 02 (live-presence-and-co-op-consistency) - EXECUTING
+Plan: 3 of 3
 Status: Executing Phase 02
-Last activity: 2026-03-26 -- Completed 02-01 live presence transport and remote avatar rendering
+Last activity: 2026-03-26 -- Completed 02-02 dev bypass and partner presence session UX
 
-Progress: [#######---] 67%
+Progress: [########--] 83%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: 1 min
+- Total plans completed: 5
+- Average duration: 6 min
 - Total execution time: 0.0 hours
 
 **By Phase:**
@@ -45,11 +45,11 @@ Progress: [#######---] 67%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 3 | 3 min | 1 min |
-| 02 | 1 | 13 min | 13 min |
+| 02 | 2 | 30 min | 15 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01
+- Last 5 plans: 01-01, 01-02, 01-03, 02-01, 02-02
 - Trend: On track
 
 ## Accumulated Context
@@ -63,8 +63,10 @@ Recent decisions affecting current work:
 - Shared-room runtime: gate the live room behind invite-based create/join and canonical room load.
 - Shared persistence: commit only confirmed shared-room changes first and keep drag previews local-only.
 - Phase 2: use a separate lightweight presence channel plus soft same-item locks, while dev builds auto-enter a shared room and hide temporary pairing/status surfaces.
-- [Phase 02]: Presence transport stays outside canonical room commits — Phase 02 now publishes movement, facing, and pose through a separate shared presence store/client path so live avatar updates never mutate shared room revisions.
-- [Phase 02]: MinecraftPlayer supports a remote read-only render mode — The shared avatar rig now renders the partner directly in RoomView without giving the remote actor collision or movement authority back into the local room runtime.
+- [Phase 02]: Presence transport stays outside canonical room commits - Phase 02 now publishes movement, facing, and pose through a separate shared presence store/client path so live avatar updates never mutate shared room revisions.
+- [Phase 02]: MinecraftPlayer supports a remote read-only render mode - The shared avatar rig now renders the partner directly in RoomView without giving the remote actor collision or movement authority back into the local room runtime.
+- [Phase 02]: Development builds auto-enter one deterministic shared room - Dev bypass now bootstraps `dev-shared-room` directly and keeps the temporary pairing/status chrome hidden during iteration.
+- [Phase 02]: Partner waiting and reconnecting UX is presence-freshness-driven - Shipped builds use live presence freshness rather than room commits to show waiting, joined, reconnecting, returned, and together states.
 
 ### Pending Todos
 
@@ -73,11 +75,11 @@ None yet.
 ### Blockers/Concerns
 
 - Backend and auth provider for one-couple, one-room ownership is not selected yet.
-- Phase 1 uses last-save-wins for committed edits; Phase 2 still needs live presence transport and stronger convergence rules.
+- Phase 1 uses last-save-wins for committed edits; Phase 2 still needs stronger same-item convergence rules for concurrent edits.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 now bypasses that gap for shared-room documents, but the legacy validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-26T15:30:12.070Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-live-presence-and-co-op-consistency/02-02-PLAN.md
+Last session: 2026-03-26T15:47:29.856Z
+Stopped at: Executing 02-03-PLAN.md
+Resume file: .planning/phases/02-live-presence-and-co-op-consistency/02-03-PLAN.md
