@@ -1,15 +1,17 @@
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import type {
   FurnitureSpawnRequest,
+  LocalPlayerPresenceSnapshot,
   PlayerInteractionStatus,
   SceneJumpRequest
 } from "../app/types";
 import { placementListsMatch } from "../lib/roomPlacementEquality";
 import { getFurnitureDefinition } from "../lib/furnitureRegistry";
 import { DEFAULT_IMPORTED_MOB_PRESETS } from "../lib/mobLab";
+import type { SharedPresenceSnapshot } from "../lib/sharedPresenceTypes";
 import type { OwnedPet } from "../lib/pets";
 import type {
   RoomFurniturePlacement,
@@ -69,10 +71,12 @@ interface RoomViewProps {
   showPlayerCollider: boolean;
   showInteractionMarkers: boolean;
   onCameraPositionChange: (position: Vector3Tuple) => void;
+  onLocalPresenceChange: (snapshot: LocalPlayerPresenceSnapshot) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
+  remotePresence: SharedPresenceSnapshot | null;
   sceneJumpRequest: SceneJumpRequest | null;
 }
 
@@ -101,10 +105,12 @@ export function RoomView({
   showPlayerCollider,
   showInteractionMarkers,
   onCameraPositionChange,
+  onLocalPresenceChange,
   onPlayerPositionChange,
   onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
   onInteractionStateChange,
+  remotePresence,
   sceneJumpRequest
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
@@ -114,6 +120,13 @@ export function RoomView({
   const zoomTargetDistanceRef = useRef<number | null>(null);
   const [playerWorldPosition, setPlayerWorldPosition] =
     useState<Vector3Tuple>(initialPlayerPosition);
+  const [localPlayerTransform, setLocalPlayerTransform] = useState<{
+    facingY: number;
+    position: Vector3Tuple;
+  }>({
+    facingY: 0,
+    position: initialPlayerPosition
+  });
   const [wallVisibility, setWallVisibility] = useState<Record<string, boolean>>({
     wall_back: true,
     wall_left: true,
@@ -194,6 +207,7 @@ export function RoomView({
     interactionHint,
     jumpPlayerToPosition,
     pendingInteraction,
+    playerPresenceActivity,
     playerInteractionPose,
     playerTeleportRequest,
     resetPlayerInteractions,
@@ -299,6 +313,47 @@ export function RoomView({
     },
     [handleBuildSurfaceClick]
   );
+
+  const handlePlayerActorTransformChange = useCallback(
+    (position: Vector3Tuple, facingY: number) => {
+      handlePlayerActorPositionChange(position);
+      setLocalPlayerTransform((currentTransform) =>
+        Math.abs(currentTransform.facingY - facingY) < 0.0001 &&
+        currentTransform.position[0] === position[0] &&
+        currentTransform.position[1] === position[1] &&
+        currentTransform.position[2] === position[2]
+          ? currentTransform
+          : {
+              facingY,
+              position
+            }
+      );
+    },
+    [handlePlayerActorPositionChange]
+  );
+
+  useEffect(() => {
+    onLocalPresenceChange({
+      position: [...localPlayerTransform.position] as Vector3Tuple,
+      facingY: localPlayerTransform.facingY,
+      activity: playerPresenceActivity,
+      interactionPose: playerInteractionPose
+        ? {
+            ...playerInteractionPose,
+            position: [...playerInteractionPose.position] as Vector3Tuple,
+            poseOffset: playerInteractionPose.poseOffset
+              ? ([...playerInteractionPose.poseOffset] as Vector3Tuple)
+              : undefined
+          }
+        : null
+    });
+  }, [
+    localPlayerTransform.facingY,
+    localPlayerTransform.position,
+    onLocalPresenceChange,
+    playerInteractionPose,
+    playerPresenceActivity
+  ]);
 
   return (
     <div
@@ -409,9 +464,26 @@ export function RoomView({
           targetPosition={targetPosition}
           furniture={furniture}
           interaction={playerInteractionPose}
-          onPositionChange={handlePlayerActorPositionChange}
+          onTransformChange={handlePlayerActorTransformChange}
           shadowsEnabled={shadowsEnabled}
         />
+        {remotePresence ? (
+          <MinecraftPlayer
+            key={remotePresence.playerId}
+            mode="remote"
+            displayName={remotePresence.displayName}
+            initialPosition={remotePresence.position}
+            initialFacingY={remotePresence.facingY}
+            teleportPosition={null}
+            teleportRequestId={0}
+            skinSrc={remotePresence.skinSrc}
+            targetPosition={remotePresence.position}
+            targetFacingY={remotePresence.facingY}
+            furniture={furniture}
+            interaction={remotePresence.pose}
+            shadowsEnabled={shadowsEnabled}
+          />
+        ) : null}
         {pets.map((pet) => {
           const preset = DEFAULT_IMPORTED_MOB_PRESETS[pet.presetId];
 

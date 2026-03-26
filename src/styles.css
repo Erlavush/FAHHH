@@ -1969,6 +1969,19 @@ body {
   white-space: nowrap;
 }
 
+.minecraft-player__nameplate {
+  padding: 6px 10px;
+  border: 1px solid rgba(137, 183, 216, 0.34);
+  border-radius: 999px;
+  background: rgba(39, 50, 65, 0.88);
+  color: #f7f0e7;
+  font: 700 11px/1 var(--shared-room-font-body);
+  letter-spacing: 0.04em;
+  box-shadow: 0 10px 20px rgba(18, 26, 34, 0.24);
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+}
+
 
 
 .canvas-fallback {

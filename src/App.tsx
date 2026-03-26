@@ -40,6 +40,7 @@ import { SharedRoomEntryShell } from "./app/components/SharedRoomEntryShell";
 import { SharedRoomStatusStrip } from "./app/components/SharedRoomStatusStrip";
 import { SharedRoomBlockingOverlay } from "./app/components/SharedRoomBlockingOverlay";
 import { useFurnitureInfoPopover } from "./app/hooks/useFurnitureInfoPopover";
+import { useSharedRoomPresence } from "./app/hooks/useSharedRoomPresence";
 import {
   shouldCommitSharedRoomChange,
   useSharedRoomRuntime
@@ -49,6 +50,7 @@ import { useSkinImport } from "./app/hooks/useSkinImport";
 import { useSandboxWorldClock } from "./app/hooks/useSandboxWorldClock";
 import type {
   FurnitureSpawnRequest,
+  LocalPlayerPresenceSnapshot,
   PlayerInteractionStatus,
   PreviewStudioMode,
   SceneJumpRequest
@@ -212,6 +214,13 @@ function App() {
   const [sceneJumpRequest, setSceneJumpRequest] = useState<SceneJumpRequest | null>(null);
   const [playerInteractionStatus, setPlayerInteractionStatus] =
     useState<PlayerInteractionStatus>(null);
+  const [localPresenceSnapshot, setLocalPresenceSnapshot] =
+    useState<LocalPlayerPresenceSnapshot>({
+      position: initialSandboxState.playerPosition,
+      facingY: 0,
+      activity: "idle",
+      interactionPose: null
+    });
   const [pcMinigameProgress, setPcMinigameProgress] = useState(initialSandboxState.pcMinigame);
   const [ownedPets, setOwnedPets] = useState<OwnedPet[]>(initialSandboxState.pets);
   const cameraPositionRef = useRef(initialSandboxState.cameraPosition);
@@ -239,6 +248,14 @@ function App() {
     () => new Set<PetType>(ownedPets.map((pet) => pet.type)),
     [ownedPets]
   );
+  const sharedRoomPresence = useSharedRoomPresence({
+    enabled: sharedRoomActive,
+    localPresence: localPresenceSnapshot,
+    partnerId: sharedRoomRuntime.session?.partnerId ?? null,
+    profile: sharedRoomRuntime.profile,
+    roomId: sharedRoomRuntime.runtimeSnapshot?.roomId ?? null,
+    skinSrc
+  });
 
   useEffect(() => {
     const persistedRoomState = sharedRoomActive ? createDefaultRoomState() : roomState;
@@ -692,6 +709,12 @@ function App() {
     playerPositionRef.current = nextSandbox.playerPosition;
     setCameraPosition(nextSandbox.cameraPosition);
     setPlayerPosition(nextSandbox.playerPosition);
+    setLocalPresenceSnapshot({
+      position: nextSandbox.playerPosition,
+      facingY: 0,
+      activity: "idle",
+      interactionPose: null
+    });
     setSkinSrc(nextSandbox.skinSrc);
     commitPlayerCoins(nextSandbox.playerCoins);
     setRoomState(nextSandbox.roomState);
@@ -988,10 +1011,12 @@ function App() {
                 showPlayerCollider={showPlayerCollider}
                 showInteractionMarkers={showInteractionMarkers}
                 onCameraPositionChange={handleCameraPositionChange}
+                onLocalPresenceChange={setLocalPresenceSnapshot}
                 onPlayerPositionChange={handlePlayerPositionChange}
                 onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
                 onCommittedFurnitureChange={handleCommittedFurnitureChange}
                 onInteractionStateChange={setPlayerInteractionStatus}
+                remotePresence={sharedRoomPresence.remotePresence}
                 sceneJumpRequest={sceneJumpRequest}
               />
             </Suspense>
