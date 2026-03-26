@@ -51,12 +51,12 @@ export function InventoryPanel({
   return (
     <aside className="spawn-panel">
       <div className="spawn-panel__header">
-        <span className="spawn-panel__title">Room Inventory</span>
-        <span className="spawn-panel__coins">{playerCoins} coins</span>
+        <span className="spawn-panel__title">Shared Inventory</span>
+        <span className="spawn-panel__coins">{playerCoins} shared coins</span>
       </div>
       <p className="spawn-panel__meta">
-        Buy furniture with coins, place stored items into the room, and sell extras you do not
-        need.
+        Buy furniture with shared coins, place stored items back into your room, and remove extras
+        you do not need.
       </p>
 
       {petCatalogEntries.length > 0 ? (
@@ -200,9 +200,7 @@ export function InventoryPanel({
             ))}
           </>
         ) : (
-          <div className="spawn-empty">
-            No stored items yet. Add something from the catalog below.
-          </div>
+          <div className="spawn-empty">No shared items stored yet. Add something from the catalog below.</div>
         )}
       </section>
 

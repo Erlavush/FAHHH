@@ -3,6 +3,7 @@ import type { PlayerInteractionStatus } from "../types";
 type SceneToolbarProps = {
   buildModeEnabled: boolean;
   catalogOpen: boolean;
+  coinsLabel?: string;
   gridSnapEnabled: boolean;
   playerCoins: number;
   timeLocked: boolean;
@@ -24,6 +25,7 @@ type SceneToolbarProps = {
 export function SceneToolbar({
   buildModeEnabled,
   catalogOpen,
+  coinsLabel = "Coins",
   gridSnapEnabled,
   playerCoins,
   timeLocked,
@@ -66,7 +68,9 @@ export function SceneToolbar({
       >
         {gridSnapEnabled ? "Grid Snap: On" : "Grid Snap: Off"}
       </button>
-      <div className="camera-toggle camera-toggle--status">Coins: {playerCoins}</div>
+      <div className="camera-toggle camera-toggle--status">
+        {coinsLabel}: {playerCoins}
+      </div>
       <div className="camera-toggle camera-toggle--status">
         {timeLocked ? `Time Locked: ${worldTimeLabel}` : `Time: ${worldTimeLabel}`}
       </div>
