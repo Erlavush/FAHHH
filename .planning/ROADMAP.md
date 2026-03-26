@@ -47,7 +47,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Add partner presence transport and remote avatar rendering to the live room
+- [x] 02-01: Add partner presence transport and remote avatar rendering to the live room
 - [ ] 02-02: Implement join, leave, and reconnect UX around the shared room session
 - [ ] 02-03: Define conflict-resolution and resync behavior for concurrent edits
 
@@ -93,6 +93,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Shared Room Backbone | 3/3 | Complete | 2026-03-26 |
-| 2. Live Presence and Co-op Consistency | 0/3 | Not started | - |
+| 2. Live Presence and Co-op Consistency | 1/3 | In Progress | - |
 | 3. Shared Progression and Ritual Loop | 0/3 | Not started | - |
 | 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |
