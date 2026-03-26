@@ -993,6 +993,7 @@ function App() {
 
             <Suspense fallback={<div className="canvas-fallback">Loading scene...</div>}>
               <RoomView
+                acquireEditLock={sharedRoomPresence.acquireEditLock}
                 buildModeEnabled={buildModeEnabled}
                 gridSnapEnabled={gridSnapEnabled}
                 spawnRequest={spawnRequest}
@@ -1003,6 +1004,10 @@ function App() {
                 initialFurniturePlacements={roomState.furniture}
                 pets={ownedPets}
                 skinSrc={skinSrc}
+                localLockedFurnitureIds={sharedRoomPresence.localEditLockIds}
+                onSharedEditConflict={() => {
+                  void sharedRoomRuntime.recoverFromStaleSharedEdit();
+                }}
                 worldTimeMinutes={worldTimeMinutes}
                 sunEnabled={sunEnabled}
                 shadowsEnabled={shadowsEnabled}
@@ -1022,7 +1027,10 @@ function App() {
                 onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
                 onCommittedFurnitureChange={handleCommittedFurnitureChange}
                 onInteractionStateChange={setPlayerInteractionStatus}
+                partnerLockedFurnitureIds={sharedRoomPresence.partnerEditLockIds}
+                releaseEditLock={sharedRoomPresence.releaseEditLock}
                 remotePresence={sharedRoomPresence.remotePresence}
+                renewEditLock={sharedRoomPresence.renewEditLock}
                 sceneJumpRequest={sceneJumpRequest}
               />
             </Suspense>

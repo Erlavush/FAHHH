@@ -362,6 +362,10 @@ export function useSharedRoomRuntime({
     );
   }, [bootstrapDevRoom, devBypassActive, loadRoom, session, setTimedStatusMessage]);
 
+  const recoverFromStaleSharedEdit = useCallback(async () => {
+    return reloadRoom();
+  }, [reloadRoom]);
+
   const commitRoomState = useCallback(
     async (nextRoomState: RoomState, sharedCoins: number, reason: string) => {
       if (!session) {
@@ -418,6 +422,7 @@ export function useSharedRoomRuntime({
     inlineError,
     joinRoom,
     profile,
+    recoverFromStaleSharedEdit,
     reloadRoom,
     roomDocument,
     runtimeSnapshot: roomDocument
