@@ -2,11 +2,21 @@
 
 ## What This Is
 
-Risk It All is a browser-based cozy couple-room game built around shared intimacy, earned decoration, and emotional stakes. v1.0 now ships the jam-ready shared-room MVP on the current local/dev runtime: two partners can pair into one room, decorate it together, progress together, personalize the space, and explicitly risk resetting that shared history.
+Risk It All is a browser-based cozy couple-room game built around shared intimacy, earned decoration, and emotional stakes. v1.0 shipped the shared-room MVP on a local/dev runtime; v1.1 now focuses on turning that MVP into a durable online foundation while broadening the reasons a couple returns to the room.
 
 ## Core Value
 
 Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
+
+## Current Milestone: v1.1 Online Foundation
+
+**Goal:** Move the shared-room MVP off the dev-only persistence stack onto a real couple-owned online foundation while deepening rituals, personalization, and content breadth.
+
+**Target features:**
+- Production backend/auth and real room ownership across browsers and devices
+- Multiple ritual variants plus a second repeatable earn loop
+- Richer memory collection, deeper pet behavior, and additional themed room content
+- Mandatory phase verification artifacts to retire the process debt carried out of v1.0
 
 ## Requirements
 
@@ -26,20 +36,18 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 ### Active
 
-- [ ] Select and integrate a production backend/auth path for one-couple room ownership instead of the dev file-backed shared-room store.
-- [ ] **RITL-02**: Couple can rotate through multiple daily ritual variants.
-- [ ] **ACTV-01**: Couple can access another repeatable earn loop beyond the desk PC path.
-- [ ] **MEMR-02**: Couple can maintain a richer memory collection beyond a single frame or object.
-- [ ] **PETS-02**: Shared-room pets have deeper behavior such as needs, moods, or interactions.
-- [ ] **CONT-01**: Room themes, decor sets, and cosmetic variants expand after the first shared loop is stable.
-- [ ] Close the v1.0 verification/process debt carried by missing phase `VERIFICATION.md` artifacts for Phases `2`, `3.1`, and `4`.
+- [ ] Couple can authenticate or reclaim their room identity through a real backend/auth flow instead of local-only dev session state.
+- [ ] Shared-room documents and related presence/progression state sync through a hosted backend that survives browser and device changes.
+- [ ] Couple can rotate through multiple daily ritual variants and access a second repeatable earn loop beyond the desk PC.
+- [ ] Couple can maintain a richer memory collection, interact with a deeper shared-pet loop, and unlock additional themed content.
+- [ ] Every v1.1 phase closes with explicit `VERIFICATION.md` coverage so the next milestone audit is evidence-complete.
 
 ### Out of Scope
 
-- Open-world or multi-room social spaces - the project is centered on one intimate couple room.
+- Open-world or many-room social spaces - the project is centered on one intimate couple room.
 - Deep RPG or economy-sim systems - progression should stay lightweight and room-centric for jam scope.
 - Native mobile clients - browser-first delivery keeps scope aligned with the current stack.
-- Restoring the removed legacy backend or auth path wholesale - future sync must extend the current room schema instead.
+- Restoring the removed legacy backend or auth path wholesale - future sync must extend the current room schema instead of reviving stale architecture.
 
 ## Context
 
@@ -49,6 +57,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - Current runtime truth lives in README plus `docs/AI_HANDOFF.md`, `docs/CURRENT_SYSTEMS.md`, `docs/ARCHITECTURE.md`, `docs/CODEBASE_MAP.md`, and `docs/GAME_OVERVIEW.md`.
 - Current shared-room persistence is still the browser/dev-file-backed path around `devLocalState.ts`, `devWorldSettings.ts`, `mobLabState.ts`, and the dev shared-room store.
 - Firebase-shaped env vars and rules files remain in the repo, but the active runtime inside `src/` does not currently import a live production backend path.
+- v1.0 was archived with accepted audit gaps because Phases `2`, `3.1`, and `4` are missing `VERIFICATION.md`, so v1.1 planning treats verification artifacts as a delivery guardrail rather than optional docs.
 - The existing room schema, furniture registry, placement math, and preview tooling are stable assets for the next milestone rather than rewrite targets.
 
 ## Current State
@@ -56,15 +65,8 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - v1.0 Shared Room MVP shipped on 2026-03-27 and is archived under `.planning/milestones/`.
 - The live runtime now supports canonical room identity, committed shared edits, live partner presence, personal and couple progression, a room-first player shell, developer-only authoring workspace surfaces, shared memories, one canonical shared cat, and breakup-reset stakes.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
-- The v1.0 milestone audit was archived with accepted gaps because Phases `2`, `3.1`, and `4` are missing `VERIFICATION.md`.
-- The next step is milestone definition, not more ad hoc v1 work.
-
-## Next Milestone Goals
-
-- Replace the dev file-backed shared-room stack with a real backend/auth path for one-couple room ownership.
-- Deepen return-play motivation with more rituals and at least one second repeatable earn loop.
-- Expand personalization through richer memories, deeper pet behavior, and additional room content sets.
-- Retire v1.0 process debt by making phase verification artifacts and milestone tooling consistent.
+- v1.1 is now scoped around online foundation work plus loop depth and content expansion.
+- The next step is Phase 5 discovery/planning, not more v1.0 archive work.
 
 ## Constraints
 
@@ -96,6 +98,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Phase 4 personalization lives beside `RoomState` inside the shared-room document | Memories and the shared pet need canonical persistence without perturbing furniture ownership or placement rules | Good |
 | Breakup reset rebuilds one fresh shared baseline through the normal mutation pipeline | Destructive state changes still need stale-revision replay safety and one authoritative reset contract | Good |
 | Archive v1.0 despite milestone audit gaps | HEAD is stable enough to treat the missing verification artifacts as process debt rather than reopen shipped scope | Revisit |
+| Continue numbering from Phase 5 and require verification artifacts in every v1.1 phase | Keeps history continuous while preventing another milestone audit evidence gap | Pending |
 
 ## Evolution
 
@@ -115,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-27 after v1.0 milestone completion*
+*Last updated: 2026-03-27 after starting v1.1 milestone*
