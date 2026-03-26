@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-26T14:48:27.149Z"
-last_activity: 2026-03-26 - Completed Phase 01 shared-room backbone and advanced to Phase 02
+stopped_at: Phase 2 research complete - waiting for UI spec
+last_updated: "2026-03-26T14:53:58.3377376Z"
+last_activity: 2026-03-26 - Researched Phase 02 and stopped at the UI design gate
 progress:
   total_phases: 4
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-26)
 
 ## Current Position
 
-Phase: 02 (live-presence-and-co-op-consistency) - READY TO PLAN
+Phase: 02 (live-presence-and-co-op-consistency) - READY FOR UI SPEC
 Plan: 0 of 3
-Status: Ready to plan Phase 02
-Last activity: 2026-03-26 - Completed Phase 01 shared-room backbone and advanced to Phase 02
+Status: UI design contract required before planning Phase 02
+Last activity: 2026-03-26 - Researched Phase 02 and stopped at the UI design gate
 
 Progress: [##--------] 25%
 
@@ -61,6 +61,7 @@ Recent decisions affecting current work:
 - Initialization: Treat this repo as brownfield and preserve the solo sandbox as validated foundation.
 - Shared-room runtime: gate the live room behind invite-based create/join and canonical room load.
 - Shared persistence: commit only confirmed shared-room changes first and keep drag previews local-only.
+- Phase 2: use a separate lightweight presence channel plus soft same-item locks, while dev builds auto-enter a shared room and hide temporary pairing/status surfaces.
 
 ### Pending Todos
 
@@ -69,11 +70,13 @@ None yet.
 ### Blockers/Concerns
 
 - Backend and auth provider for one-couple, one-room ownership is not selected yet.
+- The dev shared-room backend has no live presence or item-lock endpoints yet.
+- The room runtime still does not expose facing/yaw as a first-class presence signal.
 - Phase 1 uses last-save-wins for committed edits; Phase 2 still needs live presence transport and stronger convergence rules.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 now bypasses that gap for shared-room documents, but the legacy validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-26T14:48:27.144Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-live-presence-and-co-op-consistency/02-CONTEXT.md
+Last session: 2026-03-26T14:53:58.3377376Z
+Stopped at: Phase 2 research complete - waiting for UI spec
+Resume file: .planning/phases/02-live-presence-and-co-op-consistency/02-RESEARCH.md
