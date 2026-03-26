@@ -2,42 +2,42 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Executing 02-03-PLAN.md
-last_updated: "2026-03-26T15:47:29.856Z"
-last_activity: 2026-03-26 -- Completed 02-02 dev bypass and partner presence session UX
+status: ready
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-03-26T16:05:46.496Z"
+last_activity: 2026-03-27 -- Completed Phase 02 live presence and co-op consistency
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 6
+  percent: 67
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-26)
+See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 02 - live-presence-and-co-op-consistency
+**Current focus:** Phase 03 - shared-progression-and-ritual-loop
 
 ## Current Position
 
-Phase: 02 (live-presence-and-co-op-consistency) - EXECUTING
-Plan: 3 of 3
-Status: Executing Phase 02
-Last activity: 2026-03-26 -- Completed 02-02 dev bypass and partner presence session UX
+Phase: 03 (shared-progression-and-ritual-loop) - READY
+Plan: 0 of 3
+Status: Phase 02 complete; Phase 03 not started
+Last activity: 2026-03-27 -- Completed Phase 02 live presence and co-op consistency
 
-Progress: [########--] 83%
+Progress: [######----] 67%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: 6 min
+- Total plans completed: 6
+- Average duration: 8 min
 - Total execution time: 0.0 hours
 
 **By Phase:**
@@ -45,11 +45,11 @@ Progress: [########--] 83%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 3 | 3 min | 1 min |
-| 02 | 2 | 30 min | 15 min |
+| 02 | 3 | 48 min | 16 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01, 02-02
+- Last 5 plans: 01-02, 01-03, 02-01, 02-02, 02-03
 - Trend: On track
 
 ## Accumulated Context
@@ -67,6 +67,8 @@ Recent decisions affecting current work:
 - [Phase 02]: MinecraftPlayer supports a remote read-only render mode - The shared avatar rig now renders the partner directly in RoomView without giving the remote actor collision or movement authority back into the local room runtime.
 - [Phase 02]: Development builds auto-enter one deterministic shared room - Dev bypass now bootstraps `dev-shared-room` directly and keeps the temporary pairing/status chrome hidden during iteration.
 - [Phase 02]: Partner waiting and reconnecting UX is presence-freshness-driven - Shipped builds use live presence freshness rather than room commits to show waiting, joined, reconnecting, returned, and together states.
+- [Phase 02]: Same-item shared edits use TTL soft locks - Lock ownership now lives beside presence transport instead of inside canonical room documents.
+- [Phase 02]: Stale same-item edits recover through canonical reload - The runtime now reloads the authoritative room when local lock assumptions go stale instead of preserving a drifting draft.
 
 ### Pending Todos
 
@@ -75,11 +77,11 @@ None yet.
 ### Blockers/Concerns
 
 - Backend and auth provider for one-couple, one-room ownership is not selected yet.
-- Phase 1 uses last-save-wins for committed edits; Phase 2 still needs stronger same-item convergence rules for concurrent edits.
-- `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 now bypasses that gap for shared-room documents, but the legacy validator remains stale.
+- Phase 3 still needs the first persistent player progression, couple streak, and ritual loop data model.
+- `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 bypasses that gap for shared-room documents, but the legacy validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-26T15:47:29.856Z
-Stopped at: Executing 02-03-PLAN.md
-Resume file: .planning/phases/02-live-presence-and-co-op-consistency/02-03-PLAN.md
+Last session: 2026-03-26T16:05:46.496Z
+Stopped at: Completed 02-03-PLAN.md
+Resume file: .planning/ROADMAP.md
