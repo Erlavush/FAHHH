@@ -33,8 +33,15 @@ export function placementListsMatch(
   first: RoomFurniturePlacement[],
   second: RoomFurniturePlacement[]
 ): boolean {
-  return (
-    first.length === second.length &&
-    first.every((placement, index) => placementsMatch(placement, second[index]))
-  );
+  if (first.length !== second.length) {
+    return false;
+  }
+
+  // Use a copy to avoid mutating the original arrays if we were to sort
+  // But searching is safer and order-independent without sorting
+  return first.every((p1) => {
+    const p2 = second.find((p) => p.id === p1.id);
+    if (!p2) return false;
+    return placementsMatch(p1, p2);
+  });
 }

@@ -55,7 +55,7 @@ FAHHHH/
 
 **`src/lib/`**
 - Purpose: gameplay/domain layer and persistence helpers
-- Key files: `roomState.ts`, `furnitureRegistry.ts`, `devLocalState.ts`, `devWorldSettings.ts`, `sharedRoomStore.ts`, `sharedRoomClient.ts`, `sharedRoomSession.ts`, `sharedRoomValidation.ts`, `mobLab.ts`, `mobLabState.ts`, `pets.ts`, `petPathing.ts`
+- Key files: `roomState.ts`, `furnitureRegistry.ts`, `devLocalState.ts`, `devWorldSettings.ts`, `sharedRoomStore.ts`, `sharedRoomClient.ts`, `sharedRoomSession.ts`, `sharedRoomValidation.ts`, `mobLab.ts`, `mobLabState.ts`, `pets.ts`, `petPathing.ts`, `physics.ts`, `pcMinigame.ts`, `economy.ts`, `worldLighting.ts`
 
 **`tests/`**
 - Purpose: focused Vitest coverage for domain rules and room-view helpers
@@ -82,6 +82,8 @@ FAHHHH/
 - `src/lib/furnitureCollision.ts` - placement blocking rules
 - `src/lib/furnitureInteractions.ts` - sit/lie/use_pc targeting
 - `src/lib/worldLighting.ts` - world lighting math
+- `src/lib/physics.ts` - 3D physics and collision primitives
+- `src/lib/economy.ts` - coin earn/spend logic
 
 **Testing:**
 - `tests/*.test.ts` - Vitest suite

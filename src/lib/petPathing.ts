@@ -106,28 +106,35 @@ export function pickPetWanderTarget(
   currentPosition: Vector3Tuple,
   playerPosition: Vector3Tuple,
   obstacles: PetObstacle[],
-  randomValue = Math.random
+  randomValue = Math.random,
+  customMinRadius?: number,
+  customMaxRadius?: number
 ): Vector3Tuple {
   const dxToPlayer = playerPosition[0] - currentPosition[0];
   const dzToPlayer = playerPosition[2] - currentPosition[2];
   const playerDistance = Math.sqrt(dxToPlayer * dxToPlayer + dzToPlayer * dzToPlayer);
-  const shouldBiasTowardPlayer = playerDistance > 3.4 || randomValue() < 0.45;
+  const shouldBiasTowardPlayer = playerDistance > 3.4 || randomValue() < 0.35;
   const centerX = shouldBiasTowardPlayer ? playerPosition[0] : currentPosition[0];
   const centerZ = shouldBiasTowardPlayer ? playerPosition[2] : currentPosition[2];
-  const minRadius = shouldBiasTowardPlayer ? 1.15 : 0.9;
-  const maxRadius = shouldBiasTowardPlayer ? 2.2 : 2.8;
 
-  for (let attempt = 0; attempt < 28; attempt += 1) {
+  const minRadius = customMinRadius ?? (shouldBiasTowardPlayer ? 1.15 : 0.9);
+  const maxRadius = customMaxRadius ?? (shouldBiasTowardPlayer ? 2.2 : 2.8);
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     const angle = randomValue() * Math.PI * 2;
     const radius = minRadius + randomValue() * (maxRadius - minRadius);
-    const candidate = clampPetPositionToRoom([
-      centerX + Math.cos(angle) * radius,
-      0,
-      centerZ + Math.sin(angle) * radius
-    ]);
+    const candidateX = centerX + Math.cos(angle) * radius;
+    const candidateZ = centerZ + Math.sin(angle) * radius;
+
+    const candidate = clampPetPositionToRoom([candidateX, 0, candidateZ]);
+
+    // Fast path clear check (simple raycast simulation)
+    const midX = (currentPosition[0] + candidate[0]) / 2;
+    const midZ = (currentPosition[2] + candidate[2]) / 2;
 
     if (
       pointIntersectsPetObstacle(candidate[0], candidate[2], obstacles, 0.12) ||
+      pointIntersectsPetObstacle(midX, midZ, obstacles, 0.15) || // Check middle point for better pathing
       pointTooCloseToPlayer(candidate[0], candidate[2], playerPosition)
     ) {
       continue;

@@ -31,6 +31,15 @@
 
 - [x] **RITL-01**: Couple can complete at least one daily quest or ritual that grants progression.
 
+### UI Shell
+
+- [ ] **SHELL-01**: The player-facing room shell presents core actions, progression, time, and partner status in a clear non-overlapping layout that matches the intended shipped experience.
+- [ ] **SHELL-02**: Developer-only controls and workbench surfaces are separated from the default player-facing room shell.
+
+### Developer Workflow
+
+- [ ] **DEVX-01**: The developer can quickly reach the Dev Panel, Preview Studio, furniture preview flow, Mob Lab, and related debug/settings tools without cluttering the player view.
+
 ### Personalization
 
 - [ ] **MEMR-01**: Couple can place and edit at least one photo frame or equivalent memory object in the shared room.
@@ -81,16 +90,19 @@
 | PROG-02 | Phase 3 | Complete |
 | PROG-03 | Phase 3 | Complete |
 | RITL-01 | Phase 3 | Complete |
+| SHELL-01 | Phase 3.1 | Pending |
+| SHELL-02 | Phase 3.1 | Pending |
+| DEVX-01 | Phase 3.1 | Pending |
 | MEMR-01 | Phase 4 | Pending |
 | PETS-01 | Phase 4 | Pending |
 | STAK-01 | Phase 4 | Pending |
 | STAK-02 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 15 total
-- Mapped to phases: 15
+- v1 requirements: 18 total
+- Mapped to phases: 18
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-27 after Phase 3 completion*
+*Last updated: 2026-03-27 after Phase 03.1 insertion*

@@ -12,6 +12,11 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true
   },
+  server: {
+    watch: {
+      ignored: ["**/.data/**"]
+    }
+  },
   build: {
     rollupOptions: {
       output: {

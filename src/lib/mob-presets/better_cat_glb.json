@@ -7,14 +7,31 @@
   "textureSrc": "placeholder",
   "parts": [],
   "animation": {
-    "idle": { "frequency": 1, "bodyBob": 0, "headYaw": 0, "headPitch": 0, "tailYaw": 0, "tailPitch": 0, "earPitch": 0, "earRoll": 0 },
-    "walk": { "strideRate": 1, "limbSwing": 0, "bodyBob": 0, "bodyRoll": 0, "headNod": 0, "tailYaw": 0, "tailPitch": 0 }
+    "idle": {
+      "frequency": 1.15,
+      "bodyBob": 0,
+      "headYaw": 3,
+      "headPitch": 2,
+      "tailYaw": 8,
+      "tailPitch": 3,
+      "earPitch": 0,
+      "earRoll": 0
+    },
+    "walk": {
+      "strideRate": 12.0,
+      "limbSwing": 40,
+      "bodyBob": 0.6,
+      "bodyRoll": 3.5,
+      "headNod": 3.0,
+      "tailYaw": 22,
+      "tailPitch": 8
+    }
   },
   "locomotion": {
-    "mode": "idle",
-    "speed": 0.5,
-    "turnResponsiveness": 8,
-    "loopRadius": 1.5
+    "mode": "walk_in_place",
+    "speed": 1.8,
+    "turnResponsiveness": 100,
+    "loopRadius": 1
   },
   "physics": {
     "groundOffset": 0,

@@ -79,17 +79,22 @@ export function GlbMobPreviewActor({
     let actorPosition: [number, number, number] = [0, 0, 0];
     let rotationYTarget = group.current.rotation.y;
 
+    const locomotionSpeed = (externalMotionStateRef && externalMotionStateRef.current) 
+        ? 1.0 
+        : Math.max(0, locomotion.speed);
+    
+    // Always increment limbSwing to keep animation "primed"
+    limbSwingRef.current += locomotionSpeed * delta * walkAnimation.strideRate;
+
     if (externalMotionStateRef && externalMotionStateRef.current) {
         const motion = externalMotionStateRef.current;
         actorPosition = motion.position;
         rotationYTarget = motion.rotationY;
         walkAmount = motion.walkAmount;
     } else {
-        const locomotionSpeed = Math.max(0, locomotion.speed);
         const loopRadius = Math.max(0.25, locomotion.loopRadius);
         if (locomotion.mode === "walk_in_place") {
             walkAmount = Math.min(1, locomotionSpeed / 0.45);
-            limbSwingRef.current += locomotionSpeed * delta * walkAnimation.strideRate;
         } else if (locomotion.mode === "loop_path") {
             const angularSpeed = locomotionSpeed / loopRadius;
             const phase = time * angularSpeed;
@@ -98,41 +103,68 @@ export function GlbMobPreviewActor({
             const velocityZ = -Math.sin(phase) * loopRadius * angularSpeed;
             rotationYTarget = Math.atan2(velocityX, velocityZ);
             walkAmount = Math.min(1, locomotionSpeed / 0.45);
-            limbSwingRef.current += locomotionSpeed * delta * walkAnimation.strideRate;
         }
     }
 
     group.current.position.set(actorPosition[0], actorPosition[1], actorPosition[2]);
     group.current.rotation.y = rotationYTarget;
 
+    const idleAnimation = preset.animation.idle;
+    const idlePhase = time * idleAnimation.frequency;
+    const limbSwing = limbSwingRef.current;
+
+    const diagonalSwing = Math.cos(limbSwing) * walkAnimation.limbSwing * walkAmount * (Math.PI / 180);
+    const bodyBob =
+      (1.0 + Math.sin(idlePhase * 2)) * idleAnimation.bodyBob * (1 - walkAmount) +
+      Math.sin(limbSwing * 2) * walkAnimation.bodyBob * walkAmount;
+    const bodyRoll = Math.sin(limbSwing - 0.45) * walkAnimation.bodyRoll * walkAmount * (Math.PI / 180);
+    const headYaw = Math.sin(idlePhase * 0.82) * idleAnimation.headYaw * (1 - walkAmount * 0.35) * (Math.PI / 180);
+    const headPitch =
+      Math.cos(idlePhase * 1.05) * idleAnimation.headPitch * (Math.PI / 180) +
+      Math.cos(limbSwing * 2 - 0.2) * walkAnimation.headNod * walkAmount * (Math.PI / 180);
+    const tailYaw =
+      Math.sin(idlePhase) * idleAnimation.tailYaw * (Math.PI / 180) +
+      Math.sin(limbSwing - 0.9) * walkAnimation.tailYaw * walkAmount * (Math.PI / 180);
+    const tailPitch =
+      Math.cos(idlePhase * 0.9) * idleAnimation.tailPitch * (Math.PI / 180) +
+      Math.cos(limbSwing * 2 - 0.15) * walkAnimation.tailPitch * walkAmount * (Math.PI / 180);
+
+    group.current.position.set(actorPosition[0], actorPosition[1] + bodyBob * -0.0625, actorPosition[2]);
+    group.current.rotation.y = rotationYTarget;
+    group.current.rotation.z = bodyRoll;
+
     const allActionEntries = Object.entries(actions);
     const walkEntry = allActionEntries.find(([name]) => name.toLowerCase().includes("walk"));
     const walkAction = walkEntry ? walkEntry[1] : allActionEntries[0]?.[1];
+    
     if (walkAction) {
-        if (!walkAction.isRunning()) walkAction.play();
-        walkAction.timeScale = walkAmount;
+      if (!walkAction.isRunning()) walkAction.play();
+      walkAction.timeScale = walkAmount;
     }
 
-    const swingSpeed = 10;
-    const swingAmount = 0.5 * walkAmount;
-    if (frontRightLeg) frontRightLeg.rotation.x = Math.sin(time * swingSpeed) * swingAmount;
-    if (rearLeftLeg) rearLeftLeg.rotation.x = Math.sin(time * swingSpeed) * swingAmount;
-    if (frontLeftLeg) frontLeftLeg.rotation.x = -Math.sin(time * swingSpeed) * swingAmount;
-    if (rearRightLeg) rearRightLeg.rotation.x = -Math.sin(time * swingSpeed) * swingAmount;
+    if (frontRightLeg) frontRightLeg.rotation.x = diagonalSwing;
+    if (rearLeftLeg) rearLeftLeg.rotation.x = diagonalSwing;
+    if (frontLeftLeg) frontLeftLeg.rotation.x = -diagonalSwing;
+    if (rearRightLeg) rearRightLeg.rotation.x = -diagonalSwing;
 
     const tailBaseFolder = clonedScene.getObjectByName("tailbase2");
     const tailTipFolder = clonedScene.getObjectByName("tailtip2");
     if (tailBaseFolder) {
-        tailBaseFolder.rotation.x = -0.9;
-        tailBaseFolder.rotation.z = Math.sin(time * 3.2) * 0.3;
-        if (tailTipFolder) {
-            tailTipFolder.rotation.x = -0.2;
-            tailTipFolder.rotation.z = Math.sin(time * 3.2 - 1.0) * 0.4;
-        }
+      tailBaseFolder.rotation.x = -0.9 + tailPitch;
+      tailBaseFolder.rotation.y = tailYaw;
+      tailBaseFolder.rotation.z = bodyRoll * 0.18;
+      if (tailTipFolder) {
+        tailTipFolder.rotation.x = -0.2 + tailPitch * 0.5;
+        tailTipFolder.rotation.y = tailYaw * 0.5;
+      }
     }
 
     const headNode = clonedScene.getObjectByName("head") || clonedScene.getObjectByName("head2");
-    if (headNode) headNode.rotation.y = Math.sin(time * 0.5) * 0.1;
+    if (headNode) {
+      headNode.rotation.x = headPitch;
+      headNode.rotation.y = headYaw;
+      headNode.rotation.z = bodyRoll * -0.25;
+    }
   });
 
   return (

@@ -29,6 +29,8 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 ### Active
 
+- [ ] Player-facing room UI is organized, aesthetic, and readable instead of looking like a stacked development shell.
+- [ ] Developer tooling lives in a separate developer view/workspace so iteration stays fast without polluting the shipped player experience.
 - [ ] Shared memories such as editable photo frames make the room personal.
 - [ ] Shared-room pet presence and breakup-reset stakes work without regressing the current sandbox foundation.
 
@@ -52,8 +54,9 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 ## Current State
 
 - Phase 3 is complete. The shared-room runtime now carries canonical personal progression, desk-PC ritual history, daily streak state, and conflict-aware replay for progression-affecting mutations.
+- Phase 03.1 is now an urgent inserted phase focused on UI overhaul: split developer tooling from the shipped player shell, reorganize runtime surfaces, and improve development workflow before more player-facing content lands.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while live presence updates, item locks, camera/player transforms, and authoring-tool persistence stay outside canonical room revisions.
-- Remaining milestone work is shared memories, shared-room pet promotion, and breakup stakes.
+- Remaining milestone work is Phase 03.1 UI overhaul first, then shared memories, shared-room pet promotion, and breakup stakes.
 
 ## Constraints
 
@@ -81,6 +84,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Phase 2 development builds auto-enter `dev-shared-room` instead of showing pairing chrome first | Keeps iteration fast without splitting the shipped pairing/runtime path | Good |
 | Phase 2 partner status UX comes from presence freshness instead of room commits | Waiting/reconnect states must stay reliable even when canonical room state does not change | Good |
 | Phase 2 same-item conflicts use TTL soft locks plus canonical reload recovery | Reduces collisions without inventing fake client-side merge semantics | Good |
+| Insert urgent Phase 03.1 before personalization/stakes work | The current shell mixes real player UI with developer tooling, making both the shipped experience and daily iteration worse | Good |
 
 ## Evolution
 
@@ -100,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after Phase 3 completion*
+*Last updated: 2026-03-27 after Phase 03.1 insertion*

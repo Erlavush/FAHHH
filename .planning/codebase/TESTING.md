@@ -31,16 +31,32 @@ cmd /c npx vitest --watch                      # Watch mode (not scripted, but s
 **Structure:**
 ```text
 tests/
+|-- canvasSizing.test.ts
+|-- cemTransforms.test.ts
 |-- economy.test.ts
 |-- furnitureCollision.test.ts
 |-- furnitureInteractions.test.ts
-|-- sharedRoomRuntime.test.ts
-|-- sharedRoomStore.test.ts
+|-- furnitureRegistry.test.ts
 |-- mobLabState.test.ts
+|-- mobTextureLayout.test.ts
+|-- pcMinigame.test.ts
+|-- petPathing.test.ts
+|-- pets.test.ts
+|-- physics.test.ts
 |-- roomState.test.ts
 |-- roomViewLighting.test.ts
 |-- roomViewPlacementResolvers.test.ts
-`-- useRoomFurnitureEditor.test.ts
+|-- roomViewSpawn.test.ts
+|-- roomViewWallHelpers.test.ts
+|-- sharedRoomRuntime.test.ts
+|-- sharedRoomSession.test.ts
+|-- sharedRoomStore.test.ts
+|-- sharedRoomTypes.test.ts
+|-- sharedRoomValidation.test.ts
+|-- surfaceDecor.test.ts
+|-- useRoomFurnitureEditor.test.ts
+|-- wallOpenings.test.ts
+`-- worldLighting.test.ts
 ```
 
 ## Test Structure

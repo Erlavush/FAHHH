@@ -57,13 +57,29 @@ export function RoomPetActor({
   useFrame((_, delta) => {
     const motion = motionStateRef.current;
     const nextRandom = randomSourceRef.current;
-    const baseSpeed = Math.min(0.82, Math.max(0.38, preset.locomotion.speed * 0.28));
+
+    const isCat = preset.id === "better_cat_glb";
+
+    // Species-specific behavior parameters
+    const baseSpeed = isCat
+      ? Math.min(2.5, Math.max(1.0, preset.locomotion.speed * 0.85)) // Cat speed
+      : Math.min(0.5, Math.max(0.1, preset.locomotion.speed * 0.22)); // Other pets (raccoon) default
+
+    const minWanderRadius = isCat ? 4.0 : 0.8;
+    const maxWanderRadius = isCat ? 8.5 : 2.5;
 
     if (pointIntersectsPetObstacle(motion.position[0], motion.position[2], obstacles, 0.06)) {
-      const safeTarget = pickPetWanderTarget(motion.position, playerPosition, obstacles, nextRandom);
+      const safeTarget = pickPetWanderTarget(
+        motion.position,
+        playerPosition,
+        obstacles,
+        nextRandom,
+        minWanderRadius,
+        maxWanderRadius
+      );
       motion.position = [safeTarget[0], 0, safeTarget[2]];
       targetPositionRef.current = null;
-      idleTimerRef.current = 0.6;
+      idleTimerRef.current = 0.3;
     }
 
     if (idleTimerRef.current > 0) {
@@ -80,7 +96,9 @@ export function RoomPetActor({
         motion.position,
         playerPosition,
         obstacles,
-        nextRandom
+        nextRandom,
+        minWanderRadius,
+        maxWanderRadius
       );
     }
 
@@ -91,7 +109,10 @@ export function RoomPetActor({
 
     if (distanceToTarget < 0.12) {
       targetPositionRef.current = null;
-      idleTimerRef.current = 0.75 + nextRandom() * 1.35;
+      // Species-specific idle range
+      idleTimerRef.current = isCat
+        ? 2.0 + nextRandom() * 2.0 // Cat: 2s - 4s idle
+        : 1.0 + nextRandom() * 3.0; // Others: 1s - 4s idle
       motion.walkAmount = 0;
       return;
     }
@@ -103,19 +124,26 @@ export function RoomPetActor({
     const nextZ = motion.position[2] + moveZ;
 
     if (pointIntersectsPetObstacle(nextX, nextZ, obstacles, 0.05)) {
-      targetPositionRef.current = pickPetWanderTarget(motion.position, playerPosition, obstacles, nextRandom);
-      idleTimerRef.current = 0.18;
+      targetPositionRef.current = pickPetWanderTarget(
+        motion.position,
+        playerPosition,
+        obstacles,
+        nextRandom,
+        minWanderRadius,
+        maxWanderRadius
+      );
+      idleTimerRef.current = 0.1;
       motion.walkAmount = 0;
       return;
     }
 
     motion.position = [nextX, 0, nextZ];
-    motion.walkAmount = Math.min(1, baseSpeed / 0.62);
+    motion.walkAmount = isCat ? Math.min(1, baseSpeed / 1.5) : Math.min(1, baseSpeed * 2.5);
     motion.stridePhase += baseSpeed * delta * preset.animation.walk.strideRate;
     motion.rotationY = lerpAngle(
       motion.rotationY,
       Math.atan2(deltaX, deltaZ),
-      Math.min(1, delta * 8)
+      Math.min(1, delta * (isCat ? 12 : 5))
     );
   });
 
