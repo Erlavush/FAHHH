@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultRoomState } from "../src/lib/roomState";
+import { createSharedRoomPetRecord } from "../src/lib/sharedRoomPet";
 // @ts-ignore Vitest can import the dev-only .mjs plugin helpers directly.
 const sharedRoomDevPluginModule = await import("../scripts/sharedRoomDevPlugin.mjs");
 const {
@@ -47,6 +48,8 @@ describe("sharedRoomStore", () => {
       level: 1,
       xp: 0
     });
+    expect(secondJoin.frameMemories).toEqual({});
+    expect(secondJoin.sharedPet).toBeNull();
   });
 
   it("rejects a third distinct dev profile after two partners join", () => {
@@ -202,5 +205,45 @@ describe("sharedRoomStore", () => {
       0,
       -1.5
     ]);
+  });
+
+  it("persists frame memories and a shared pet on a valid commit", () => {
+    const database = createEmptySharedRoomDevDatabase();
+    const creatorProfile = createProfile("player-1", "Ari");
+    const roomDocument = createSharedRoomInDatabase(database, {
+      profile: creatorProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 50
+    });
+
+    const committedRoom = commitSharedRoomStateInDatabase(database, {
+      roomId: roomDocument.roomId,
+      expectedRevision: roomDocument.revision,
+      roomState: roomDocument.roomState,
+      progression: roomDocument.progression,
+      frameMemories: {
+        "starter-wall-frame": {
+          furnitureId: "starter-wall-frame",
+          imageSrc: "data:image/jpeg;base64,abc",
+          caption: "Our room",
+          updatedAt: "2026-03-26T15:00:00.000Z",
+          updatedByPlayerId: creatorProfile.playerId
+        }
+      },
+      sharedPet: createSharedRoomPetRecord(
+        [0.5, 0, 1.25],
+        creatorProfile.playerId,
+        "2026-03-26T15:00:00.000Z"
+      ),
+      reason: "memory_and_pet"
+    });
+
+    expect(committedRoom.frameMemories["starter-wall-frame"]).toMatchObject({
+      caption: "Our room"
+    });
+    expect(committedRoom.sharedPet).toMatchObject({
+      type: "minecraft_cat",
+      presetId: "better_cat_glb"
+    });
   });
 });

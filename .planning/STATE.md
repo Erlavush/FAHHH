@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 04 planning complete
-last_updated: "2026-03-27T05:39:22.4360522+08:00"
-last_activity: 2026-03-27 -- Planned Phase 04 Memories, Pets, and Breakup Stakes
+stopped_at: Phase 04 execution complete
+last_updated: "2026-03-27T06:05:20.5178706+08:00"
+last_activity: 2026-03-27 -- Executed Phase 04 Memories, Pets, and Breakup Stakes
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 12
-  percent: 80
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 4 - memories-pets-and-breakup-stakes
+**Current focus:** Milestone wrap-up after Phase 04 completion
 
 ## Current Position
 
-Phase: 04 (memories-pets-and-breakup-stakes) - READY TO EXECUTE
+Phase: 04 (memories-pets-and-breakup-stakes) - COMPLETE
 Plan: 3 of 3
-Status: Phase 4 planned; execution not started
-Last activity: 2026-03-27 -- Planned Phase 04 Memories, Pets, and Breakup Stakes
+Status: All roadmap phases executed; ready for milestone completion
+Last activity: 2026-03-27 -- Executed Phase 04 Memories, Pets, and Breakup Stakes
 
-Progress: [########--] 80%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 15
 - Average duration: 7 min
 - Total execution time: 0.0 hours
 
@@ -48,10 +48,11 @@ Progress: [########--] 80%
 | 02 | 3 | 48 min | 16 min |
 | 03 | 3 | 0 min | 0 min |
 | 03.1 | 3 | 1 session | 1 session |
+| 04 | 3 | 1 session | 1 session |
 
 **Recent Trend:**
 
-- Last 5 plans: 03-02, 03-03, 03.1-01, 03.1-02, 03.1-03
+- Last 5 plans: 03.1-02, 03.1-03, 04-01, 04-02, 04-03
 - Trend: On track
 
 ## Quick Tasks Completed
@@ -81,11 +82,15 @@ Recent decisions affecting current work:
 - [Phase 03.1]: Player and developer shells are separate runtime views - The shipped room HUD now lives in Player View while Dev Panel, diagnostics, Preview Studio, and Mob Lab stay behind a persisted developer workspace.
 - [Phase 03.1]: Secondary room actions moved out of the shipped HUD - Refresh room state, grid snap, and skin import now live in the player room-details sheet instead of the always-visible toolbar.
 - [Phase 03.1]: Preview Studio and Mob Lab are embedded developer workbench surfaces - Authoring tools no longer float over the player shell and instead render inside the developer workspace stage.
+- [Phase 04]: Shared frame memories and the shared cat live beside RoomState in the canonical shared-room document - Personalization state now persists canonically without changing furniture ownership or placement invariants.
+- [Phase 04]: Wall frames and the shared companion are shipped player-shell features, not developer tools - The player view now owns the memory dialog, shared companion adoption copy, and breakup danger zone while authoring surfaces stay developer-only.
+- [Phase 04]: Breakup reset uses one pure mutation helper through the normal shared-room commit path - Resetting the relationship state now preserves room identity and membership while rebuilding the starter baseline safely after conflicts.
 
 ### Roadmap Evolution
 
 - Phase 03.1 inserted after Phase 03: UI Overhaul and Developer-Player View Split (URGENT)
 - Phase 03.1 completed: Player shell and developer workspace split is now the live runtime baseline.
+- Phase 04 completed: Shared memories, one canonical shared cat, and breakup stakes now close the v1 emotional loop.
 
 ### Pending Todos
 
@@ -95,16 +100,15 @@ Recent decisions affecting current work:
 - [ ] [RA-01] [Implement Unrestricted Vertical Placement](file:///z:/FAHHHH/.planning/todos/room-architecture/vertical-placement-freedom.md)
 - [ ] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
 - [ ] [AP-01] [Bulk mod asset import](file:///z:/FAHHHH/.planning/todos/asset-pipeline/bulk-mod-asset-import.md)
-- [ ] Phase 4: Execute the shared memory object, curated shared-room pet path, and breakup-reset plans.
 
 ### Blockers/Concerns
 
 - Backend and auth provider for one-couple, one-room ownership is not selected yet.
-- Phase 4 context now builds on the new player shell and developer workspace split; future UI work should target the correct surface explicitly.
+- Milestone v1 is feature-complete in the current local/dev shared-room stack, but production backend/auth decisions are still unresolved.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; Phase 01 bypasses that gap for shared-room documents, but the legacy validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-27T05:39:22.4360522+08:00
-Stopped at: Phase 04 planning complete
-Resume file: .planning/phases/04-memories-pets-and-breakup-stakes/04-01-PLAN.md
+Last session: 2026-03-27T06:05:20.5178706+08:00
+Stopped at: Phase 04 execution complete
+Resume file: .planning/STATE.md

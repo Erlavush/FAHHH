@@ -14,7 +14,7 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 - [x] **Phase 2: Live Presence and Co-op Consistency** - Make the room visibly shared and keep concurrent editing predictable. Completed 2026-03-27.
 - [x] **Phase 3: Shared Progression and Ritual Loop** - Add personal progression, shared streak, and one daily reason to return. Completed 2026-03-27.
 - [x] **Phase 3.1: UI Overhaul and Developer-Player View Split** (INSERTED) - Separate developer-only tooling from the shipped player shell and rebuild the room UI hierarchy. Completed 2026-03-27.
-- [ ] **Phase 4: Memories, Pets, and Breakup Stakes** - Finish the emotional fantasy with personalization and meaningful loss.
+- [x] **Phase 4: Memories, Pets, and Breakup Stakes** - Finish the emotional fantasy with personalization and meaningful loss. Completed 2026-03-27.
 
 ## Phase Details
 
@@ -99,9 +99,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: Add one shared memory object or photo-frame flow to the room runtime
-- [ ] 04-02: Promote one curated pet path into the shared-room runtime safely
-- [ ] 04-03: Design and implement breakup warning, confirmation, and reset behavior
+- [x] 04-01: Add one shared memory object or photo-frame flow to the room runtime
+- [x] 04-02: Promote one curated pet path into the shared-room runtime safely
+- [x] 04-03: Design and implement breakup warning, confirmation, and reset behavior
 
 ## Progress
 
@@ -114,4 +114,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 3.1 -> 4
 | 2. Live Presence and Co-op Consistency | 3/3 | Complete | 2026-03-27 |
 | 3. Shared Progression and Ritual Loop | 3/3 | Complete | 2026-03-27 |
 | 3.1. UI Overhaul and Developer-Player View Split | 3/3 | Complete | 2026-03-27 |
-| 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |
+| 4. Memories, Pets, and Breakup Stakes | 3/3 | Complete | 2026-03-27 |

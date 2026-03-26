@@ -1,7 +1,9 @@
 import { type ThreeEvent } from "@react-three/fiber";
 import type { Dispatch, SetStateAction } from "react";
+import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { FurnitureVisual } from "./FurnitureVisual";
 import { RoomInteractionProxy } from "./RoomInteractionProxy";
+import { RoomMemoryFrameProxy } from "./RoomMemoryFrameProxy";
 import { RoomSurfaceDecorSelectionProxy } from "./RoomSurfaceDecorSelectionProxy";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
 
@@ -9,6 +11,7 @@ type RoomFurnitureActorProps = {
   applyTransform?: boolean;
   blocked: boolean;
   buildModeEnabled: boolean;
+  frameMemory?: SharedRoomFrameMemory | null;
   hovered: boolean;
   hoveredInteractableFurnitureId: string | null;
   interactionHovered: boolean;
@@ -30,6 +33,7 @@ type RoomFurnitureActorProps = {
     furnitureId: string,
     event: ThreeEvent<MouseEvent>
   ) => void;
+  onOpenMemoryFrame: ((furnitureId: string) => void) | null;
   setHoveredInteractableFurnitureId: Dispatch<SetStateAction<string | null>>;
   shadowsEnabled: boolean;
   windowSurfaceLightAmount: number;
@@ -39,6 +43,7 @@ export function RoomFurnitureActor({
   applyTransform = true,
   blocked,
   buildModeEnabled,
+  frameMemory = null,
   hovered,
   hoveredInteractableFurnitureId,
   interactionHovered,
@@ -51,6 +56,7 @@ export function RoomFurnitureActor({
   onFurniturePointerMove,
   onFurniturePointerUp,
   onInteractionCommand,
+  onOpenMemoryFrame,
   setHoveredInteractableFurnitureId,
   shadowsEnabled,
   windowSurfaceLightAmount
@@ -79,6 +85,7 @@ export function RoomFurnitureActor({
         hovered={hovered}
         interactionHovered={interactionHovered}
         blocked={blocked}
+        frameMemory={frameMemory}
         windowSurfaceLightAmount={windowSurfaceLightAmount}
         nightFactor={nightFactor}
       />
@@ -88,6 +95,13 @@ export function RoomFurnitureActor({
         hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
         item={item}
         onInteractionCommand={onInteractionCommand}
+        setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
+      />
+      <RoomMemoryFrameProxy
+        buildModeEnabled={buildModeEnabled}
+        hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
+        item={item}
+        onOpenMemoryFrame={onOpenMemoryFrame}
         setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
       />
     </group>

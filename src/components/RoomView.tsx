@@ -12,6 +12,7 @@ import { placementListsMatch } from "../lib/roomPlacementEquality";
 import { getFurnitureDefinition } from "../lib/furnitureRegistry";
 import { DEFAULT_IMPORTED_MOB_PRESETS } from "../lib/mobLab";
 import type { SharedPresenceSnapshot } from "../lib/sharedPresenceTypes";
+import type { SharedRoomFrameMemory } from "../lib/sharedRoomTypes";
 import type { OwnedPet } from "../lib/pets";
 import type {
   RoomFurniturePlacement,
@@ -56,6 +57,7 @@ interface RoomViewProps {
   initialCameraPosition: Vector3Tuple;
   initialPlayerPosition: Vector3Tuple;
   initialFurniturePlacements: RoomFurniturePlacement[];
+  frameMemories: Record<string, SharedRoomFrameMemory>;
   pets: OwnedPet[];
   skinSrc: string | null;
   localLockedFurnitureIds: ReadonlySet<string>;
@@ -79,6 +81,7 @@ interface RoomViewProps {
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
+  onOpenMemoryFrame: ((furnitureId: string) => void) | null;
   partnerLockedFurnitureIds: ReadonlySet<string>;
   releaseEditLock: (furnitureId: string) => Promise<void>;
   remotePresence: SharedPresenceSnapshot | null;
@@ -96,6 +99,7 @@ export function RoomView({
   initialCameraPosition,
   initialPlayerPosition,
   initialFurniturePlacements,
+  frameMemories,
   pets,
   skinSrc,
   localLockedFurnitureIds,
@@ -119,6 +123,7 @@ export function RoomView({
   onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
   onInteractionStateChange,
+  onOpenMemoryFrame,
   partnerLockedFurnitureIds,
   releaseEditLock,
   remotePresence,
@@ -527,6 +532,7 @@ export function RoomView({
         <RoomFurnitureLayer
           buildModeEnabled={buildModeEnabled}
           busyFurnitureIds={partnerLockedFurnitureIds}
+          frameMemories={frameMemories}
           furniture={furniture}
           hoveredFurnitureId={hoveredFurnitureId}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
@@ -538,6 +544,7 @@ export function RoomView({
           onFurniturePointerMove={handleFurniturePointerMove}
           onFurniturePointerUp={handleFurniturePointerUp}
           onInteractionCommand={handleFurnitureInteractionCommand}
+          onOpenMemoryFrame={onOpenMemoryFrame}
           selectedFurnitureId={selectedFurnitureId}
           setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
           shadowsEnabled={shadowsEnabled}
@@ -546,6 +553,7 @@ export function RoomView({
         />
         <RoomSelectedFurnitureLayer
           buildModeEnabled={buildModeEnabled}
+          frameMemories={frameMemories}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
           isBusyByPartner={isSelectedFurnitureBusyByPartner}
           isPlacementBlocked={isPlacementBlocked}
@@ -558,6 +566,7 @@ export function RoomView({
           onFurniturePointerMove={handleFurniturePointerMove}
           onFurniturePointerUp={handleFurniturePointerUp}
           onInteractionCommand={handleFurnitureInteractionCommand}
+          onOpenMemoryFrame={onOpenMemoryFrame}
           onPivotDrag={handlePivotDrag}
           onStorePlacement={handleStoreFurniturePlacement}
           prefersTouchControls={prefersTouchControls}

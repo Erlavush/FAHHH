@@ -11,6 +11,7 @@ import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
 
 type InventoryPanelProps = {
   className?: string;
+  petCatalogMode?: "sandbox" | "shared_room";
   playerCoins: number;
   walletLabel?: string;
   showPetCatalog?: boolean;
@@ -35,6 +36,7 @@ type InventoryPanelProps = {
 
 export function InventoryPanel({
   className,
+  petCatalogMode = "sandbox",
   playerCoins,
   walletLabel = "Coins",
   showPetCatalog = true,
@@ -56,6 +58,8 @@ export function InventoryPanel({
   onBuyFurniture,
   onBuyPet
 }: InventoryPanelProps) {
+  const sharedPetMode = petCatalogMode === "shared_room";
+
   return (
     <aside className={className ? `spawn-panel ${className}` : "spawn-panel"}>
       <div className="spawn-panel__header">
@@ -68,7 +72,9 @@ export function InventoryPanel({
 
       {showPetCatalog && petCatalogEntries.length > 0 ? (
         <section className="spawn-section">
-          <span className="spawn-section__title">Pet Store</span>
+          <span className="spawn-section__title">
+            {sharedPetMode ? "Shared Companion" : "Pet Store"}
+          </span>
           <div className="spawn-grid">
             {petCatalogEntries.map((pet) => {
               const alreadyOwned = ownedPetTypes.has(pet.type);
@@ -78,7 +84,7 @@ export function InventoryPanel({
                 <div key={pet.type} className="spawn-card">
                   <div className="spawn-card__preview">
                     <div className="spawn-card__preview-fallback">
-                      <span>Live Pet Test</span>
+                      <span>{sharedPetMode ? "Companion preview" : "Pet preview"}</span>
                       {showAuthoringActions ? (
                         <button
                           className="spawn-card__preview-link"
@@ -97,9 +103,15 @@ export function InventoryPanel({
                     </div>
                     <div className="spawn-card__stats">
                       <span className="spawn-card__stat">
-                        {alreadyOwned ? "Owned" : "Available"}
+                        {alreadyOwned
+                          ? sharedPetMode
+                            ? "Already adopted"
+                            : "Owned"
+                          : "Available"}
                       </span>
-                      <span className="spawn-card__stat">Preset: {pet.presetId}</span>
+                      {showAuthoringActions ? (
+                        <span className="spawn-card__stat">Preset: {pet.presetId}</span>
+                      ) : null}
                     </div>
                     <span className="spawn-card__hint">{pet.description}</span>
                     <div className="spawn-card__actions">
@@ -110,9 +122,13 @@ export function InventoryPanel({
                         type="button"
                       >
                         {alreadyOwned
-                          ? "Owned"
+                          ? sharedPetMode
+                            ? "Already adopted"
+                            : "Owned"
                           : canAffordPurchase
-                            ? `Adopt for ${pet.price}`
+                            ? sharedPetMode
+                              ? "Adopt for the room"
+                              : `Adopt for ${pet.price}`
                             : `Need ${pet.price - playerCoins} more`}
                       </button>
                       {showAuthoringActions ? (

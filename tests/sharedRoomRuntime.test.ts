@@ -19,6 +19,8 @@ import {
   saveSharedPlayerProfile,
   saveSharedRoomSession
 } from "../src/lib/sharedRoomSession";
+import { createSharedRoomPetRecord } from "../src/lib/sharedRoomPet";
+import { createBreakupResetMutation } from "../src/lib/sharedRoomReset";
 import type { SharedRoomStore } from "../src/lib/sharedRoomStore";
 import type {
   SharedPlayerProfile,
@@ -104,7 +106,9 @@ function createSharedRoomDocument(
     seedKind: overrides.seedKind ?? "dev-current-room",
     createdAt: overrides.createdAt ?? "2026-03-26T00:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-03-26T00:01:30.000Z",
-    roomState: overrides.roomState ?? roomState
+    roomState: overrides.roomState ?? roomState,
+    frameMemories: overrides.frameMemories ?? {},
+    sharedPet: overrides.sharedPet ?? null
   };
 }
 
@@ -180,7 +184,22 @@ describe("shared room runtime helpers", () => {
   });
 
   it("creates a runtime snapshot with canonical progression", () => {
-    const roomDocument = createSharedRoomDocument("player-1");
+    const roomDocument = createSharedRoomDocument("player-1", {
+      frameMemories: {
+        "starter-wall-frame": {
+          furnitureId: "starter-wall-frame",
+          imageSrc: "data:image/jpeg;base64,abc",
+          caption: "Together",
+          updatedAt: "2026-03-26T00:01:30.000Z",
+          updatedByPlayerId: "player-1"
+        }
+      },
+      sharedPet: createSharedRoomPetRecord(
+        [0.5, 0, 1.25],
+        "player-1",
+        "2026-03-26T00:01:30.000Z"
+      )
+    });
     const runtimeSnapshot = createSharedRoomRuntimeSnapshot(roomDocument);
 
     expect(runtimeSnapshot.progression.players["player-1"]).toMatchObject({
@@ -189,6 +208,12 @@ describe("shared room runtime helpers", () => {
       xp: 0
     });
     expect(runtimeSnapshot.members).toHaveLength(2);
+    expect(runtimeSnapshot.frameMemories["starter-wall-frame"]).toMatchObject({
+      caption: "Together"
+    });
+    expect(runtimeSnapshot.sharedPet).toMatchObject({
+      type: "minecraft_cat"
+    });
   });
 
   it("reconnect reload discards unconfirmed local edits by adopting the canonical room", () => {
@@ -349,7 +374,9 @@ describe("shared room runtime helpers", () => {
 
         return {
           roomState: snapshot.roomState,
-          progression: nextProgression.progression
+          progression: nextProgression.progression,
+          frameMemories: snapshot.frameMemories,
+          sharedPet: snapshot.sharedPet
         };
       });
     });
@@ -446,7 +473,9 @@ describe("shared room runtime helpers", () => {
 
         return {
           roomState: snapshot.roomState,
-          progression: nextProgression.progression
+          progression: nextProgression.progression,
+          frameMemories: snapshot.frameMemories,
+          sharedPet: snapshot.sharedPet
         };
       });
     });
@@ -517,5 +546,103 @@ describe("shared room runtime helpers", () => {
       source: "desk_pc"
     });
     expect(latestHookValue?.runtimeSnapshot?.progression.couple.ritual.completedAt).toBeNull();
+  });
+
+  it("replays breakup reset after a stale revision conflict", async () => {
+    const profile = createProfile();
+    const initialRoomDocument = createSharedRoomDocument(profile.playerId, {
+      revision: 3,
+      frameMemories: {
+        "starter-wall-frame": {
+          furnitureId: "starter-wall-frame",
+          imageSrc: "data:image/jpeg;base64,abc",
+          caption: "Before",
+          updatedAt: "2026-03-26T05:00:00.000Z",
+          updatedByPlayerId: profile.playerId
+        }
+      },
+      sharedPet: createSharedRoomPetRecord(
+        [0.5, 0, 1.5],
+        profile.playerId,
+        "2026-03-26T05:00:00.000Z"
+      )
+    });
+    const latestRoomDocument = createSharedRoomDocument(profile.playerId, {
+      revision: 4,
+      frameMemories: {
+        "starter-wall-frame": {
+          furnitureId: "starter-wall-frame",
+          imageSrc: "data:image/jpeg;base64,def",
+          caption: "Latest",
+          updatedAt: "2026-03-26T05:05:00.000Z",
+          updatedByPlayerId: "player-2"
+        }
+      },
+      sharedPet: createSharedRoomPetRecord(
+        [1.25, 0, -0.5],
+        "player-2",
+        "2026-03-26T05:05:00.000Z"
+      )
+    });
+    const resetMutation = createBreakupResetMutation(
+      latestRoomDocument,
+      profile.playerId,
+      "2026-03-26T05:10:00.000Z"
+    );
+    const loadSharedRoom = vi
+      .fn<SharedRoomStore["loadSharedRoom"]>()
+      .mockResolvedValueOnce(initialRoomDocument)
+      .mockResolvedValueOnce(latestRoomDocument);
+    const commitSharedRoomState = vi
+      .fn<SharedRoomStore["commitSharedRoomState"]>()
+      .mockRejectedValueOnce(new SharedRoomClientError("Shared room revision conflict.", 409))
+      .mockResolvedValueOnce({
+        ...latestRoomDocument,
+        ...resetMutation,
+        revision: 5,
+        updatedAt: "2026-03-26T05:10:00.000Z"
+      });
+    const sharedRoomStore: SharedRoomStore = {
+      bootstrapDevSharedRoom: vi.fn(),
+      createSharedRoom: vi.fn(),
+      joinSharedRoom: vi.fn(),
+      loadSharedRoom,
+      commitSharedRoomState
+    };
+
+    saveSharedPlayerProfile(profile);
+    saveSharedRoomSession({
+      playerId: profile.playerId,
+      partnerId: "player-2",
+      roomId: initialRoomDocument.roomId,
+      inviteCode: initialRoomDocument.inviteCode,
+      lastKnownRevision: initialRoomDocument.revision
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HookHarness, { sharedRoomStore }));
+    });
+    await flushHookEffects();
+
+    await act(async () => {
+      await latestHookValue?.commitRoomMutation("breakup_reset", (snapshot) =>
+        createBreakupResetMutation(
+          snapshot,
+          profile.playerId,
+          "2026-03-26T05:10:00.000Z"
+        )
+      );
+    });
+    await flushHookEffects();
+
+    expect(commitSharedRoomState).toHaveBeenCalledTimes(2);
+    expect(latestHookValue?.runtimeSnapshot?.revision).toBe(5);
+    expect(latestHookValue?.runtimeSnapshot?.roomId).toBe(initialRoomDocument.roomId);
+    expect(latestHookValue?.runtimeSnapshot?.frameMemories).toEqual({});
+    expect(latestHookValue?.runtimeSnapshot?.sharedPet).toBeNull();
   });
 });

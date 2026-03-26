@@ -17,6 +17,7 @@ export function SharedRoomEntryShell({
 }: SharedRoomEntryShellProps) {
   const [mode, setMode] = useState<"create" | "join">("create");
   const [joinCode, setJoinCode] = useState("");
+  const [stakesAcknowledged, setStakesAcknowledged] = useState(false);
 
   const normalizedJoinCode = useMemo(() => joinCode.trim().toUpperCase(), [joinCode]);
 
@@ -29,6 +30,13 @@ export function SharedRoomEntryShell({
           Create a shared room or enter an invite code to pair with your partner and
           load the same room.
         </p>
+
+        <div className="shared-room-entry__stakes">
+          <strong>Shared rooms can be reset if the relationship ends.</strong>
+          <p>
+            This clears shared progression, room decor, memories, and your shared pet.
+          </p>
+        </div>
 
         <div className="shared-room-entry__tabs" role="tablist" aria-label="Shared room mode">
           <button
@@ -76,15 +84,29 @@ export function SharedRoomEntryShell({
           <p className="shared-room-entry__error">{errorMessage}</p>
         ) : null}
 
+        <label className="shared-room-entry__acknowledgment">
+          <input
+            checked={stakesAcknowledged}
+            onChange={(event) => setStakesAcknowledged(event.target.checked)}
+            type="checkbox"
+          />
+          <span>I understand the shared room can be reset later</span>
+        </label>
+
         <div className="shared-room-entry__actions">
           {mode === "create" ? (
-            <button className="shared-room-entry__button" onClick={onCreateRoom} type="button">
+            <button
+              className="shared-room-entry__button"
+              disabled={!stakesAcknowledged}
+              onClick={onCreateRoom}
+              type="button"
+            >
               Create Shared Room
             </button>
           ) : (
             <button
               className="shared-room-entry__button"
-              disabled={normalizedJoinCode.length < 6}
+              disabled={!stakesAcknowledged || normalizedJoinCode.length < 6}
               onClick={() => onJoinRoom(normalizedJoinCode)}
               type="button"
             >

@@ -1,4 +1,6 @@
+import { Text, useTexture } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
+import { SRGBColorSpace } from "three";
 import { GlbAssetModel } from "./GlbAssetModel";
 import { createCozyMaterialProps } from "./furnitureMaterials";
 
@@ -11,6 +13,8 @@ interface FurnitureModelProps {
   interactionHovered?: boolean;
   blocked?: boolean;
   onPointerDown?: (event: ThreeEvent<PointerEvent>) => void;
+  memoryImageSrc?: string | null;
+  memoryCaption?: string | null;
 }
 
 function createMaterialProps(
@@ -278,7 +282,9 @@ export function WallFrameModel({
   hovered = false,
   interactionHovered = false,
   blocked = false,
-  onPointerDown
+  onPointerDown,
+  memoryImageSrc = null,
+  memoryCaption = null
 }: FurnitureModelProps) {
   const frame = createMaterialProps(
     blocked,
@@ -333,14 +339,30 @@ export function WallFrameModel({
         <boxGeometry args={[1.18, 0.82, 0.02]} />
         <meshStandardMaterial {...mat} />
       </mesh>
-      <mesh position={[0, -0.02, 0.048]}>
-        <boxGeometry args={[0.78, 0.44, 0.02]} />
-        <meshStandardMaterial {...art} />
-      </mesh>
+      {memoryImageSrc ? (
+        <FrameMemoryArt imageSrc={memoryImageSrc} />
+      ) : (
+        <mesh position={[0, -0.02, 0.048]}>
+          <boxGeometry args={[0.78, 0.44, 0.02]} />
+          <meshStandardMaterial {...art} />
+        </mesh>
+      )}
       <mesh position={[0, 0.16, 0.05]}>
         <boxGeometry args={[0.42, 0.16, 0.02]} />
         <meshStandardMaterial {...frame} />
       </mesh>
+      {memoryCaption ? (
+        <Text
+          anchorX="center"
+          anchorY="middle"
+          color={blocked ? "#f4c0c7" : "#5a473b"}
+          fontSize={0.08}
+          maxWidth={0.92}
+          position={[0, -0.34, 0.06]}
+        >
+          {memoryCaption}
+        </Text>
+      ) : null}
       {selected || blocked || hovered || interactionHovered ? (
         <mesh position={[0, 0, 0.08]} raycast={() => null}>
           <boxGeometry args={[1.56, 1.2, 0.01]} />
@@ -352,5 +374,18 @@ export function WallFrameModel({
         </mesh>
       ) : null}
     </group>
+  );
+}
+
+function FrameMemoryArt({ imageSrc }: { imageSrc: string }) {
+  const texture = useTexture(imageSrc);
+
+  texture.colorSpace = SRGBColorSpace;
+
+  return (
+    <mesh position={[0, -0.02, 0.049]}>
+      <planeGeometry args={[0.78, 0.44]} />
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
   );
 }

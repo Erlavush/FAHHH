@@ -104,7 +104,9 @@ function createSharedRoomDocument(
     seedKind: overrides.seedKind ?? "dev-current-room",
     createdAt: overrides.createdAt ?? "2026-03-26T00:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-03-26T00:01:30.000Z",
-    roomState: overrides.roomState ?? roomState
+    roomState: overrides.roomState ?? roomState,
+    frameMemories: overrides.frameMemories ?? {},
+    sharedPet: overrides.sharedPet ?? null
   };
 }
 

@@ -1,4 +1,4 @@
-import type { RoomState } from "./roomState";
+import type { RoomState, Vector3Tuple } from "./roomState";
 import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
 
 export const SHARED_ROOM_OWNER_ID_PREFIX = "shared-room";
@@ -30,6 +30,23 @@ export interface SharedRoomInvite {
   consumedAt: string | null;
 }
 
+export interface SharedRoomFrameMemory {
+  furnitureId: string;
+  imageSrc: string;
+  caption: string | null;
+  updatedAt: string;
+  updatedByPlayerId: string;
+}
+
+export interface SharedRoomPetRecord {
+  id: string;
+  type: "minecraft_cat";
+  presetId: "better_cat_glb";
+  spawnPosition: Vector3Tuple;
+  adoptedAt: string;
+  adoptedByPlayerId: string;
+}
+
 export interface SharedRoomDocument {
   roomId: string;
   inviteCode: string;
@@ -41,6 +58,8 @@ export interface SharedRoomDocument {
   createdAt: string;
   updatedAt: string;
   roomState: RoomState;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
+  sharedPet: SharedRoomPetRecord | null;
 }
 
 export interface SharedRoomSession {

@@ -12,12 +12,14 @@ import {
   getGizmoOffset,
   getPlacementActionOffset
 } from "./helpers";
+import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { PlacementActions } from "./PlacementActions";
 import { RoomFurnitureActor } from "./RoomFurnitureActor";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 export type RoomSelectedFurnitureLayerProps = {
   buildModeEnabled: boolean;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
   hoveredInteractableFurnitureId: string | null;
   isBusyByPartner: boolean;
   isPlacementBlocked: boolean;
@@ -39,6 +41,7 @@ export type RoomSelectedFurnitureLayerProps = {
     furnitureId: string,
     event: ThreeEvent<MouseEvent>
   ) => void;
+  onOpenMemoryFrame: ((furnitureId: string) => void) | null;
   onPivotDrag: (localMatrix: Matrix4) => void;
   onStorePlacement: () => void;
   prefersTouchControls: boolean;
@@ -52,6 +55,7 @@ export type RoomSelectedFurnitureLayerProps = {
 
 export function RoomSelectedFurnitureLayer({
   buildModeEnabled,
+  frameMemories,
   hoveredInteractableFurnitureId,
   isBusyByPartner,
   isPlacementBlocked,
@@ -64,6 +68,7 @@ export function RoomSelectedFurnitureLayer({
   onFurniturePointerMove,
   onFurniturePointerUp,
   onInteractionCommand,
+  onOpenMemoryFrame,
   onPivotDrag,
   onStorePlacement,
   prefersTouchControls,
@@ -147,6 +152,7 @@ export function RoomSelectedFurnitureLayer({
             item={selectedFurniture}
             buildModeEnabled={buildModeEnabled}
             blocked={isBlocked}
+            frameMemory={frameMemories[selectedFurniture.id] ?? null}
             hovered={false}
             hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
             interactionHovered={
@@ -161,6 +167,7 @@ export function RoomSelectedFurnitureLayer({
             onFurniturePointerMove={onFurniturePointerMove}
             onFurniturePointerUp={onFurniturePointerUp}
             onInteractionCommand={onInteractionCommand}
+            onOpenMemoryFrame={onOpenMemoryFrame}
             setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
             shadowsEnabled={shadowsEnabled}
             windowSurfaceLightAmount={windowSurfaceLightAmount}
@@ -172,6 +179,7 @@ export function RoomSelectedFurnitureLayer({
           item={selectedFurniture}
           buildModeEnabled={buildModeEnabled}
           blocked={buildModeEnabled && isBlocked}
+          frameMemory={frameMemories[selectedFurniture.id] ?? null}
           hovered={false}
           hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
           interactionHovered={
@@ -186,6 +194,7 @@ export function RoomSelectedFurnitureLayer({
           onFurniturePointerMove={onFurniturePointerMove}
           onFurniturePointerUp={onFurniturePointerUp}
           onInteractionCommand={onInteractionCommand}
+          onOpenMemoryFrame={onOpenMemoryFrame}
           setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
           shadowsEnabled={shadowsEnabled}
           windowSurfaceLightAmount={windowSurfaceLightAmount}

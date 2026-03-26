@@ -42,13 +42,21 @@ import {
   type PetType
 } from "./lib/pets";
 import { pickPetSpawnPosition } from "./lib/petPathing";
+import { upsertSharedRoomFrameMemory } from "./lib/sharedRoomMemories";
+import {
+  createSharedRoomPetRecord,
+  toRuntimeOwnedPet
+} from "./lib/sharedRoomPet";
+import { createBreakupResetMutation } from "./lib/sharedRoomReset";
 import { DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION } from "./app/constants";
 import { DeveloperSessionPanel } from "./app/components/DeveloperSessionPanel";
 import { DeveloperWorkspaceHeader } from "./app/components/DeveloperWorkspaceHeader";
 import { DeveloperWorkspaceRail } from "./app/components/DeveloperWorkspaceRail";
 import { DeveloperWorkspaceShell } from "./app/components/DeveloperWorkspaceShell";
+import { BreakupResetDialog } from "./app/components/BreakupResetDialog";
 import { DevPanel } from "./app/components/DevPanel";
 import { InventoryPanel } from "./app/components/InventoryPanel";
+import { MemoryFrameDialog } from "./app/components/MemoryFrameDialog";
 import { PerformanceMonitor } from "./app/components/PerformanceMonitor";
 import { PlayerActionDock } from "./app/components/PlayerActionDock";
 import { PlayerClockChip } from "./app/components/PlayerClockChip";
@@ -97,6 +105,7 @@ import {
   vectorsMatch
 } from "./lib/roomPlacementEquality";
 import type { SharedPlayerDeskPcProgress } from "./lib/sharedProgressionTypes";
+import type { SharedRoomFrameMemory } from "./lib/sharedRoomTypes";
 
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
@@ -297,6 +306,10 @@ function App() {
     streakCount: number;
   } | null>(null);
   const [ownedPets, setOwnedPets] = useState<OwnedPet[]>(initialSandboxState.pets);
+  const [selectedMemoryFrameId, setSelectedMemoryFrameId] = useState<string | null>(null);
+  const [memoryFrameSaving, setMemoryFrameSaving] = useState(false);
+  const [breakupResetDialogOpen, setBreakupResetDialogOpen] = useState(false);
+  const [breakupResetSaving, setBreakupResetSaving] = useState(false);
   const cameraPositionRef = useRef(initialSandboxState.cameraPosition);
   const playerPositionRef = useRef(initialSandboxState.playerPosition);
   const playerCoinsRef = useRef(initialSandboxState.playerCoins);
@@ -318,10 +331,29 @@ function App() {
     () => ALL_PET_TYPES.map((type) => PET_REGISTRY[type]),
     []
   );
-  const ownedPetTypes = useMemo(
-    () => new Set<PetType>(ownedPets.map((pet) => pet.type)),
-    [ownedPets]
+  const sharedRoomPlayerId = sharedRoomRuntime.session?.playerId ?? null;
+  const displayedPets = useMemo(
+    () =>
+      sharedRoomActive
+        ? sharedRoomRuntime.runtimeSnapshot?.sharedPet
+          ? [toRuntimeOwnedPet(sharedRoomRuntime.runtimeSnapshot.sharedPet)]
+          : []
+        : ownedPets,
+    [ownedPets, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.sharedPet]
   );
+  const activePetCatalogEntries = useMemo(
+    () =>
+      sharedRoomActive ? [PET_REGISTRY.minecraft_cat] : petCatalogEntries,
+    [petCatalogEntries, sharedRoomActive]
+  );
+  const ownedPetTypes = useMemo(
+    () => new Set<PetType>(displayedPets.map((pet) => pet.type)),
+    [displayedPets]
+  );
+  const runtimeFrameMemories = sharedRoomRuntime.runtimeSnapshot?.frameMemories ?? {};
+  const selectedMemoryFrame = selectedMemoryFrameId
+    ? runtimeFrameMemories[selectedMemoryFrameId] ?? null
+    : null;
   const sharedRoomPresence = useSharedRoomPresence({
     enabled: sharedRoomActive,
     localPresence: localPresenceSnapshot,
@@ -504,6 +536,27 @@ function App() {
     setSpawnRequest(null);
   }, [sharedRoomRuntime.runtimeSnapshot, sharedRoomRuntime.session?.playerId]);
 
+  useEffect(() => {
+    if (!sharedRoomActive) {
+      setSelectedMemoryFrameId(null);
+      setBreakupResetDialogOpen(false);
+      return;
+    }
+
+    if (!selectedMemoryFrameId) {
+      return;
+    }
+
+    const frameStillExists = roomState.furniture.some(
+      (placement) =>
+        placement.id === selectedMemoryFrameId && placement.type === "wall_frame"
+    );
+
+    if (!frameStillExists) {
+      setSelectedMemoryFrameId(null);
+    }
+  }, [roomState.furniture, selectedMemoryFrameId, sharedRoomActive]);
+
   const applyLocalSharedSnapshot = useCallback(
     (nextRoomState: RoomState, nextCoins: number): void => {
       roomStateRef.current = nextRoomState;
@@ -593,7 +646,9 @@ function App() {
 
         return {
           roomState: snapshot.roomState,
-          progression: nextSharedResult.progression
+          progression: nextSharedResult.progression,
+          frameMemories: snapshot.frameMemories,
+          sharedPet: snapshot.sharedPet
         };
       }).then((nextRoomDocument) => {
         if (nextRoomDocument && nextSharedResult) {
@@ -663,7 +718,9 @@ function App() {
 
         return {
           roomState: nextRoomState,
-          progression: nextProgression
+          progression: nextProgression,
+          frameMemories: snapshot.frameMemories,
+          sharedPet: snapshot.sharedPet
         };
       });
       return;
@@ -686,6 +743,31 @@ function App() {
 
   function handleBuyPet(type: PetType): void {
     if (sharedRoomActive) {
+      if (
+        type !== "minecraft_cat" ||
+        !sharedRoomPlayerId ||
+        !activePlayerProgression ||
+        activePlayerProgression.coins < PET_REGISTRY[type].price ||
+        sharedRoomRuntime.runtimeSnapshot?.sharedPet
+      ) {
+        return;
+      }
+
+      void sharedRoomRuntime.commitRoomMutation("adopt_shared_pet", (snapshot) => ({
+        roomState: snapshot.roomState,
+        progression: applyPersonalWalletSpend(
+          snapshot.progression,
+          sharedRoomPlayerId,
+          PET_REGISTRY[type].price,
+          new Date().toISOString()
+        ),
+        frameMemories: snapshot.frameMemories,
+        sharedPet: createSharedRoomPetRecord(
+          pickPetSpawnPosition(playerPositionRef.current, snapshot.roomState.furniture),
+          sharedRoomPlayerId,
+          new Date().toISOString()
+        )
+      }));
       return;
     }
 
@@ -774,7 +856,9 @@ function App() {
         if (!snapshotSellItem) {
           return {
             roomState: snapshot.roomState,
-            progression: snapshot.progression
+            progression: snapshot.progression,
+            frameMemories: snapshot.frameMemories,
+            sharedPet: snapshot.sharedPet
           };
         }
 
@@ -796,7 +880,9 @@ function App() {
 
         return {
           roomState: nextRoomState,
-          progression: nextProgression
+          progression: nextProgression,
+          frameMemories: snapshot.frameMemories,
+          sharedPet: snapshot.sharedPet
         };
       });
       return;
@@ -1017,6 +1103,100 @@ function App() {
     pendingSpawnOwnedFurnitureIds.length > 0 ||
     !placementListsMatch(liveFurniturePlacements, roomState.furniture);
 
+  const discardUncommittedRoomEdits = useCallback(() => {
+    pendingSpawnOwnedFurnitureIdsRef.current.clear();
+    soldOwnedFurnitureIdsRef.current.clear();
+    setPendingSpawnOwnedFurnitureIds([]);
+    setLiveFurniturePlacements(roomStateRef.current.furniture);
+    setSpawnRequest(null);
+  }, []);
+
+  const handleOpenMemoryFrame = useCallback(
+    (furnitureId: string) => {
+      if (
+        !sharedRoomActive ||
+        !roomState.furniture.some(
+          (placement) => placement.id === furnitureId && placement.type === "wall_frame"
+        )
+      ) {
+        return;
+      }
+
+      setSelectedMemoryFrameId(furnitureId);
+    },
+    [roomState.furniture, sharedRoomActive]
+  );
+
+  const handleSaveMemoryFrame = useCallback(
+    async ({
+      imageSrc,
+      caption
+    }: {
+      imageSrc: string;
+      caption: string | null;
+    }) => {
+      if (!selectedMemoryFrameId || !sharedRoomPlayerId) {
+        return;
+      }
+
+      setMemoryFrameSaving(true);
+      try {
+        const nextRoomDocument = await sharedRoomRuntime.commitRoomMutation(
+          "save_memory_frame",
+          (snapshot) => ({
+            roomState: snapshot.roomState,
+            progression: snapshot.progression,
+            frameMemories: upsertSharedRoomFrameMemory(snapshot.frameMemories, {
+              furnitureId: selectedMemoryFrameId,
+              imageSrc,
+              caption,
+              updatedAt: new Date().toISOString(),
+              updatedByPlayerId: sharedRoomPlayerId
+            }),
+            sharedPet: snapshot.sharedPet
+          })
+        );
+
+        if (nextRoomDocument) {
+          setSelectedMemoryFrameId(null);
+        }
+      } finally {
+        setMemoryFrameSaving(false);
+      }
+    },
+    [selectedMemoryFrameId, sharedRoomPlayerId, sharedRoomRuntime]
+  );
+
+  const handleClearMemoryFrame = useCallback(async () => {
+    if (!selectedMemoryFrameId) {
+      return;
+    }
+
+    setMemoryFrameSaving(true);
+    try {
+      const nextRoomDocument = await sharedRoomRuntime.commitRoomMutation(
+        "clear_memory_frame",
+        (snapshot) => {
+          const nextFrameMemories = { ...snapshot.frameMemories };
+          delete nextFrameMemories[selectedMemoryFrameId];
+
+          return {
+            roomState: snapshot.roomState,
+            progression: snapshot.progression,
+            frameMemories: nextFrameMemories,
+            sharedPet: snapshot.sharedPet
+          };
+        }
+      );
+
+      if (nextRoomDocument) {
+        setSelectedMemoryFrameId(null);
+      }
+    } finally {
+      setMemoryFrameSaving(false);
+    }
+  }, [selectedMemoryFrameId, sharedRoomRuntime]);
+
   const handleRefreshRoomState = useCallback(() => {
     if (
       sharedRoomActive &&
@@ -1026,8 +1206,14 @@ function App() {
       return;
     }
 
+    discardUncommittedRoomEdits();
     void sharedRoomRuntime.reloadRoom();
-  }, [hasUncommittedRoomEdits, sharedRoomActive, sharedRoomRuntime]);
+  }, [
+    discardUncommittedRoomEdits,
+    hasUncommittedRoomEdits,
+    sharedRoomActive,
+    sharedRoomRuntime
+  ]);
 
   const handleResetSandboxWithConfirmation = useCallback(() => {
     if (
@@ -1043,10 +1229,22 @@ function App() {
   }, [isDev, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.revision]);
 
   const handlePlayerRoomDetailsAction = useCallback(
-    (actionId: "copy_invite" | "refresh_room_state" | "toggle_grid_snap" | "import_skin") => {
+    (
+      actionId:
+        | "copy_invite"
+        | "refresh_room_state"
+        | "toggle_grid_snap"
+        | "import_skin"
+        | "breakup_reset"
+    ) => {
       switch (actionId) {
         case "refresh_room_state":
           handleRefreshRoomState();
+          return;
+        case "breakup_reset":
+          setPlayerRoomDetailsOpen(false);
+          setSelectedMemoryFrameId(null);
+          setBreakupResetDialogOpen(true);
           return;
         case "toggle_grid_snap":
           setGridSnapEnabled((current) => !current);
@@ -1061,6 +1259,38 @@ function App() {
     },
     [handleRefreshRoomState, handleSkinImport]
   );
+
+  const handleBreakupResetConfirm = useCallback(async () => {
+    if (!sharedRoomPlayerId) {
+      return;
+    }
+
+    discardUncommittedRoomEdits();
+    setBreakupResetSaving(true);
+
+    try {
+      const nextRoomDocument = await sharedRoomRuntime.commitRoomMutation(
+        "breakup_reset",
+        (snapshot) =>
+          createBreakupResetMutation(
+            snapshot,
+            sharedRoomPlayerId,
+            new Date().toISOString()
+          )
+      );
+
+      if (nextRoomDocument) {
+        setSharedPcResult(null);
+        setBuildModeEnabled(false);
+        setCatalogOpen(false);
+        setPlayerInteractionStatus(null);
+        setSelectedMemoryFrameId(null);
+        setBreakupResetDialogOpen(false);
+      }
+    } finally {
+      setBreakupResetSaving(false);
+    }
+  }, [discardUncommittedRoomEdits, sharedRoomPlayerId, sharedRoomRuntime]);
 
   const handlePlayerDockAction = useCallback(
     (actionId: "build" | "inventory" | "interaction") => {
@@ -1249,6 +1479,17 @@ function App() {
           title={sharedRoomRuntime.blockingState.title}
         />
       ) : null}
+
+      <MemoryFrameDialog
+        memory={selectedMemoryFrame}
+        onClear={() => {
+          void handleClearMemoryFrame();
+        }}
+        onClose={() => setSelectedMemoryFrameId(null)}
+        onSave={handleSaveMemoryFrame}
+        open={selectedMemoryFrameId !== null}
+        saving={memoryFrameSaving}
+      />
     </>
   );
 
@@ -1264,7 +1505,8 @@ function App() {
         initialCameraPosition={cameraPosition}
         initialPlayerPosition={playerPosition}
         initialFurniturePlacements={roomState.furniture}
-        pets={ownedPets}
+        frameMemories={runtimeFrameMemories}
+        pets={displayedPets}
         skinSrc={skinSrc}
         localLockedFurnitureIds={sharedRoomPresence.localEditLockIds}
         onSharedEditConflict={() => {
@@ -1289,6 +1531,7 @@ function App() {
         onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
         onCommittedFurnitureChange={handleCommittedFurnitureChange}
         onInteractionStateChange={setPlayerInteractionStatus}
+        onOpenMemoryFrame={sharedRoomActive ? handleOpenMemoryFrame : null}
         partnerLockedFurnitureIds={sharedRoomPresence.partnerEditLockIds}
         releaseEditLock={sharedRoomPresence.releaseEditLock}
         remotePresence={sharedRoomPresence.remotePresence}
@@ -1340,10 +1583,11 @@ function App() {
       onToggleFurnitureInfo={handleToggleFurnitureInfo}
       openFurnitureInfoKey={openFurnitureInfoKey}
       ownedPetTypes={ownedPetTypes}
-      petCatalogEntries={petCatalogEntries}
+      petCatalogEntries={activePetCatalogEntries}
+      petCatalogMode={sharedRoomActive ? "shared_room" : "sandbox"}
       playerCoins={displayedPlayerCoins}
       showAuthoringActions={developerSurfaceVisible}
-      showPetCatalog={!sharedRoomActive}
+      showPetCatalog
       walletLabel={walletLabel}
       storedInventorySections={storedInventorySections}
     />
@@ -1517,6 +1761,12 @@ function App() {
                   onClose={() => setPlayerRoomDetailsOpen(false)}
                   open={playerRoomDetailsOpen}
                   state={playerRoomDetailsState}
+                />
+                <BreakupResetDialog
+                  onClose={() => setBreakupResetDialogOpen(false)}
+                  onConfirm={handleBreakupResetConfirm}
+                  open={breakupResetDialogOpen}
+                  saving={breakupResetSaving}
                 />
                 {pcMinigameActive ? (
                   <PcMinigameOverlay

@@ -14,11 +14,18 @@ import {
   type RoomFurniturePlacement,
   type RoomState
 } from "./roomState";
+import {
+  pruneSharedRoomFrameMemories,
+  sanitizeMemoryFrameCaption
+} from "./sharedRoomMemories";
+import { cloneSharedRoomPetRecord } from "./sharedRoomPet";
 import type {
   SharedPlayerProfile,
+  SharedRoomFrameMemory,
   SharedRoomDocument,
   SharedRoomInvite,
   SharedRoomMember,
+  SharedRoomPetRecord,
   SharedRoomSession
 } from "./sharedRoomTypes";
 import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
@@ -96,6 +103,34 @@ function isValidRoomState(value: unknown): value is RoomState {
   );
 }
 
+function isValidSharedRoomFrameMemory(
+  value: unknown
+): value is SharedRoomFrameMemory {
+  return (
+    isRecord(value) &&
+    typeof value.furnitureId === "string" &&
+    typeof value.imageSrc === "string" &&
+    value.imageSrc.length > 0 &&
+    (value.caption === null || typeof value.caption === "string") &&
+    isIsoDateString(value.updatedAt) &&
+    typeof value.updatedByPlayerId === "string"
+  );
+}
+
+function isValidSharedRoomPetRecord(value: unknown): value is SharedRoomPetRecord {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    value.type === "minecraft_cat" &&
+    value.presetId === "better_cat_glb" &&
+    Array.isArray(value.spawnPosition) &&
+    value.spawnPosition.length === 3 &&
+    value.spawnPosition.every((entry) => typeof entry === "number") &&
+    isIsoDateString(value.adoptedAt) &&
+    typeof value.adoptedByPlayerId === "string"
+  );
+}
+
 export function isValidSharedPlayerProfile(value: unknown): value is SharedPlayerProfile {
   return (
     isRecord(value) &&
@@ -169,6 +204,12 @@ export function isValidSharedRoomDocument(value: unknown): value is SharedRoomDo
     isIsoDateString(value.updatedAt) &&
     isValidRoomState(value.roomState) &&
     value.roomState.metadata.roomId === value.roomId &&
+    isRecord(value.frameMemories) &&
+    Object.values(value.frameMemories).every(isValidSharedRoomFrameMemory) &&
+    Object.entries(value.frameMemories as Record<string, SharedRoomFrameMemory>).every(
+      ([furnitureId, memory]) => memory.furnitureId === furnitureId
+    ) &&
+    (value.sharedPet === null || isValidSharedRoomPetRecord(value.sharedPet)) &&
     memberIds.length === members.length &&
     members.every((member) => memberIds.includes(member.playerId))
   );
@@ -217,6 +258,39 @@ function normalizeSharedRoomProgression(
   );
 }
 
+function normalizeSharedRoomFrameMemories(
+  value: Record<string, unknown>,
+  roomState: RoomState
+): Record<string, SharedRoomFrameMemory> {
+  if (!isRecord(value.frameMemories)) {
+    return {};
+  }
+
+  const normalizedFrameMemories = Object.fromEntries(
+    Object.entries(value.frameMemories)
+      .filter((entry): entry is [string, SharedRoomFrameMemory] => {
+        return isValidSharedRoomFrameMemory(entry[1]);
+      })
+      .map(([furnitureId, memory]) => [
+        furnitureId,
+        {
+          ...memory,
+          caption: sanitizeMemoryFrameCaption(memory.caption)
+        }
+      ])
+  );
+
+  return pruneSharedRoomFrameMemories(normalizedFrameMemories, roomState);
+}
+
+function normalizeSharedRoomPetRecord(
+  value: Record<string, unknown>
+): SharedRoomPetRecord | null {
+  return isValidSharedRoomPetRecord(value.sharedPet)
+    ? cloneSharedRoomPetRecord(value.sharedPet)
+    : null;
+}
+
 export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
   if (!isRecord(value)) {
     throw new Error("Invalid shared room document");
@@ -258,6 +332,12 @@ export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
     members,
     value.updatedAt
   );
+  const normalizedRoomState = ensureRoomStateOwnership(cloneRoomState(value.roomState));
+  const normalizedFrameMemories = normalizeSharedRoomFrameMemories(
+    document,
+    normalizedRoomState
+  );
+  const normalizedSharedPet = normalizeSharedRoomPetRecord(document);
 
   return {
     roomId: value.roomId,
@@ -269,6 +349,8 @@ export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
     seedKind: value.seedKind,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
-    roomState: ensureRoomStateOwnership(cloneRoomState(value.roomState))
+    roomState: normalizedRoomState,
+    frameMemories: normalizedFrameMemories,
+    sharedPet: normalizedSharedPet
   };
 }

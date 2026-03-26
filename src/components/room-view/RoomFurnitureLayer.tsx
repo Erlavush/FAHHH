@@ -1,11 +1,13 @@
 import { type ThreeEvent } from "@react-three/fiber";
 import type { Dispatch, SetStateAction } from "react";
+import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { RoomFurnitureActor } from "./RoomFurnitureActor";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 export type RoomFurnitureLayerProps = {
   buildModeEnabled: boolean;
   busyFurnitureIds: ReadonlySet<string>;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
   furniture: RoomFurniturePlacement[];
   hoveredFurnitureId: string | null;
   hoveredInteractableFurnitureId: string | null;
@@ -26,6 +28,7 @@ export type RoomFurnitureLayerProps = {
     furnitureId: string,
     event: ThreeEvent<MouseEvent>
   ) => void;
+  onOpenMemoryFrame: ((furnitureId: string) => void) | null;
   selectedFurnitureId: string | null;
   setHoveredInteractableFurnitureId: Dispatch<SetStateAction<string | null>>;
   shadowsEnabled: boolean;
@@ -36,6 +39,7 @@ export type RoomFurnitureLayerProps = {
 export function RoomFurnitureLayer({
   buildModeEnabled,
   busyFurnitureIds,
+  frameMemories,
   furniture,
   hoveredFurnitureId,
   hoveredInteractableFurnitureId,
@@ -47,6 +51,7 @@ export function RoomFurnitureLayer({
   onFurniturePointerMove,
   onFurniturePointerUp,
   onInteractionCommand,
+  onOpenMemoryFrame,
   selectedFurnitureId,
   setHoveredInteractableFurnitureId,
   shadowsEnabled,
@@ -73,6 +78,7 @@ export function RoomFurnitureLayer({
             item={item}
             buildModeEnabled={buildModeEnabled}
             blocked={buildModeEnabled && busyFurnitureIds.has(item.id)}
+            frameMemory={frameMemories[item.id] ?? null}
             hovered={
               buildModeEnabled &&
               hoveredFurnitureId === item.id &&
@@ -90,6 +96,7 @@ export function RoomFurnitureLayer({
             onFurniturePointerMove={onFurniturePointerMove}
             onFurniturePointerUp={onFurniturePointerUp}
             onInteractionCommand={onInteractionCommand}
+            onOpenMemoryFrame={onOpenMemoryFrame}
             setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
             shadowsEnabled={shadowsEnabled}
             windowSurfaceLightAmount={windowSurfaceLightAmount}

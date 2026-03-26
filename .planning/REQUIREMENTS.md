@@ -33,22 +33,22 @@
 
 ### UI Shell
 
-- [ ] **SHELL-01**: The player-facing room shell presents core actions, progression, time, and partner status in a clear non-overlapping layout that matches the intended shipped experience.
-- [ ] **SHELL-02**: Developer-only controls and workbench surfaces are separated from the default player-facing room shell.
+- [x] **SHELL-01**: The player-facing room shell presents core actions, progression, time, and partner status in a clear non-overlapping layout that matches the intended shipped experience.
+- [x] **SHELL-02**: Developer-only controls and workbench surfaces are separated from the default player-facing room shell.
 
 ### Developer Workflow
 
-- [ ] **DEVX-01**: The developer can quickly reach the Dev Panel, Preview Studio, furniture preview flow, Mob Lab, and related debug/settings tools without cluttering the player view.
+- [x] **DEVX-01**: The developer can quickly reach the Dev Panel, Preview Studio, furniture preview flow, Mob Lab, and related debug/settings tools without cluttering the player view.
 
 ### Personalization
 
-- [ ] **MEMR-01**: Couple can place and edit at least one photo frame or equivalent memory object in the shared room.
-- [ ] **PETS-01**: Couple can own and display at least one live-room pet in the shared room without breaking the Mob Lab authoring workflow.
+- [x] **MEMR-01**: Couple can place and edit at least one photo frame or equivalent memory object in the shared room.
+- [x] **PETS-01**: Couple can own and display at least one live-room pet in the shared room without breaking the Mob Lab authoring workflow.
 
 ### Stakes
 
-- [ ] **STAK-01**: The game explains the breakup consequence before the couple commits to the shared room loop.
-- [ ] **STAK-02**: Breakup and reset flow wipes shared room progression only after explicit confirmation.
+- [x] **STAK-01**: The game explains the breakup consequence before the couple commits to the shared room loop.
+- [x] **STAK-02**: Breakup and reset flow wipes shared room progression only after explicit confirmation.
 
 ## v2 Requirements
 
@@ -90,13 +90,13 @@
 | PROG-02 | Phase 3 | Complete |
 | PROG-03 | Phase 3 | Complete |
 | RITL-01 | Phase 3 | Complete |
-| SHELL-01 | Phase 3.1 | Pending |
-| SHELL-02 | Phase 3.1 | Pending |
-| DEVX-01 | Phase 3.1 | Pending |
-| MEMR-01 | Phase 4 | Pending |
-| PETS-01 | Phase 4 | Pending |
-| STAK-01 | Phase 4 | Pending |
-| STAK-02 | Phase 4 | Pending |
+| SHELL-01 | Phase 3.1 | Complete |
+| SHELL-02 | Phase 3.1 | Complete |
+| DEVX-01 | Phase 3.1 | Complete |
+| MEMR-01 | Phase 4 | Complete |
+| PETS-01 | Phase 4 | Complete |
+| STAK-01 | Phase 4 | Complete |
+| STAK-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 18 total
@@ -105,4 +105,4 @@
 
 ---
 *Requirements defined: 2026-03-26*
-*Last updated: 2026-03-27 after Phase 03.1 insertion*
+*Last updated: 2026-03-27 after Phase 04 completion*

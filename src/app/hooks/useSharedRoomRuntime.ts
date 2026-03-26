@@ -5,11 +5,15 @@ import {
   createDefaultRoomState,
   type RoomState
 } from "../../lib/roomState";
+import { cloneSharedRoomFrameMemories } from "../../lib/sharedRoomMemories";
+import { cloneSharedRoomPetRecord } from "../../lib/sharedRoomPet";
 import { advanceRitualDayIfNeeded } from "../../lib/sharedProgression";
 import type { SharedRoomStore } from "../../lib/sharedRoomStore";
 import type {
   SharedPlayerProfile,
   SharedRoomDocument,
+  SharedRoomFrameMemory,
+  SharedRoomPetRecord,
   SharedRoomSession
 } from "../../lib/sharedRoomTypes";
 import type { SharedRoomProgressionState } from "../../lib/sharedProgressionTypes";
@@ -29,6 +33,8 @@ export interface SharedRoomRuntimeSnapshot {
   members: SharedRoomDocument["members"];
   progression: SharedRoomProgressionState;
   roomState: RoomState;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
+  sharedPet: SharedRoomPetRecord | null;
 }
 
 export interface SharedRoomBlockingState {
@@ -42,6 +48,8 @@ type SharedRoomMutation = (
 ) => {
   roomState: RoomState;
   progression: SharedRoomProgressionState;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
+  sharedPet: SharedRoomPetRecord | null;
 };
 
 interface SharedRoomRuntimeOptions {
@@ -102,7 +110,11 @@ export function createSharedRoomRuntimeSnapshot(
       roomDocument.members,
       new Date().toISOString()
     ),
-    roomState: cloneRoomState(roomDocument.roomState)
+    roomState: cloneRoomState(roomDocument.roomState),
+    frameMemories: cloneSharedRoomFrameMemories(roomDocument.frameMemories),
+    sharedPet: roomDocument.sharedPet
+      ? cloneSharedRoomPetRecord(roomDocument.sharedPet)
+      : null
   };
 }
 
@@ -408,7 +420,7 @@ export function useSharedRoomRuntime({
       progression: SharedRoomProgressionState,
       reason: string
     ) => {
-      if (!session) {
+      if (!session || !roomDocument) {
         return null;
       }
 
@@ -420,6 +432,8 @@ export function useSharedRoomRuntime({
           expectedRevision: session.lastKnownRevision,
           roomState: nextRoomState,
           progression,
+          frameMemories: roomDocument.frameMemories,
+          sharedPet: roomDocument.sharedPet,
           reason
         });
 
@@ -443,7 +457,14 @@ export function useSharedRoomRuntime({
         return null;
       }
     },
-    [applyRoomDocument, reloadRoom, session, setTimedStatusMessage, sharedRoomStore]
+    [
+      applyRoomDocument,
+      reloadRoom,
+      roomDocument,
+      session,
+      setTimedStatusMessage,
+      sharedRoomStore
+    ]
   );
 
   const commitRoomMutation = useCallback(
@@ -462,6 +483,8 @@ export function useSharedRoomRuntime({
           expectedRevision: sourceRoomDocument.revision,
           roomState: mutationResult.roomState,
           progression: mutationResult.progression,
+          frameMemories: mutationResult.frameMemories,
+          sharedPet: mutationResult.sharedPet,
           reason
         });
       }

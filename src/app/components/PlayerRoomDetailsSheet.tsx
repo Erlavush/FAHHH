@@ -18,6 +18,7 @@ export function PlayerRoomDetailsSheet({
   state
 }: PlayerRoomDetailsSheetProps) {
   const [copyLabel, setCopyLabel] = useState("Copy");
+  const dangerAction = state.dangerAction;
 
   if (!open) {
     return null;
@@ -91,6 +92,22 @@ export function PlayerRoomDetailsSheet({
           </button>
         ))}
       </div>
+
+      {dangerAction ? (
+        <section className="player-room-details-sheet__danger-zone">
+          <span className="player-room-details-sheet__card-label">Danger zone</span>
+          <p className="player-room-details-sheet__subtitle">
+            Resetting the shared room clears relationship-tied room state.
+          </p>
+          <button
+            className="player-room-details-sheet__action player-room-details-sheet__action--danger"
+            onClick={() => onAction(dangerAction.id)}
+            type="button"
+          >
+            Break up and reset room
+          </button>
+        </section>
+      ) : null}
     </aside>
   );
 }

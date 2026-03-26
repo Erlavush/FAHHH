@@ -2,6 +2,8 @@ import type { RoomState } from "./roomState";
 import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
 import type {
   SharedPlayerProfile,
+  SharedRoomFrameMemory,
+  SharedRoomPetRecord,
   SharedRoomDocument,
   SharedRoomSeedKind
 } from "./sharedRoomTypes";
@@ -33,6 +35,8 @@ export interface CommitSharedRoomStateInput {
   expectedRevision: number;
   roomState: RoomState;
   progression: SharedRoomProgressionState;
+  frameMemories: Record<string, SharedRoomFrameMemory>;
+  sharedPet: SharedRoomPetRecord | null;
   reason: string;
 }
 

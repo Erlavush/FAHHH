@@ -1,3 +1,4 @@
+import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { ChairModel } from "../ChairModel";
 import { FloorLampModel } from "../FloorLampModel";
 import { FridgeModel } from "../FridgeModel";
@@ -20,6 +21,7 @@ type FurnitureVisualProps = {
   shadowsEnabled: boolean;
   selected: boolean;
   blocked: boolean;
+  frameMemory?: SharedRoomFrameMemory | null;
   hovered?: boolean;
   interactionHovered?: boolean;
   windowSurfaceLightAmount: number;
@@ -31,6 +33,7 @@ export function FurnitureVisual({
   shadowsEnabled,
   selected,
   blocked,
+  frameMemory = null,
   hovered = false,
   interactionHovered = false,
   windowSurfaceLightAmount,
@@ -73,7 +76,13 @@ export function FurnitureVisual({
     case "poster":
       return <PosterModel {...commonProps} />;
     case "wall_frame":
-      return <WallFrameModel {...commonProps} />;
+      return (
+        <WallFrameModel
+          {...commonProps}
+          memoryCaption={frameMemory?.caption ?? null}
+          memoryImageSrc={frameMemory?.imageSrc ?? null}
+        />
+      );
     case "rug":
       return <RugModel {...commonProps} />;
     case "floor_lamp":

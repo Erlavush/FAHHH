@@ -32,11 +32,17 @@ export type PlayerCompanionCardState = {
 };
 
 export type PlayerRoomDetailsAction = {
-  id: "copy_invite" | "refresh_room_state" | "toggle_grid_snap" | "import_skin";
+  id:
+    | "copy_invite"
+    | "refresh_room_state"
+    | "toggle_grid_snap"
+    | "import_skin"
+    | "breakup_reset";
   label: string;
 };
 
 export type PlayerRoomDetailsState = {
+  dangerAction: PlayerRoomDetailsAction | null;
   inviteCode: string;
   inviteCodeVisible: boolean;
   roomId: string | null;
@@ -291,8 +297,14 @@ export function getPlayerRoomDetailsState({
   return {
     title: "Room details",
     subtitle: sharedRoomActive
-      ? "Secondary room actions, invite sharing, and build settings."
+      ? "Secondary room actions, invite sharing, build settings, and room safety."
       : "Build settings and local room profile actions.",
+    dangerAction: sharedRoomActive
+      ? {
+          id: "breakup_reset",
+          label: "Break up and reset room"
+        }
+      : null,
     inviteCode,
     inviteCodeVisible: memberCount < 2 && inviteCode.length > 0,
     roomId,

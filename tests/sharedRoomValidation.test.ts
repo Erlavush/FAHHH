@@ -101,4 +101,40 @@ describe("sharedRoomValidation", () => {
     });
     expect(sharedRoomDocument.progression.migratedFromSharedCoins).toBe(50);
   });
+
+  it("defaults missing frame memories and shared pet state", () => {
+    const sharedRoomDocument = validateSharedRoomDocument(createSharedRoomDocument());
+
+    expect(sharedRoomDocument.frameMemories).toEqual({});
+    expect(sharedRoomDocument.sharedPet).toBeNull();
+  });
+
+  it("prunes memories that no longer point at a wall frame", () => {
+    const sharedRoomDocument = validateSharedRoomDocument({
+      ...createSharedRoomDocument(),
+      frameMemories: {
+        "right-frame": {
+          furnitureId: "right-frame",
+          imageSrc: "data:image/jpeg;base64,abc",
+          caption: "  shared   photo  ",
+          updatedAt: "2026-03-26T13:00:00.000Z",
+          updatedByPlayerId: "player-1"
+        },
+        missing: {
+          furnitureId: "missing",
+          imageSrc: "data:image/jpeg;base64,xyz",
+          caption: "Should disappear",
+          updatedAt: "2026-03-26T13:00:00.000Z",
+          updatedByPlayerId: "player-1"
+        }
+      }
+    });
+
+    expect(sharedRoomDocument.frameMemories).toEqual({
+      "right-frame": expect.objectContaining({
+        furnitureId: "right-frame",
+        caption: "shared photo"
+      })
+    });
+  });
 });
