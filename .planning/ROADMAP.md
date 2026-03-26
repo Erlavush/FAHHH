@@ -30,8 +30,8 @@ This roadmap turns the proven solo sandbox into a jam-ready shared couple-room M
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Define shared room identity, pairing flow, and migration contract from solo saves
-- [ ] 01-02: Add authoritative shared-room persistence adapters around the current room schema
+- [x] 01-01: Define shared room identity, pairing flow, and migration contract from solo saves
+- [x] 01-02: Add authoritative shared-room persistence adapters around the current room schema
 - [ ] 01-03: Sync committed room-edit operations while preserving ownership-versus-placement rules
 
 ### Phase 2: Live Presence and Co-op Consistency
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Shared Room Backbone | 0/3 | Not started | - |
+| 1. Shared Room Backbone | 2/3 | In Progress | - |
 | 2. Live Presence and Co-op Consistency | 0/3 | Not started | - |
 | 3. Shared Progression and Ritual Loop | 0/3 | Not started | - |
 | 4. Memories, Pets, and Breakup Stakes | 0/3 | Not started | - |
