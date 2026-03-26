@@ -12,6 +12,8 @@ import {
 } from "../src/lib/sharedPresenceValidation";
 
 export const SHARED_ROOM_DEV_DB_FILENAME = "shared-room-dev-db.json";
+export const DEV_SHARED_ROOM_ID = "dev-shared-room";
+export const DEV_SHARED_ROOM_INVITE_CODE = "DEVROOM";
 
 class SharedRoomHttpError extends Error {
   constructor(message, status) {
@@ -134,6 +136,71 @@ export function createSharedRoomInDatabase(database, input) {
   };
 
   return roomDocument;
+}
+
+export function bootstrapDevSharedRoomInDatabase(database, input) {
+  const profile = upsertProfileInDatabase(database, input?.profile);
+  const timestamp = createTimestamp();
+  const existingRoom = database.rooms[DEV_SHARED_ROOM_ID]
+    ? loadSharedRoomInDatabase(database, DEV_SHARED_ROOM_ID)
+    : null;
+
+  if (!existingRoom) {
+    const roomDocument = validateSharedRoomDocument({
+      roomId: DEV_SHARED_ROOM_ID,
+      inviteCode: DEV_SHARED_ROOM_INVITE_CODE,
+      memberIds: [profile.playerId],
+      members: [createSharedRoomMember(profile, "creator", timestamp)],
+      revision: 1,
+      sharedCoins: Math.max(0, Math.floor(input?.sharedCoins ?? 0)),
+      seedKind: "dev-current-room",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      roomState: createSharedRoomSeed(DEV_SHARED_ROOM_ID, input?.sourceRoomState)
+    });
+
+    database.rooms[DEV_SHARED_ROOM_ID] = roomDocument;
+    database.invites[DEV_SHARED_ROOM_INVITE_CODE] = {
+      code: DEV_SHARED_ROOM_INVITE_CODE,
+      roomId: DEV_SHARED_ROOM_ID,
+      creatorPlayerId: profile.playerId,
+      status: "open",
+      createdAt: timestamp,
+      consumedAt: null
+    };
+
+    return roomDocument;
+  }
+
+  const existingMember = existingRoom.members.find((member) => member.playerId === profile.playerId);
+
+  if (existingMember) {
+    return existingRoom;
+  }
+
+  if (existingRoom.members.length >= 2) {
+    throw new SharedRoomHttpError("Dev shared room already has two partners", 409);
+  }
+
+  const nextRoomDocument = validateSharedRoomDocument({
+    ...existingRoom,
+    memberIds: [...existingRoom.memberIds, profile.playerId],
+    members: [...existingRoom.members, createSharedRoomMember(profile, "partner", timestamp)],
+    updatedAt: timestamp
+  });
+
+  database.rooms[DEV_SHARED_ROOM_ID] = nextRoomDocument;
+  database.invites[DEV_SHARED_ROOM_INVITE_CODE] = {
+    code: DEV_SHARED_ROOM_INVITE_CODE,
+    roomId: DEV_SHARED_ROOM_ID,
+    creatorPlayerId: nextRoomDocument.members[0]?.playerId ?? profile.playerId,
+    status: "consumed",
+    createdAt:
+      database.invites[DEV_SHARED_ROOM_INVITE_CODE]?.createdAt ?? nextRoomDocument.createdAt,
+    consumedAt: timestamp
+  };
+
+  return nextRoomDocument;
 }
 
 export function loadSharedRoomInDatabase(database, roomId) {
@@ -340,6 +407,14 @@ export function sharedRoomDevPlugin() {
           if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/create") {
             const requestBody = await readRequestJson(request);
             const roomDocument = createSharedRoomInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomDocument);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/dev-bootstrap") {
+            const requestBody = await readRequestJson(request);
+            const roomDocument = bootstrapDevSharedRoomInDatabase(database, requestBody);
             await writeSharedRoomDevDatabase(databasePath, database);
             writeJson(response, 200, roomDocument);
             return;

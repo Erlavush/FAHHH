@@ -3,6 +3,9 @@ import { createDefaultRoomState } from "../src/lib/roomState";
 // @ts-ignore Vitest can import the dev-only .mjs plugin helpers directly.
 const sharedRoomDevPluginModule = await import("../scripts/sharedRoomDevPlugin.mjs");
 const {
+  DEV_SHARED_ROOM_ID,
+  DEV_SHARED_ROOM_INVITE_CODE,
+  bootstrapDevSharedRoomInDatabase,
   commitSharedRoomStateInDatabase,
   createEmptySharedRoomDevDatabase,
   createSharedRoomInDatabase,
@@ -19,6 +22,52 @@ function createProfile(playerId: string, displayName: string) {
 }
 
 describe("sharedRoomStore", () => {
+  it("bootstraps a deterministic development shared room", () => {
+    const database = createEmptySharedRoomDevDatabase();
+    const firstProfile = createProfile("player-1", "Ari");
+    const secondProfile = createProfile("player-2", "Bea");
+
+    const firstJoin = bootstrapDevSharedRoomInDatabase(database, {
+      profile: firstProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 45
+    });
+    const secondJoin = bootstrapDevSharedRoomInDatabase(database, {
+      profile: secondProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 99
+    });
+
+    expect(firstJoin.roomId).toBe(DEV_SHARED_ROOM_ID);
+    expect(firstJoin.inviteCode).toBe(DEV_SHARED_ROOM_INVITE_CODE);
+    expect(secondJoin.roomId).toBe(DEV_SHARED_ROOM_ID);
+    expect(secondJoin.inviteCode).toBe(DEV_SHARED_ROOM_INVITE_CODE);
+    expect(secondJoin.memberIds).toEqual(["player-1", "player-2"]);
+  });
+
+  it("rejects a third distinct dev profile after two partners join", () => {
+    const database = createEmptySharedRoomDevDatabase();
+
+    bootstrapDevSharedRoomInDatabase(database, {
+      profile: createProfile("player-1", "Ari"),
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 45
+    });
+    bootstrapDevSharedRoomInDatabase(database, {
+      profile: createProfile("player-2", "Bea"),
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 45
+    });
+
+    expect(() =>
+      bootstrapDevSharedRoomInDatabase(database, {
+        profile: createProfile("player-3", "Cy"),
+        sourceRoomState: createDefaultRoomState(),
+        sharedCoins: 45
+      })
+    ).toThrow("Dev shared room already has two partners");
+  });
+
   it("consumes invite only once", () => {
     const database = createEmptySharedRoomDevDatabase();
     const creatorProfile = createProfile("player-1", "Ari");

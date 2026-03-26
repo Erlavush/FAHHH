@@ -17,6 +17,12 @@ export interface JoinSharedRoomInput {
   profile: SharedPlayerProfile;
 }
 
+export interface BootstrapDevSharedRoomInput {
+  profile: SharedPlayerProfile;
+  sourceRoomState: RoomState;
+  sharedCoins: number;
+}
+
 export interface LoadSharedRoomInput {
   roomId: string;
 }
@@ -30,6 +36,7 @@ export interface CommitSharedRoomStateInput {
 }
 
 export interface SharedRoomStore {
+  bootstrapDevSharedRoom(input: BootstrapDevSharedRoomInput): Promise<SharedRoomDocument>;
   createSharedRoom(input: CreateSharedRoomInput): Promise<SharedRoomDocument>;
   joinSharedRoom(input: JoinSharedRoomInput): Promise<SharedRoomDocument>;
   loadSharedRoom(input: LoadSharedRoomInput): Promise<SharedRoomDocument>;

@@ -1,5 +1,6 @@
 import type { SharedRoomDocument } from "./sharedRoomTypes";
 import type {
+  BootstrapDevSharedRoomInput,
   CommitSharedRoomStateInput,
   CreateSharedRoomInput,
   JoinSharedRoomInput,
@@ -53,6 +54,15 @@ async function fetchSharedRoomDocument(
 
 export function createSharedRoomStore(fetchImpl: SharedRoomFetch = fetch): SharedRoomStore {
   return {
+    bootstrapDevSharedRoom(input: BootstrapDevSharedRoomInput) {
+      return fetchSharedRoomDocument(fetchImpl, "/api/dev/shared-room/dev-bootstrap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(input)
+      });
+    },
     createSharedRoom(input: CreateSharedRoomInput) {
       return fetchSharedRoomDocument(fetchImpl, "/api/dev/shared-room/create", {
         method: "POST",
