@@ -15,7 +15,7 @@ declare module "../scripts/sharedRoomDevPlugin.mjs" {
   export const SHARED_ROOM_DEV_DB_FILENAME: string;
   export function createEmptySharedRoomDevDatabase(): SharedRoomDevDatabase;
   export function createInviteCode(): string;
-  export function readSharedRoomDevDatabase(databasePath: string): Promise<SharedRoomDevDatabase>;
+  export function loadSharedRoomDevDatabase(databasePath: string): Promise<SharedRoomDevDatabase>;
   export function writeSharedRoomDevDatabase(
     databasePath: string,
     database: SharedRoomDevDatabase

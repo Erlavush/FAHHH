@@ -40,9 +40,13 @@ describe("sharedRoomStore", () => {
 
     expect(firstJoin.roomId).toBe(DEV_SHARED_ROOM_ID);
     expect(firstJoin.inviteCode).toBe(DEV_SHARED_ROOM_INVITE_CODE);
-    expect(secondJoin.roomId).toBe(DEV_SHARED_ROOM_ID);
-    expect(secondJoin.inviteCode).toBe(DEV_SHARED_ROOM_INVITE_CODE);
     expect(secondJoin.memberIds).toEqual(["player-1", "player-2"]);
+    expect(secondJoin.progression.players["player-1"]?.coins).toBe(45);
+    expect(secondJoin.progression.players["player-2"]).toMatchObject({
+      coins: 0,
+      level: 1,
+      xp: 0
+    });
   });
 
   it("rejects a third distinct dev profile after two partners join", () => {
@@ -84,6 +88,8 @@ describe("sharedRoomStore", () => {
     });
 
     expect(joinedRoom.memberIds).toEqual(["player-1", "player-2"]);
+    expect(joinedRoom.progression.players["player-1"]?.coins).toBe(50);
+    expect(joinedRoom.progression.players["player-2"]?.coins).toBe(0);
     expect(database.invites[roomDocument.inviteCode].status).toBe("consumed");
     expect(() =>
       joinSharedRoomInDatabase(database, {
@@ -93,7 +99,7 @@ describe("sharedRoomStore", () => {
     ).toThrow("Invite code has already been used");
   });
 
-  it("uses last write wins when committed room states race", () => {
+  it("rejects stale progression commits with a 409", () => {
     const database = createEmptySharedRoomDevDatabase();
     const creatorProfile = createProfile("player-1", "Ari");
     const roomDocument = createSharedRoomInDatabase(database, {
@@ -101,42 +107,100 @@ describe("sharedRoomStore", () => {
       sourceRoomState: createDefaultRoomState(),
       sharedCoins: 50
     });
-    const firstCommitRoomState = createDefaultRoomState();
-    const secondCommitRoomState = createDefaultRoomState();
+    const firstRoomState = createDefaultRoomState();
+    const secondRoomState = createDefaultRoomState();
 
-    firstCommitRoomState.metadata.roomId = roomDocument.roomId;
-    secondCommitRoomState.metadata.roomId = roomDocument.roomId;
-    firstCommitRoomState.furniture[0] = {
-      ...firstCommitRoomState.furniture[0],
+    firstRoomState.metadata.roomId = roomDocument.roomId;
+    secondRoomState.metadata.roomId = roomDocument.roomId;
+    firstRoomState.furniture[0] = {
+      ...firstRoomState.furniture[0],
       position: [1, 0, -2]
     };
-    secondCommitRoomState.furniture[0] = {
-      ...secondCommitRoomState.furniture[0],
+    secondRoomState.furniture[0] = {
+      ...secondRoomState.furniture[0],
       position: [2, 0, -1]
+    };
+
+    const firstCommitProgression = {
+      ...roomDocument.progression,
+      players: {
+        ...roomDocument.progression.players,
+        "player-1": {
+          ...roomDocument.progression.players["player-1"],
+          coins: 55
+        }
+      }
     };
 
     const firstCommit = commitSharedRoomStateInDatabase(database, {
       roomId: roomDocument.roomId,
       expectedRevision: roomDocument.revision,
-      roomState: firstCommitRoomState,
-      sharedCoins: 55,
-      reason: "first write"
-    });
-    const secondCommit = commitSharedRoomStateInDatabase(database, {
-      roomId: roomDocument.roomId,
-      expectedRevision: roomDocument.revision,
-      roomState: secondCommitRoomState,
-      sharedCoins: 60,
-      reason: "last write wins"
+      roomState: firstRoomState,
+      progression: firstCommitProgression,
+      reason: "first progression write"
     });
 
     expect(firstCommit.revision).toBe(2);
-    expect(secondCommit.revision).toBe(3);
-    expect(database.rooms[roomDocument.roomId].sharedCoins).toBe(60);
+
+    expect(() =>
+      commitSharedRoomStateInDatabase(database, {
+        roomId: roomDocument.roomId,
+        expectedRevision: roomDocument.revision,
+        roomState: secondRoomState,
+        progression: roomDocument.progression,
+        reason: "stale progression write"
+      })
+    ).toThrow("Shared room revision conflict.");
+    expect(database.rooms[roomDocument.roomId].revision).toBe(2);
+    expect(database.rooms[roomDocument.roomId].progression.players["player-1"]?.coins).toBe(55);
     expect(database.rooms[roomDocument.roomId].roomState.furniture[0].position).toEqual([
-      2,
+      1,
       0,
-      -1
+      -2
+    ]);
+  });
+
+  it("persists updated room and progression data on a valid commit", () => {
+    const database = createEmptySharedRoomDevDatabase();
+    const creatorProfile = createProfile("player-1", "Ari");
+    const roomDocument = createSharedRoomInDatabase(database, {
+      profile: creatorProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 50
+    });
+    const nextRoomState = createDefaultRoomState();
+
+    nextRoomState.metadata.roomId = roomDocument.roomId;
+    nextRoomState.furniture[0] = {
+      ...nextRoomState.furniture[0],
+      position: [1.5, 0, -1.5]
+    };
+
+    const nextProgression = {
+      ...roomDocument.progression,
+      players: {
+        ...roomDocument.progression.players,
+        "player-1": {
+          ...roomDocument.progression.players["player-1"],
+          coins: 60
+        }
+      }
+    };
+
+    const committedRoom = commitSharedRoomStateInDatabase(database, {
+      roomId: roomDocument.roomId,
+      expectedRevision: roomDocument.revision,
+      roomState: nextRoomState,
+      progression: nextProgression,
+      reason: "buy furniture"
+    });
+
+    expect(committedRoom.revision).toBe(2);
+    expect(database.rooms[roomDocument.roomId].progression.players["player-1"]?.coins).toBe(60);
+    expect(database.rooms[roomDocument.roomId].roomState.furniture[0].position).toEqual([
+      1.5,
+      0,
+      -1.5
     ]);
   });
 });

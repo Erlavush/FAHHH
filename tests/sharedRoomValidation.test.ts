@@ -76,6 +76,7 @@ describe("sharedRoomValidation", () => {
         })
       ])
     );
+    expect(sharedRoomDocument.progression.players["player-1"]?.coins).toBe(50);
   });
 
   it("rejects unknown placement surfaces", () => {
@@ -88,5 +89,16 @@ describe("sharedRoomValidation", () => {
     expect(() => validateSharedRoomDocument(invalidDocument)).toThrow(
       "Invalid shared room document"
     );
+  });
+
+  it("upgrades a legacy sharedCoins document into progression", () => {
+    const sharedRoomDocument = validateSharedRoomDocument(createSharedRoomDocument());
+
+    expect(sharedRoomDocument.progression.players["player-1"]).toMatchObject({
+      coins: 50,
+      level: 1,
+      xp: 0
+    });
+    expect(sharedRoomDocument.progression.migratedFromSharedCoins).toBe(50);
   });
 });

@@ -52,6 +52,18 @@ body {
   max-width: min(760px, calc(100vw - 36px));
 }
 
+.scene-toolbar__progress {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.scene-toolbar__progress-readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .shared-room-status {
   position: absolute;
   top: 18px;
@@ -92,6 +104,10 @@ body {
   gap: 6px;
 }
 
+.shared-room-status__identity--compact {
+  align-self: start;
+}
+
 .shared-room-status__label {
   color: var(--shared-room-muted);
   font: 700 12px/1.2 var(--shared-room-font-body);
@@ -130,6 +146,41 @@ body {
 .shared-room-status__content span {
   color: var(--shared-room-muted);
   font: 500 13px/1.4 var(--shared-room-font-body);
+}
+
+.shared-room-status__ritual {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.shared-room-status__ritual-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(244, 234, 223, 0.14);
+  border-radius: 999px;
+  font: 700 11px/1 var(--shared-room-font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shared-room-status__ritual-chip--presence {
+  border-color: rgba(137, 183, 216, 0.34);
+  color: #89b7d8;
+}
+
+.shared-room-status__ritual-chip--attention {
+  border-color: rgba(217, 176, 124, 0.34);
+  color: #d9b07c;
+}
+
+.shared-room-status__ritual-chip--success {
+  border-color: rgba(111, 175, 131, 0.34);
+  color: #6faf83;
 }
 
 .shared-room-status__actions {

@@ -56,16 +56,24 @@ function createTarget(id: number, now: number): PcTarget {
 
 export interface PcMinigameOverlayProps {
   currentCoins: number;
+  dailyRitualBonusCoins?: number;
+  dailyRitualBonusXp?: number;
+  dailyRitualStatus?: string | null;
   progress: PcMinigameProgress;
   onComplete: (result: PcMinigameResult) => void;
   onExit: () => void;
+  streakCount?: number;
 }
 
 export function PcMinigameOverlay({
   currentCoins,
+  dailyRitualBonusCoins = 0,
+  dailyRitualBonusXp = 0,
+  dailyRitualStatus = null,
   progress,
   onComplete,
-  onExit
+  onExit,
+  streakCount = 0
 }: PcMinigameOverlayProps) {
   const [status, setStatus] = useState<"idle" | "running" | "results">("idle");
   const [targets, setTargets] = useState<PcTarget[]>([]);
@@ -334,6 +342,26 @@ export function PcMinigameOverlay({
                   <span>Status</span>
                   <strong>{beatBestScore ? "New best" : "Cooldown live"}</strong>
                 </div>
+                {dailyRitualStatus ? (
+                  <>
+                    <div className="pc-minigame__result-row">
+                      <span>Daily ritual</span>
+                      <strong>{dailyRitualStatus}</strong>
+                    </div>
+                    <div className="pc-minigame__result-row">
+                      <span>Daily bonus</span>
+                      <strong>
+                        {dailyRitualBonusCoins > 0 || dailyRitualBonusXp > 0
+                          ? `+${dailyRitualBonusCoins} coins / +${dailyRitualBonusXp} XP for both partners`
+                          : "Not earned yet"}
+                      </strong>
+                    </div>
+                    <div className="pc-minigame__result-row">
+                      <span>Streak</span>
+                      <strong>{streakCount}</strong>
+                    </div>
+                  </>
+                ) : null}
                 <button className="pc-minigame__primary" onClick={onExit} type="button">
                   Back to room
                 </button>

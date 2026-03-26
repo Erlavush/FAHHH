@@ -1,4 +1,9 @@
 import {
+  advanceRitualDayIfNeeded,
+  createInitialSharedRoomProgression,
+  ensureSharedRoomProgressionMembers
+} from "./sharedProgression";
+import {
   FURNITURE_REGISTRY,
   type FurniturePlacementSurface
 } from "./furnitureRegistry";
@@ -16,6 +21,7 @@ import type {
   SharedRoomMember,
   SharedRoomSession
 } from "./sharedRoomTypes";
+import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
 
 export const VALID_SHARED_ROOM_SURFACES: FurniturePlacementSurface[] = [
   "floor",
@@ -157,9 +163,7 @@ export function isValidSharedRoomDocument(value: unknown): value is SharedRoomDo
     Number.isFinite(value.revision) &&
     value.revision >= 1 &&
     Number.isInteger(value.revision) &&
-    typeof value.sharedCoins === "number" &&
-    Number.isFinite(value.sharedCoins) &&
-    value.sharedCoins >= 0 &&
+    isRecord(value.progression) &&
     (value.seedKind === "dev-current-room" || value.seedKind === "starter-room") &&
     isIsoDateString(value.createdAt) &&
     isIsoDateString(value.updatedAt) &&
@@ -170,19 +174,101 @@ export function isValidSharedRoomDocument(value: unknown): value is SharedRoomDo
   );
 }
 
+function normalizeSharedRoomProgression(
+  value: Record<string, unknown>,
+  memberIds: string[],
+  members: SharedRoomMember[],
+  updatedAt: string
+): SharedRoomProgressionState {
+  const rawProgression = isRecord(value.progression) ? value.progression : null;
+  const legacySharedCoins =
+    typeof value.sharedCoins === "number" && Number.isFinite(value.sharedCoins)
+      ? Math.max(0, Math.floor(value.sharedCoins))
+      : 0;
+
+  if (!rawProgression) {
+    return createInitialSharedRoomProgression(
+      memberIds,
+      members,
+      legacySharedCoins,
+      updatedAt
+    );
+  }
+
+  const safeProgression: SharedRoomProgressionState = {
+    version: 1,
+    players:
+      isRecord(rawProgression.players)
+        ? (rawProgression.players as SharedRoomProgressionState["players"])
+        : {},
+    couple: rawProgression.couple as SharedRoomProgressionState["couple"],
+    migratedFromSharedCoins:
+      typeof rawProgression.migratedFromSharedCoins === "number" &&
+      Number.isFinite(rawProgression.migratedFromSharedCoins)
+        ? Math.max(0, Math.floor(rawProgression.migratedFromSharedCoins))
+        : legacySharedCoins || null
+  };
+
+  return advanceRitualDayIfNeeded(
+    ensureSharedRoomProgressionMembers(safeProgression, memberIds, members, updatedAt),
+    memberIds,
+    members,
+    updatedAt
+  );
+}
+
 export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
-  if (!isValidSharedRoomDocument(value)) {
+  if (!isRecord(value)) {
     throw new Error("Invalid shared room document");
   }
 
-  const document = value as SharedRoomDocument;
+  const memberIds = Array.isArray(value.memberIds)
+    ? value.memberIds.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const members = Array.isArray(value.members)
+    ? value.members.filter(isValidSharedRoomMember)
+    : [];
+
+  if (
+    typeof value.roomId !== "string" ||
+    typeof value.inviteCode !== "string" ||
+    memberIds.length === 0 ||
+    memberIds.length > 2 ||
+    members.length === 0 ||
+    members.length > 2 ||
+    typeof value.revision !== "number" ||
+    !Number.isFinite(value.revision) ||
+    value.revision < 1 ||
+    !Number.isInteger(value.revision) ||
+    (value.seedKind !== "dev-current-room" && value.seedKind !== "starter-room") ||
+    !isIsoDateString(value.createdAt) ||
+    !isIsoDateString(value.updatedAt) ||
+    !isValidRoomState(value.roomState) ||
+    value.roomState.metadata.roomId !== value.roomId ||
+    memberIds.length !== members.length ||
+    !members.every((member) => memberIds.includes(member.playerId))
+  ) {
+    throw new Error("Invalid shared room document");
+  }
+
+  const document = value as Record<string, unknown>;
+  const normalizedProgression = normalizeSharedRoomProgression(
+    document,
+    memberIds,
+    members,
+    value.updatedAt
+  );
 
   return {
-    ...document,
-    memberIds: [...document.memberIds],
-    members: document.members.map((member) => ({ ...member })),
-    revision: Math.floor(document.revision),
-    sharedCoins: Math.max(0, Math.floor(document.sharedCoins)),
-    roomState: ensureRoomStateOwnership(cloneRoomState(document.roomState))
+    roomId: value.roomId,
+    inviteCode: value.inviteCode,
+    memberIds: [...memberIds],
+    members: members.map((member) => ({ ...member })),
+    revision: Math.floor(value.revision),
+    progression: normalizedProgression,
+    seedKind: value.seedKind,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    roomState: ensureRoomStateOwnership(cloneRoomState(value.roomState))
   };
 }

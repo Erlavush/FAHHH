@@ -1,12 +1,16 @@
 import { useState } from "react";
 import type { SharedPresenceStatus } from "../hooks/useSharedRoomPresence";
+import type { SharedRitualStatusView } from "../../lib/sharedProgression";
 
 type SharedRoomStatusStripProps = {
   inviteCode: string;
   memberCount: number;
   onReloadLatest: () => void;
   presenceStatus: SharedPresenceStatus | null;
+  ritualStatus: SharedRitualStatusView;
   roomId: string;
+  showInviteCard?: boolean;
+  showRoomIdentity?: boolean;
   statusMessage: string | null;
 };
 
@@ -15,7 +19,10 @@ export function SharedRoomStatusStrip({
   memberCount,
   onReloadLatest,
   presenceStatus,
+  ritualStatus,
   roomId,
+  showInviteCard = true,
+  showRoomIdentity = true,
   statusMessage
 }: SharedRoomStatusStripProps) {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -61,18 +68,31 @@ export function SharedRoomStatusStrip({
 
   return (
     <div className={rootClassName}>
-      <div className="shared-room-status__identity">
-        <span className="shared-room-status__label">Shared room</span>
-        <code className="shared-room-status__room-id">{roomId}</code>
-      </div>
+      {showRoomIdentity ? (
+        <div className="shared-room-status__identity">
+          <span className="shared-room-status__label">Shared room</span>
+          <code className="shared-room-status__room-id">{roomId}</code>
+        </div>
+      ) : (
+        <div className="shared-room-status__identity shared-room-status__identity--compact">
+          <span className="shared-room-status__label">Daily ritual</span>
+          <strong className="shared-room-status__room-id">{ritualStatus.title}</strong>
+        </div>
+      )}
       <div className="shared-room-status__content">
         <strong className={`shared-room-status__title shared-room-status__title--${activeStatus.tone}`}>
           {activeStatus.title}
         </strong>
         <span>{activeStatus.body}</span>
+        <div className="shared-room-status__ritual">
+          <span className={`shared-room-status__ritual-chip shared-room-status__ritual-chip--${ritualStatus.tone}`}>
+            {ritualStatus.title}
+          </span>
+          <span>{ritualStatus.body}</span>
+        </div>
       </div>
       <div className="shared-room-status__actions">
-        {memberCount < 2 ? (
+        {showInviteCard && memberCount < 2 ? (
           <div className="shared-room-status__invite-card">
             <code>{inviteCode}</code>
             <button className="shared-room-status__button" onClick={handleCopyCode} type="button">

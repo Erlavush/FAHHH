@@ -11,6 +11,7 @@ import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
 
 type InventoryPanelProps = {
   playerCoins: number;
+  walletLabel?: string;
   catalogSections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   storedInventorySections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
   inventoryByType: Map<FurnitureType, InventoryStats>;
@@ -31,6 +32,7 @@ type InventoryPanelProps = {
 
 export function InventoryPanel({
   playerCoins,
+  walletLabel = "Coins",
   catalogSections,
   storedInventorySections,
   inventoryByType,
@@ -52,11 +54,10 @@ export function InventoryPanel({
     <aside className="spawn-panel">
       <div className="spawn-panel__header">
         <span className="spawn-panel__title">Shared Inventory</span>
-        <span className="spawn-panel__coins">{playerCoins} shared coins</span>
+        <span className="spawn-panel__coins">{playerCoins} {walletLabel.toLowerCase()}</span>
       </div>
       <p className="spawn-panel__meta">
-        Buy furniture with shared coins, place stored items back into your room, and remove extras
-        you do not need.
+        {walletLabel} pays for new furniture. Purchased furniture becomes shared room inventory.
       </p>
 
       {petCatalogEntries.length > 0 ? (

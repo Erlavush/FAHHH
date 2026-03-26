@@ -1,4 +1,5 @@
 import type { RoomState } from "./roomState";
+import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
 import type {
   SharedPlayerProfile,
   SharedRoomDocument,
@@ -31,7 +32,7 @@ export interface CommitSharedRoomStateInput {
   roomId: string;
   expectedRevision: number;
   roomState: RoomState;
-  sharedCoins: number;
+  progression: SharedRoomProgressionState;
   reason: string;
 }
 

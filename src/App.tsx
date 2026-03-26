@@ -25,6 +25,16 @@ import {
   type PcMinigameResult
 } from "./lib/pcMinigame";
 import {
+  applyDeskPcCompletionToProgression,
+  applyPersonalWalletRefund,
+  applyPersonalWalletSpend,
+  buildSharedRitualStatus,
+  ROOM_LEVEL_XP_THRESHOLDS,
+  selectActivePlayerProgression,
+  selectPartnerPlayerProgression,
+  type SharedDeskPcCompletionProgressionResult
+} from "./lib/sharedProgression";
+import {
   ALL_PET_TYPES,
   PET_REGISTRY,
   createOwnedPet,
@@ -65,6 +75,7 @@ import {
   placementListsMatch,
   vectorsMatch
 } from "./lib/roomPlacementEquality";
+import type { SharedPlayerDeskPcProgress } from "./lib/sharedProgressionTypes";
 
 const RoomView = lazy(async () => {
   const module = await import("./components/RoomView");
@@ -86,6 +97,28 @@ function setVectorAxis(position: Vector3Tuple, axis: 0 | 1 | 2, nextValue: numbe
   }
 
   return [position[0], position[1], nextValue];
+}
+
+function getPlayerXpNextLevel(level: number): number {
+  const thresholdIndex = Math.min(
+    Math.max(1, Math.floor(level)),
+    ROOM_LEVEL_XP_THRESHOLDS.length - 1
+  );
+
+  return ROOM_LEVEL_XP_THRESHOLDS[thresholdIndex];
+}
+
+function toPcMinigameProgress(
+  deskPc: SharedPlayerDeskPcProgress | null | undefined
+) {
+  return {
+    bestScore: deskPc?.bestScore ?? 0,
+    lastScore: deskPc?.lastScore ?? 0,
+    gamesPlayed: deskPc?.gamesPlayed ?? 0,
+    totalCoinsEarned: deskPc?.totalCoinsEarned ?? 0,
+    lastRewardCoins: deskPc?.lastRewardCoins ?? 0,
+    lastCompletedAt: deskPc?.lastCompletedAt ? Date.parse(deskPc.lastCompletedAt) : null
+  };
 }
 
 function App() {
@@ -225,6 +258,12 @@ function App() {
       interactionPose: null
     });
   const [pcMinigameProgress, setPcMinigameProgress] = useState(initialSandboxState.pcMinigame);
+  const [sharedPcResult, setSharedPcResult] = useState<{
+    dailyRitualStatus: string;
+    dailyRitualBonusCoins: number;
+    dailyRitualBonusXp: number;
+    streakCount: number;
+  } | null>(null);
   const [ownedPets, setOwnedPets] = useState<OwnedPet[]>(initialSandboxState.pets);
   const cameraPositionRef = useRef(initialSandboxState.cameraPosition);
   const playerPositionRef = useRef(initialSandboxState.playerPosition);
@@ -259,6 +298,50 @@ function App() {
     roomId: sharedRoomRuntime.runtimeSnapshot?.roomId ?? null,
     skinSrc
   });
+  const activePlayerProgression = useMemo(
+    () =>
+      sharedRoomRuntime.runtimeSnapshot
+        ? selectActivePlayerProgression(
+            sharedRoomRuntime.runtimeSnapshot.progression,
+            sharedRoomRuntime.session?.playerId
+          )
+        : null,
+    [sharedRoomRuntime.runtimeSnapshot, sharedRoomRuntime.session?.playerId]
+  );
+  const partnerPlayerProgression = useMemo(
+    () =>
+      sharedRoomRuntime.runtimeSnapshot
+        ? selectPartnerPlayerProgression(
+            sharedRoomRuntime.runtimeSnapshot.progression,
+            sharedRoomRuntime.session?.playerId
+          )
+        : null,
+    [sharedRoomRuntime.runtimeSnapshot, sharedRoomRuntime.session?.playerId]
+  );
+  const displayedPlayerCoins = sharedRoomActive
+    ? activePlayerProgression?.coins ?? 0
+    : playerCoins;
+  const displayedPcMinigameProgress = sharedRoomActive
+    ? toPcMinigameProgress(activePlayerProgression?.deskPc)
+    : pcMinigameProgress;
+  const walletLabel = sharedRoomActive ? "Your wallet" : "Coins";
+  const playerLevel = activePlayerProgression?.level ?? 1;
+  const playerXp = activePlayerProgression?.xp ?? 0;
+  const playerXpNextLevel = getPlayerXpNextLevel(playerLevel);
+  const ritualStatus = sharedRoomRuntime.runtimeSnapshot
+    ? buildSharedRitualStatus(
+        sharedRoomRuntime.runtimeSnapshot.progression,
+        sharedRoomRuntime.session
+      )
+    : {
+        title: "Streak 0",
+        body: "Both partners need one desk check-in today.",
+        tone: "presence" as const,
+        streakCount: 0,
+        ritualComplete: false,
+        selfCompleted: false,
+        partnerCompleted: false
+      };
 
   useEffect(() => {
     const persistedRoomState = sharedRoomActive ? createDefaultRoomState() : roomState;
@@ -342,23 +425,45 @@ function App() {
     roomStateRef.current = roomState;
   }, [roomState]);
 
+  const lastSyncedRevisionRef = useRef<number>(0);
+
   useEffect(() => {
     const runtimeSnapshot = sharedRoomRuntime.runtimeSnapshot;
+    const runtimePlayerProgression = runtimeSnapshot
+      ? selectActivePlayerProgression(
+          runtimeSnapshot.progression,
+          sharedRoomRuntime.session?.playerId
+        )
+      : null;
 
     if (!runtimeSnapshot) {
       return;
     }
 
+    if (runtimeSnapshot.revision === lastSyncedRevisionRef.current) {
+      if (
+        runtimePlayerProgression &&
+        playerCoinsRef.current !== runtimePlayerProgression.coins
+      ) {
+        playerCoinsRef.current = runtimePlayerProgression.coins;
+        setPlayerCoins(runtimePlayerProgression.coins);
+      }
+      return;
+    }
+
+    lastSyncedRevisionRef.current = runtimeSnapshot.revision;
     roomStateRef.current = runtimeSnapshot.roomState;
-    playerCoinsRef.current = runtimeSnapshot.sharedCoins;
+    playerCoinsRef.current = runtimePlayerProgression?.coins ?? 0;
+
     setRoomState(runtimeSnapshot.roomState);
     setLiveFurniturePlacements(runtimeSnapshot.roomState.furniture);
-    setPlayerCoins(runtimeSnapshot.sharedCoins);
+    setPlayerCoins(runtimePlayerProgression?.coins ?? 0);
+
     pendingSpawnOwnedFurnitureIdsRef.current.clear();
     soldOwnedFurnitureIdsRef.current.clear();
     setPendingSpawnOwnedFurnitureIds([]);
     setSpawnRequest(null);
-  }, [sharedRoomRuntime.runtimeSnapshot]);
+  }, [sharedRoomRuntime.runtimeSnapshot, sharedRoomRuntime.session?.playerId]);
 
   const applyLocalSharedSnapshot = useCallback(
     (nextRoomState: RoomState, nextCoins: number): void => {
@@ -409,20 +514,46 @@ function App() {
   }
 
   const handlePcMinigameComplete = useCallback((result: PcMinigameResult): void => {
-    setPcMinigameProgress((currentProgress) => applyPcMinigameResult(currentProgress, result));
-    const nextCoins = playerCoinsRef.current + result.rewardCoins;
-    commitPlayerCoins(nextCoins);
+    if (sharedRoomActive && sharedRoomRuntime.session?.playerId) {
+      let nextSharedResult: SharedDeskPcCompletionProgressionResult | null = null;
 
-    if (sharedRoomActive) {
-      void sharedRoomRuntime.commitRoomState(
-        roomStateRef.current,
-        nextCoins,
-        "pc_minigame_reward"
-      );
+      void sharedRoomRuntime.commitRoomMutation("pc_minigame_reward", (snapshot) => {
+        nextSharedResult = applyDeskPcCompletionToProgression({
+          progression: snapshot.progression,
+          actorPlayerId: sharedRoomRuntime.session?.playerId ?? "",
+          result,
+          memberIds: snapshot.memberIds,
+          nowIso: new Date().toISOString()
+        });
+
+        return {
+          roomState: snapshot.roomState,
+          progression: nextSharedResult.progression
+        };
+      }).then((nextRoomDocument) => {
+        if (nextRoomDocument && nextSharedResult) {
+          setSharedPcResult({
+            dailyRitualStatus:
+              nextSharedResult.dailyRitualStatus === "completed"
+                ? "Daily ritual complete"
+                : "Check-in saved. Waiting on partner.",
+            dailyRitualBonusCoins: nextSharedResult.dailyRitualBonusCoins,
+            dailyRitualBonusXp: nextSharedResult.dailyRitualBonusXp,
+            streakCount: nextSharedResult.streakCount
+          });
+        }
+      });
+
+      return;
     }
+
+    setPcMinigameProgress((currentProgress) => applyPcMinigameResult(currentProgress, result));
+    commitPlayerCoins(playerCoinsRef.current + result.rewardCoins);
+    setSharedPcResult(null);
   }, [sharedRoomActive, sharedRoomRuntime]);
 
   const handleExitPcMinigame = useCallback((): void => {
+    setSharedPcResult(null);
     setStandRequestToken((currentToken) => currentToken + 1);
   }, []);
 
@@ -440,26 +571,52 @@ function App() {
   function handleBuyFurniture(type: FurnitureType): void {
     const buyPrice = FURNITURE_REGISTRY[type].price;
 
+    if (sharedRoomActive) {
+      if (
+        !sharedRoomRuntime.session?.playerId ||
+        !activePlayerProgression ||
+        activePlayerProgression.coins < buyPrice
+      ) {
+        return;
+      }
+
+      void sharedRoomRuntime.commitRoomMutation(`buy:${type}`, (snapshot) => {
+        const nextProgression = applyPersonalWalletSpend(
+          snapshot.progression,
+          sharedRoomRuntime.session?.playerId ?? "",
+          buyPrice,
+          new Date().toISOString()
+        );
+        const ownerId = buildSharedRoomOwnerId(snapshot.roomState.metadata.roomId);
+        const nextRoomState = {
+          ...snapshot.roomState,
+          ownedFurniture: [
+            ...snapshot.roomState.ownedFurniture,
+            createOwnedFurnitureItem(type, ownerId)
+          ]
+        };
+
+        return {
+          roomState: nextRoomState,
+          progression: nextProgression
+        };
+      });
+      return;
+    }
+
     if (!trySpendCoins(buyPrice)) {
       return;
     }
 
-    const ownerId = sharedRoomActive
-      ? buildSharedRoomOwnerId(roomStateRef.current.metadata.roomId)
-      : undefined;
     const nextRoomState = {
       ...roomStateRef.current,
       ownedFurniture: [
         ...roomStateRef.current.ownedFurniture,
-        createOwnedFurnitureItem(type, ownerId)
+        createOwnedFurnitureItem(type)
       ]
     };
 
     applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
-
-    if (sharedRoomActive) {
-      void sharedRoomRuntime.commitRoomState(nextRoomState, playerCoinsRef.current, `buy:${type}`);
-    }
   }
 
   function handleBuyPet(type: PetType): void {
@@ -531,29 +688,63 @@ function App() {
 
     const sellPrice = getOwnedFurnitureSellPrice(nextSellItem);
     soldOwnedFurnitureIdsRef.current.add(nextSellItem.id);
+    updatePendingSpawnOwnedFurnitureIds((currentIds) =>
+      currentIds.filter((ownedFurnitureId) => ownedFurnitureId !== nextSellItem.id)
+    );
+
+    if (sharedRoomActive) {
+      if (!sharedRoomRuntime.session?.playerId) {
+        return;
+      }
+
+      void sharedRoomRuntime.commitRoomMutation(`sell:${nextSellItem.id}`, (snapshot) => {
+        const snapshotSellItem = snapshot.roomState.ownedFurniture.find(
+          (ownedFurniture) => ownedFurniture.id === nextSellItem.id
+        );
+
+        if (!snapshotSellItem) {
+          return {
+            roomState: snapshot.roomState,
+            progression: snapshot.progression
+          };
+        }
+
+        const nextProgression =
+          sellPrice > 0
+            ? applyPersonalWalletRefund(
+                snapshot.progression,
+                sharedRoomRuntime.session?.playerId ?? "",
+                sellPrice,
+                new Date().toISOString()
+              )
+            : snapshot.progression;
+        const nextRoomState = {
+          ...snapshot.roomState,
+          ownedFurniture: snapshot.roomState.ownedFurniture.filter(
+            (ownedFurniture) => ownedFurniture.id !== nextSellItem.id
+          )
+        };
+
+        return {
+          roomState: nextRoomState,
+          progression: nextProgression
+        };
+      });
+      return;
+    }
+
     const nextRoomState = {
       ...roomStateRef.current,
       ownedFurniture: roomStateRef.current.ownedFurniture.filter(
         (ownedFurniture) => ownedFurniture.id !== nextSellItem.id
       )
     };
-    updatePendingSpawnOwnedFurnitureIds((currentIds) =>
-      currentIds.filter((ownedFurnitureId) => ownedFurnitureId !== nextSellItem.id)
-    );
 
     if (sellPrice > 0) {
       addCoins(sellPrice);
     }
 
     applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
-
-    if (sharedRoomActive) {
-      void sharedRoomRuntime.commitRoomState(
-        nextRoomState,
-        playerCoinsRef.current,
-        `sell:${nextSellItem.id}`
-      );
-    }
   }
 
   const handleToggleBuildMode = useCallback(() => {
@@ -665,15 +856,23 @@ function App() {
 
     roomStateRef.current = nextRoomState;
     setRoomState(nextRoomState);
+    setLiveFurniturePlacements(placements);
 
-    if (sharedRoomActive && shouldCommitSharedRoomChange("committed")) {
+    // TRUST: placementListsMatch (now order-independent) to prevent sync loops.
+    const sharedProgression = sharedRoomRuntime.runtimeSnapshot?.progression;
+
+    if (
+      sharedRoomActive &&
+      sharedProgression &&
+      shouldCommitSharedRoomChange("committed")
+    ) {
       void sharedRoomRuntime.commitRoomState(
         nextRoomState,
-        playerCoinsRef.current,
+        sharedProgression,
         "committed_furniture_change"
       );
     }
-  }, [sharedRoomActive, sharedRoomRuntime]);
+  }, [sharedRoomActive, sharedRoomRuntime, sharedRoomRuntime.roomDocument?.revision]);
 
   const handleFurnitureSnapshotChange = useCallback((placements: RoomFurniturePlacement[]): void => {
     const placedOwnedFurnitureIds = getPlacedOwnedFurnitureIds(placements);
@@ -685,6 +884,7 @@ function App() {
       placementListsMatch(currentPlacements, placements) ? currentPlacements : placements
     );
   }, [updatePendingSpawnOwnedFurnitureIds]);
+
 
   const handleCameraPositionChange = useCallback((position: Vector3Tuple): void => {
     cameraPositionRef.current = position;
@@ -702,6 +902,7 @@ function App() {
 
   function handleResetSandbox(): void {
     if (sharedRoomActive) {
+      setSharedPcResult(null);
       void sharedRoomRuntime.reloadRoom();
       return;
     }
@@ -722,6 +923,7 @@ function App() {
     commitPlayerCoins(nextSandbox.playerCoins);
     setRoomState(nextSandbox.roomState);
     setPcMinigameProgress(nextSandbox.pcMinigame);
+    setSharedPcResult(null);
     setOwnedPets(nextSandbox.pets);
     setLiveFurniturePlacements(nextSandbox.roomState.furniture);
     pendingSpawnOwnedFurnitureIdsRef.current.clear();
@@ -840,18 +1042,21 @@ function App() {
         <PerformanceMonitor />
         {sharedRoomActive ? (
           <>
-            {!sharedRoomRuntime.devBypassActive ? (
-              <SharedRoomStatusStrip
-                inviteCode={sharedRoomRuntime.roomDocument?.inviteCode ?? ""}
-                memberCount={sharedRoomRuntime.roomDocument?.memberIds.length ?? 0}
-                onReloadLatest={() => {
-                  void sharedRoomRuntime.reloadRoom();
-                }}
-                presenceStatus={sharedRoomPresence.presenceStatus}
-                roomId={sharedRoomRuntime.roomDocument?.roomId ?? ""}
-                statusMessage={sharedRoomRuntime.statusMessage}
-              />
-            ) : null}
+            <SharedRoomStatusStrip
+              inviteCode={sharedRoomRuntime.roomDocument?.inviteCode ?? ""}
+              memberCount={sharedRoomRuntime.roomDocument?.memberIds.length ?? 0}
+              onReloadLatest={() => {
+                void sharedRoomRuntime.reloadRoom();
+              }}
+              presenceStatus={sharedRoomPresence.presenceStatus}
+              ritualStatus={ritualStatus}
+              roomId={sharedRoomRuntime.roomDocument?.roomId ?? ""}
+              showInviteCard={
+                !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null
+              }
+              showRoomIdentity={!sharedRoomRuntime.devBypassActive}
+              statusMessage={sharedRoomRuntime.statusMessage}
+            />
             <DevPanel
               visible={debugOpen}
               buildModeEnabled={buildModeEnabled}
@@ -865,7 +1070,7 @@ function App() {
               lightingFxCollapsed={devPanelLightingFxCollapsed}
               collisionDebugCollapsed={devPanelCollisionDebugCollapsed}
               actionsCollapsed={devPanelActionsCollapsed}
-              playerCoins={playerCoins}
+              playerCoins={displayedPlayerCoins}
               playerInteractionLabel={playerInteractionStatus?.label ?? "None"}
               playerPosition={playerPosition}
               cameraPosition={cameraPosition}
@@ -925,7 +1130,6 @@ function App() {
             <SceneToolbar
               buildModeEnabled={buildModeEnabled}
               catalogOpen={catalogOpen}
-              coinsLabel="Shared Coins"
               debugOpen={debugOpen}
               gridSnapEnabled={gridSnapEnabled}
               onImportSkin={handleSkinImport}
@@ -937,10 +1141,14 @@ function App() {
               onToggleDebug={() => setDebugOpen((current) => !current)}
               onToggleGridSnap={() => setGridSnapEnabled((current) => !current)}
               onTogglePreviewStudio={() => setPreviewStudioOpen((current) => !current)}
-              playerCoins={playerCoins}
+              playerCoins={displayedPlayerCoins}
               playerInteractionStatus={playerInteractionStatus}
+              playerLevel={playerLevel}
+              playerXp={playerXp}
+              playerXpNextLevel={playerXpNextLevel}
               previewStudioOpen={previewStudioOpen}
               timeLocked={timeLocked}
+              walletLabel={walletLabel}
               worldTimeLabel={worldTimeLabel}
             />
 
@@ -961,7 +1169,8 @@ function App() {
             openFurnitureInfoKey={openFurnitureInfoKey}
             ownedPetTypes={ownedPetTypes}
             petCatalogEntries={petCatalogEntries}
-            playerCoins={playerCoins}
+            playerCoins={displayedPlayerCoins}
+            walletLabel={walletLabel}
             storedInventorySections={storedInventorySections}
           />
             ) : null}
@@ -1036,10 +1245,14 @@ function App() {
             </Suspense>
             {pcMinigameActive ? (
               <PcMinigameOverlay
-                currentCoins={playerCoins}
+                currentCoins={displayedPlayerCoins}
+                dailyRitualBonusCoins={sharedPcResult?.dailyRitualBonusCoins ?? 0}
+                dailyRitualBonusXp={sharedPcResult?.dailyRitualBonusXp ?? 0}
+                dailyRitualStatus={sharedPcResult?.dailyRitualStatus ?? null}
                 onComplete={handlePcMinigameComplete}
                 onExit={handleExitPcMinigame}
-                progress={pcMinigameProgress}
+                progress={displayedPcMinigameProgress}
+                streakCount={sharedPcResult?.streakCount ?? ritualStatus.streakCount}
               />
             ) : null}
           </>

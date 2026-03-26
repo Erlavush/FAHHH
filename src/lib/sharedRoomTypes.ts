@@ -1,4 +1,5 @@
 import type { RoomState } from "./roomState";
+import type { SharedRoomProgressionState } from "./sharedProgressionTypes";
 
 export const SHARED_ROOM_OWNER_ID_PREFIX = "shared-room";
 
@@ -35,7 +36,7 @@ export interface SharedRoomDocument {
   memberIds: string[];
   members: SharedRoomMember[];
   revision: number;
-  sharedCoins: number;
+  progression: SharedRoomProgressionState;
   seedKind: SharedRoomSeedKind;
   createdAt: string;
   updatedAt: string;

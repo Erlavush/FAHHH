@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isSharedRoomConflictError, sharedRoomClient } from "../../lib/sharedRoomClient";
 import {
   cloneRoomState,
   createDefaultRoomState,
   type RoomState
 } from "../../lib/roomState";
-import { sharedRoomClient } from "../../lib/sharedRoomClient";
+import { advanceRitualDayIfNeeded } from "../../lib/sharedProgression";
 import type { SharedRoomStore } from "../../lib/sharedRoomStore";
 import type {
   SharedPlayerProfile,
   SharedRoomDocument,
   SharedRoomSession
 } from "../../lib/sharedRoomTypes";
+import type { SharedRoomProgressionState } from "../../lib/sharedProgressionTypes";
 import {
   clearSharedRoomSession,
   loadOrCreateSharedPlayerProfile,
@@ -23,8 +25,9 @@ export interface SharedRoomRuntimeSnapshot {
   roomId: string;
   inviteCode: string;
   revision: number;
-  sharedCoins: number;
   memberIds: string[];
+  members: SharedRoomDocument["members"];
+  progression: SharedRoomProgressionState;
   roomState: RoomState;
 }
 
@@ -33,6 +36,13 @@ export interface SharedRoomBlockingState {
   body: string;
   retryable: boolean;
 }
+
+type SharedRoomMutation = (
+  snapshot: SharedRoomRuntimeSnapshot
+) => {
+  roomState: RoomState;
+  progression: SharedRoomProgressionState;
+};
 
 interface SharedRoomRuntimeOptions {
   devBootstrapRoomState?: RoomState;
@@ -84,8 +94,14 @@ export function createSharedRoomRuntimeSnapshot(
     roomId: roomDocument.roomId,
     inviteCode: roomDocument.inviteCode,
     revision: roomDocument.revision,
-    sharedCoins: roomDocument.sharedCoins,
     memberIds: [...roomDocument.memberIds],
+    members: roomDocument.members.map((member) => ({ ...member })),
+    progression: advanceRitualDayIfNeeded(
+      roomDocument.progression,
+      roomDocument.memberIds,
+      roomDocument.members,
+      new Date().toISOString()
+    ),
     roomState: cloneRoomState(roomDocument.roomState)
   };
 }
@@ -167,12 +183,21 @@ export function useSharedRoomRuntime({
 
   const applyRoomDocument = useCallback(
     (nextRoomDocument: SharedRoomDocument, nextProfile = profile) => {
+      const normalizedRoomDocument: SharedRoomDocument = {
+        ...nextRoomDocument,
+        progression: advanceRitualDayIfNeeded(
+          nextRoomDocument.progression,
+          nextRoomDocument.memberIds,
+          nextRoomDocument.members,
+          new Date().toISOString()
+        )
+      };
       const nextSession = createSharedRoomSessionFromDocument(
         nextProfile.playerId,
-        nextRoomDocument
+        normalizedRoomDocument
       );
 
-      setRoomDocument(nextRoomDocument);
+      setRoomDocument(normalizedRoomDocument);
       setSession(nextSession);
       saveSharedRoomSession(nextSession);
       setInlineError(null);
@@ -196,6 +221,17 @@ export function useSharedRoomRuntime({
         applyRoomDocument(nextRoomDocument);
         return nextRoomDocument;
       } catch (error) {
+        // If the room doesn't exist anymore (e.g. database reset), don't keep trying to load it!
+        if (
+          error &&
+          typeof error === "object" &&
+          "status" in error &&
+          error.status === 404
+        ) {
+          clearRoom();
+          return null;
+        }
+
         setBlockingState(
           createBlockingState(
             "We couldn't load the shared room. Retry to fetch the latest room state.",
@@ -367,7 +403,11 @@ export function useSharedRoomRuntime({
   }, [reloadRoom]);
 
   const commitRoomState = useCallback(
-    async (nextRoomState: RoomState, sharedCoins: number, reason: string) => {
+    async (
+      nextRoomState: RoomState,
+      progression: SharedRoomProgressionState,
+      reason: string
+    ) => {
       if (!session) {
         return null;
       }
@@ -379,7 +419,7 @@ export function useSharedRoomRuntime({
           roomId: session.roomId,
           expectedRevision: session.lastKnownRevision,
           roomState: nextRoomState,
-          sharedCoins,
+          progression,
           reason
         });
 
@@ -387,10 +427,15 @@ export function useSharedRoomRuntime({
         setTimedStatusMessage("Shared room updated");
         return nextRoomDocument;
       } catch (error) {
+        if (isSharedRoomConflictError(error)) {
+          void reloadRoom();
+          return null;
+        }
+
         setBlockingState(
           createBlockingState(
-            "We couldn't load the shared room. Retry to fetch the latest room state.",
-            "Any unconfirmed local changes will be discarded before the shared room reloads.",
+            "We couldn't save your changes to the shared room. Retry to fetch the latest room state and try again.",
+            "Any unconfirmed local changes may be discarded before the shared room reloads.",
             true
           )
         );
@@ -398,7 +443,67 @@ export function useSharedRoomRuntime({
         return null;
       }
     },
-    [applyRoomDocument, session, setTimedStatusMessage, sharedRoomStore]
+    [applyRoomDocument, reloadRoom, session, setTimedStatusMessage, sharedRoomStore]
+  );
+
+  const commitRoomMutation = useCallback(
+    async (reason: string, mutate: SharedRoomMutation) => {
+      if (!session || !roomDocument) {
+        return null;
+      }
+
+      async function attemptCommit(
+        sourceRoomDocument: SharedRoomDocument
+      ): Promise<SharedRoomDocument> {
+        const mutationResult = mutate(createSharedRoomRuntimeSnapshot(sourceRoomDocument));
+
+        return sharedRoomStore.commitSharedRoomState({
+          roomId: sourceRoomDocument.roomId,
+          expectedRevision: sourceRoomDocument.revision,
+          roomState: mutationResult.roomState,
+          progression: mutationResult.progression,
+          reason
+        });
+      }
+
+      setTimedStatusMessage("Saving shared room...");
+
+      try {
+        const nextRoomDocument = await attemptCommit(roomDocument);
+        applyRoomDocument(nextRoomDocument);
+        setTimedStatusMessage("Shared room updated");
+        return nextRoomDocument;
+      } catch (error) {
+        if (isSharedRoomConflictError(error)) {
+          setTimedStatusMessage("Reloading latest room...");
+
+          try {
+            const latestRoomDocument = await sharedRoomStore.loadSharedRoom({
+              roomId: session.roomId
+            });
+            applyRoomDocument(latestRoomDocument);
+
+            const replayedRoomDocument = await attemptCommit(latestRoomDocument);
+            applyRoomDocument(replayedRoomDocument);
+            setTimedStatusMessage("Shared room updated");
+            return replayedRoomDocument;
+          } catch (replayError) {
+            error = replayError;
+          }
+        }
+
+        setBlockingState(
+          createBlockingState(
+            "We couldn't save your changes to the shared room. Retry to fetch the latest room state and try again.",
+            "Any unconfirmed local changes may be discarded before the shared room reloads.",
+            true
+          )
+        );
+        setInlineError(getSharedRoomErrorMessage(error));
+        return null;
+      }
+    },
+    [applyRoomDocument, roomDocument, session, setTimedStatusMessage, sharedRoomStore]
   );
 
   const clearRoom = useCallback(() => {
@@ -414,6 +519,7 @@ export function useSharedRoomRuntime({
     blockingState,
     clearInlineError: () => setInlineError(null),
     clearRoom,
+    commitRoomMutation,
     commitRoomState,
     createRoom,
     devBypassActive,

@@ -3,6 +3,7 @@
 import { act, createElement, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createInitialSharedRoomProgression } from "../src/lib/sharedProgression";
 import { useSharedRoomRuntime } from "../src/app/hooks/useSharedRoomRuntime";
 import { cloneRoomState, createDefaultRoomState } from "../src/lib/roomState";
 import {
@@ -68,29 +69,38 @@ function createSharedRoomDocument(
 ): SharedRoomDocument {
   const roomState = cloneRoomState(createDefaultRoomState());
   const roomId = overrides.roomId ?? "shared-room-1";
+  const memberIds = overrides.memberIds ?? [playerId, "player-2"];
+  const members = overrides.members ?? [
+    {
+      playerId,
+      displayName: "Player One",
+      role: "creator",
+      joinedAt: "2026-03-26T00:00:00.000Z"
+    },
+    {
+      playerId: "player-2",
+      displayName: "Player Two",
+      role: "partner",
+      joinedAt: "2026-03-26T00:01:00.000Z"
+    }
+  ];
 
   roomState.metadata.roomId = roomId;
 
   return {
     roomId,
     inviteCode: overrides.inviteCode ?? "ABC123",
-    memberIds: overrides.memberIds ?? [playerId, "player-2"],
-    members: overrides.members ?? [
-      {
-        playerId,
-        displayName: "Player One",
-        role: "creator",
-        joinedAt: "2026-03-26T00:00:00.000Z"
-      },
-      {
-        playerId: "player-2",
-        displayName: "Player Two",
-        role: "partner",
-        joinedAt: "2026-03-26T00:01:00.000Z"
-      }
-    ],
+    memberIds,
+    members,
     revision: overrides.revision ?? 3,
-    sharedCoins: overrides.sharedCoins ?? 140,
+    progression:
+      overrides.progression ??
+      createInitialSharedRoomProgression(
+        memberIds,
+        members,
+        140,
+        overrides.updatedAt ?? "2026-03-26T00:01:30.000Z"
+      ),
     seedKind: overrides.seedKind ?? "dev-current-room",
     createdAt: overrides.createdAt ?? "2026-03-26T00:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-03-26T00:01:30.000Z",

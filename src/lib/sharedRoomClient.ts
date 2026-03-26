@@ -24,6 +24,12 @@ export class SharedRoomClientError extends Error {
   }
 }
 
+export function isSharedRoomConflictError(
+  error: unknown
+): error is SharedRoomClientError {
+  return error instanceof SharedRoomClientError && error.status === 409;
+}
+
 async function readResponseBody(response: Response): Promise<unknown> {
   const bodyText = await response.text();
   return bodyText ? (JSON.parse(bodyText) as unknown) : null;
@@ -44,6 +50,8 @@ async function fetchSharedRoomDocument(
       "error" in responseBody &&
       typeof responseBody.error === "string"
         ? responseBody.error
+        : response.status === 409
+          ? "Shared room revision conflict."
         : `Shared room request failed with status ${response.status}`;
 
     throw new SharedRoomClientError(message, response.status);

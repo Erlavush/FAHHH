@@ -3,9 +3,12 @@ import type { PlayerInteractionStatus } from "../types";
 type SceneToolbarProps = {
   buildModeEnabled: boolean;
   catalogOpen: boolean;
-  coinsLabel?: string;
   gridSnapEnabled: boolean;
   playerCoins: number;
+  walletLabel?: string;
+  playerLevel?: number;
+  playerXp?: number;
+  playerXpNextLevel?: number;
   timeLocked: boolean;
   worldTimeLabel: string;
   previewStudioOpen: boolean;
@@ -25,9 +28,12 @@ type SceneToolbarProps = {
 export function SceneToolbar({
   buildModeEnabled,
   catalogOpen,
-  coinsLabel = "Coins",
   gridSnapEnabled,
   playerCoins,
+  walletLabel = "Coins",
+  playerLevel = 1,
+  playerXp = 0,
+  playerXpNextLevel = 20,
   timeLocked,
   worldTimeLabel,
   previewStudioOpen,
@@ -68,8 +74,14 @@ export function SceneToolbar({
       >
         {gridSnapEnabled ? "Grid Snap: On" : "Grid Snap: Off"}
       </button>
-      <div className="camera-toggle camera-toggle--status">
-        {coinsLabel}: {playerCoins}
+      <div className="scene-toolbar__progress">
+        <div className="camera-toggle camera-toggle--status">
+          {walletLabel}: {playerCoins}
+        </div>
+        <div className="camera-toggle camera-toggle--status scene-toolbar__progress-readout">
+          <span>Level {playerLevel}</span>
+          <span>XP {playerXp}/{playerXpNextLevel}</span>
+        </div>
       </div>
       <div className="camera-toggle camera-toggle--status">
         {timeLocked ? `Time Locked: ${worldTimeLabel}` : `Time: ${worldTimeLabel}`}

@@ -1,7 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
+import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createSharedRoomSeed } from "../src/lib/sharedRoomSeed";
+import {
+  advanceRitualDayIfNeeded,
+  createInitialSharedRoomProgression
+} from "../src/lib/sharedProgression";
 import {
   isValidSharedPlayerProfile,
   validateSharedRoomDocument
@@ -18,6 +23,60 @@ export const DEV_SHARED_ROOM_ID = "dev-shared-room";
 export const DEV_SHARED_ROOM_INVITE_CODE = "DEVROOM";
 export const SHARED_EDIT_LOCK_TTL_MS = 5000;
 
+// Simple lock to prevent concurrent database writes from corrupting the file
+// Singleton in-memory database to prevent race conditions between requests
+let inMemoryDatabase = null;
+let dbWritePromise = Promise.resolve();
+
+async function queuedWriteDatabase(databasePath, database) {
+  // Deep clone to ensure the version we persist doesn't change mid-write
+  const databaseSnapshot = JSON.parse(JSON.stringify(database));
+
+  const nextWrite = dbWritePromise.then(() => {
+    const parentDir = path.dirname(databasePath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    const content = JSON.stringify(databaseSnapshot, null, 2);
+    const tempPath = `${databasePath}.tmp`;
+    fs.writeFileSync(tempPath, content, "utf8");
+    fs.renameSync(tempPath, databasePath);
+  });
+  dbWritePromise = nextWrite.catch(() => {});
+  return nextWrite;
+}
+
+export async function loadSharedRoomDevDatabase(databasePath) {
+  if (inMemoryDatabase) {
+    return inMemoryDatabase;
+  }
+
+  if (!fs.existsSync(databasePath)) {
+    inMemoryDatabase = {
+      profiles: {},
+      invites: {},
+      rooms: {},
+      presenceByRoom: {},
+      locksByRoom: {}
+    };
+    return inMemoryDatabase;
+  }
+
+  const content = fs.readFileSync(databasePath, "utf8");
+  try {
+    inMemoryDatabase = JSON.parse(content);
+  } catch (err) {
+    console.error("DB corruption detected, resetting:", err);
+    inMemoryDatabase = {
+      profiles: {},
+      invites: {},
+      rooms: {},
+      presenceByRoom: {},
+      locksByRoom: {}
+    };
+  }
+  return inMemoryDatabase;
+}
 class SharedRoomHttpError extends Error {
   constructor(message, status) {
     super(message);
@@ -69,30 +128,33 @@ function createSharedRoomMember(profile, role, joinedAt) {
   };
 }
 
-export async function readSharedRoomDevDatabase(databasePath) {
-  try {
-    const rawDatabase = await readFile(databasePath, "utf8");
-    const parsedDatabase = JSON.parse(rawDatabase);
+function serializeJson(value) {
+  return JSON.stringify(value);
+}
 
-    return {
-      profiles: parsedDatabase?.profiles ?? {},
-      invites: parsedDatabase?.invites ?? {},
-      rooms: parsedDatabase?.rooms ?? {},
-      presenceByRoom: parsedDatabase?.presenceByRoom ?? {},
-      locksByRoom: parsedDatabase?.locksByRoom ?? {}
-    };
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-      return createEmptySharedRoomDevDatabase();
-    }
+function normalizeStoredSharedRoomDocument(roomDocument, nowIso = createTimestamp()) {
+  const validatedRoomDocument = validateSharedRoomDocument(roomDocument);
+  const nextProgression = advanceRitualDayIfNeeded(
+    validatedRoomDocument.progression,
+    validatedRoomDocument.memberIds,
+    validatedRoomDocument.members,
+    nowIso
+  );
+  const normalizedRoomDocument = validateSharedRoomDocument({
+    ...validatedRoomDocument,
+    updatedAt:
+      serializeJson(validatedRoomDocument.progression) === serializeJson(nextProgression) &&
+      !("sharedCoins" in roomDocument)
+        ? validatedRoomDocument.updatedAt
+        : nowIso,
+    progression: nextProgression
+  });
 
-    throw error;
-  }
+  return normalizedRoomDocument;
 }
 
 export async function writeSharedRoomDevDatabase(databasePath, database) {
-  await mkdir(path.dirname(databasePath), { recursive: true });
-  await writeFile(databasePath, JSON.stringify(database, null, 2));
+  await queuedWriteDatabase(databasePath, database);
 }
 
 function upsertProfileInDatabase(database, profile) {
@@ -123,7 +185,12 @@ export function createSharedRoomInDatabase(database, input) {
     memberIds: [profile.playerId],
     members: [createSharedRoomMember(profile, "creator", timestamp)],
     revision: 1,
-    sharedCoins: Math.max(0, Math.floor(input?.sharedCoins ?? 0)),
+    progression: createInitialSharedRoomProgression(
+      [profile.playerId],
+      [createSharedRoomMember(profile, "creator", timestamp)],
+      Math.max(0, Math.floor(input?.sharedCoins ?? 0)),
+      timestamp
+    ),
     seedKind: input?.seedKind ?? "dev-current-room",
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -147,17 +214,27 @@ export function bootstrapDevSharedRoomInDatabase(database, input) {
   const profile = upsertProfileInDatabase(database, input?.profile);
   const timestamp = createTimestamp();
   const existingRoom = database.rooms[DEV_SHARED_ROOM_ID]
-    ? loadSharedRoomInDatabase(database, DEV_SHARED_ROOM_ID)
+    ? normalizeStoredSharedRoomDocument(database.rooms[DEV_SHARED_ROOM_ID], timestamp)
     : null;
 
+  if (existingRoom) {
+    database.rooms[DEV_SHARED_ROOM_ID] = existingRoom;
+  }
+
   if (!existingRoom) {
+    const creatorMember = createSharedRoomMember(profile, "creator", timestamp);
     const roomDocument = validateSharedRoomDocument({
       roomId: DEV_SHARED_ROOM_ID,
       inviteCode: DEV_SHARED_ROOM_INVITE_CODE,
       memberIds: [profile.playerId],
-      members: [createSharedRoomMember(profile, "creator", timestamp)],
+      members: [creatorMember],
       revision: 1,
-      sharedCoins: Math.max(0, Math.floor(input?.sharedCoins ?? 0)),
+      progression: createInitialSharedRoomProgression(
+        [profile.playerId],
+        [creatorMember],
+        Math.max(0, Math.floor(input?.sharedCoins ?? 0)),
+        timestamp
+      ),
       seedKind: "dev-current-room",
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -191,6 +268,7 @@ export function bootstrapDevSharedRoomInDatabase(database, input) {
     ...existingRoom,
     memberIds: [...existingRoom.memberIds, profile.playerId],
     members: [...existingRoom.members, createSharedRoomMember(profile, "partner", timestamp)],
+    progression: existingRoom.progression,
     updatedAt: timestamp
   });
 
@@ -215,7 +293,9 @@ export function loadSharedRoomInDatabase(database, roomId) {
     throw new SharedRoomHttpError("Shared room not found", 404);
   }
 
-  return validateSharedRoomDocument(roomDocument);
+  const normalizedRoomDocument = normalizeStoredSharedRoomDocument(roomDocument);
+  database.rooms[roomId] = normalizedRoomDocument;
+  return normalizedRoomDocument;
 }
 
 export function joinSharedRoomInDatabase(database, input) {
@@ -247,6 +327,7 @@ export function joinSharedRoomInDatabase(database, input) {
     ...roomDocument,
     memberIds: [...roomDocument.memberIds, profile.playerId],
     members: [...roomDocument.members, createSharedRoomMember(profile, "partner", timestamp)],
+    progression: roomDocument.progression,
     updatedAt: timestamp
   });
 
@@ -263,10 +344,20 @@ export function joinSharedRoomInDatabase(database, input) {
 export function commitSharedRoomStateInDatabase(database, input) {
   const roomDocument = loadSharedRoomInDatabase(database, input?.roomId);
   const timestamp = createTimestamp();
+
+  if (input?.expectedRevision !== undefined && input?.expectedRevision !== roomDocument.revision) {
+    throw new SharedRoomHttpError("Shared room revision conflict.", 409);
+  }
+
   const nextRoomDocument = validateSharedRoomDocument({
     ...roomDocument,
     revision: roomDocument.revision + 1,
-    sharedCoins: Math.max(0, Math.floor(input?.sharedCoins ?? roomDocument.sharedCoins)),
+    progression: advanceRitualDayIfNeeded(
+      input?.progression ?? roomDocument.progression,
+      roomDocument.memberIds,
+      roomDocument.members,
+      timestamp
+    ),
     updatedAt: timestamp,
     roomState: {
       ...input?.roomState,
@@ -562,7 +653,7 @@ export function sharedRoomDevPlugin() {
         }
 
         try {
-          const database = await readSharedRoomDevDatabase(databasePath);
+          const database = await loadSharedRoomDevDatabase(databasePath);
 
           if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/create") {
             const requestBody = await readRequestJson(request);
