@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { cloneRoomState, type RoomState } from "../../lib/roomState";
+import {
+  cloneRoomState,
+  createDefaultRoomState,
+  type RoomState
+} from "../../lib/roomState";
 import { sharedRoomClient } from "../../lib/sharedRoomClient";
 import type { SharedRoomStore } from "../../lib/sharedRoomStore";
 import type {
@@ -31,6 +35,9 @@ export interface SharedRoomBlockingState {
 }
 
 interface SharedRoomRuntimeOptions {
+  devBootstrapRoomState?: RoomState;
+  devBootstrapSharedCoins?: number;
+  devBypassEnabled?: boolean;
   sharedRoomStore?: SharedRoomStore;
 }
 
@@ -90,8 +97,12 @@ export function shouldCommitSharedRoomChange(
 }
 
 export function useSharedRoomRuntime({
+  devBootstrapRoomState,
+  devBootstrapSharedCoins = 0,
+  devBypassEnabled = import.meta.env.DEV,
   sharedRoomStore = sharedRoomClient
 }: SharedRoomRuntimeOptions = {}) {
+  const devBypassActive = devBypassEnabled;
   const initialProfile = useMemo(() => loadOrCreateSharedPlayerProfile(), []);
   const [profile, setProfile] = useState<SharedPlayerProfile>(initialProfile);
   const [displayName, setDisplayName] = useState(initialProfile.displayName);
@@ -105,9 +116,15 @@ export function useSharedRoomRuntime({
           "Loading shared room...",
           "Fetching the latest shared room state."
         )
+      : devBypassActive
+        ? createBlockingState(
+            "Loading shared room...",
+            "Bootstrapping the development shared room."
+          )
       : null
   );
   const statusTimeoutRef = useRef<number | null>(null);
+  const devBootstrapRequestRef = useRef(false);
 
   const clearStatusMessage = useCallback(() => {
     if (statusTimeoutRef.current !== null) {
@@ -240,6 +257,51 @@ export function useSharedRoomRuntime({
     [applyRoomDocument, persistProfile, setTimedStatusMessage, sharedRoomStore]
   );
 
+  const bootstrapDevRoom = useCallback(async () => {
+    if (!devBypassActive) {
+      return null;
+    }
+
+    const nextProfile = persistProfile();
+    setInlineError(null);
+    setBlockingState(
+      createBlockingState(
+        "Loading shared room...",
+        "Bootstrapping the development shared room."
+      )
+    );
+
+    try {
+      const nextRoomDocument = await sharedRoomStore.bootstrapDevSharedRoom({
+        profile: nextProfile,
+        sourceRoomState: cloneRoomState(
+          devBootstrapRoomState ?? createDefaultRoomState()
+        ),
+        sharedCoins: devBootstrapSharedCoins
+      });
+
+      applyRoomDocument(nextRoomDocument, nextProfile);
+      return nextRoomDocument;
+    } catch (error) {
+      setBlockingState(
+        createBlockingState(
+          "We couldn't load the shared room. Retry to fetch the latest room state.",
+          "Any unconfirmed local changes will be discarded before the shared room reloads.",
+          true
+        )
+      );
+      setInlineError(getSharedRoomErrorMessage(error));
+      return null;
+    }
+  }, [
+    applyRoomDocument,
+    devBootstrapRoomState,
+    devBootstrapSharedCoins,
+    devBypassActive,
+    persistProfile,
+    sharedRoomStore
+  ]);
+
   const joinRoom = useCallback(
     async (code: string) => {
       const nextProfile = persistProfile();
@@ -266,7 +328,27 @@ export function useSharedRoomRuntime({
     [applyRoomDocument, persistProfile, setTimedStatusMessage, sharedRoomStore]
   );
 
+  useEffect(() => {
+    if (
+      !devBypassActive ||
+      session ||
+      roomDocument ||
+      devBootstrapRequestRef.current
+    ) {
+      return;
+    }
+
+    devBootstrapRequestRef.current = true;
+    void bootstrapDevRoom().finally(() => {
+      devBootstrapRequestRef.current = false;
+    });
+  }, [bootstrapDevRoom, devBypassActive, roomDocument, session]);
+
   const reloadRoom = useCallback(async () => {
+    if (!session && devBypassActive) {
+      return bootstrapDevRoom();
+    }
+
     if (!session) {
       return null;
     }
@@ -278,7 +360,7 @@ export function useSharedRoomRuntime({
       "Reloading latest room...",
       "Fetching the latest shared room state."
     );
-  }, [loadRoom, session, setTimedStatusMessage]);
+  }, [bootstrapDevRoom, devBypassActive, loadRoom, session, setTimedStatusMessage]);
 
   const commitRoomState = useCallback(
     async (nextRoomState: RoomState, sharedCoins: number, reason: string) => {
@@ -330,6 +412,7 @@ export function useSharedRoomRuntime({
     clearRoom,
     commitRoomState,
     createRoom,
+    devBypassActive,
     displayName,
     hasPartner: roomDocument?.memberIds.length === 2,
     inlineError,

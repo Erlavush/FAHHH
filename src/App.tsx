@@ -198,7 +198,10 @@ function App() {
     setSaturation,
     setContrast
   } = useSandboxWorldClock();
-  const sharedRoomRuntime = useSharedRoomRuntime();
+  const sharedRoomRuntime = useSharedRoomRuntime({
+    devBootstrapRoomState: initialSandboxState.roomState,
+    devBootstrapSharedCoins: initialSandboxState.playerCoins
+  });
   const sharedRoomActive = sharedRoomRuntime.runtimeSnapshot !== null;
   const [cameraPosition, setCameraPosition] = useState<Vector3Tuple>(initialSandboxState.cameraPosition);
   const [playerPosition, setPlayerPosition] = useState<Vector3Tuple>(initialSandboxState.playerPosition);
@@ -837,15 +840,18 @@ function App() {
         <PerformanceMonitor />
         {sharedRoomActive ? (
           <>
-            <SharedRoomStatusStrip
-              inviteCode={sharedRoomRuntime.roomDocument?.inviteCode ?? ""}
-              memberCount={sharedRoomRuntime.roomDocument?.memberIds.length ?? 0}
-              onReloadLatest={() => {
-                void sharedRoomRuntime.reloadRoom();
-              }}
-              roomId={sharedRoomRuntime.roomDocument?.roomId ?? ""}
-              statusMessage={sharedRoomRuntime.statusMessage}
-            />
+            {!sharedRoomRuntime.devBypassActive ? (
+              <SharedRoomStatusStrip
+                inviteCode={sharedRoomRuntime.roomDocument?.inviteCode ?? ""}
+                memberCount={sharedRoomRuntime.roomDocument?.memberIds.length ?? 0}
+                onReloadLatest={() => {
+                  void sharedRoomRuntime.reloadRoom();
+                }}
+                presenceStatus={sharedRoomPresence.presenceStatus}
+                roomId={sharedRoomRuntime.roomDocument?.roomId ?? ""}
+                statusMessage={sharedRoomRuntime.statusMessage}
+              />
+            ) : null}
             <DevPanel
               visible={debugOpen}
               buildModeEnabled={buildModeEnabled}
@@ -1031,7 +1037,9 @@ function App() {
           </>
         ) : null}
 
-        {!sharedRoomActive && !sharedRoomRuntime.blockingState ? (
+        {!sharedRoomActive &&
+        !sharedRoomRuntime.blockingState &&
+        !sharedRoomRuntime.devBypassActive ? (
           <SharedRoomEntryShell
             displayName={sharedRoomRuntime.displayName}
             errorMessage={sharedRoomRuntime.inlineError}

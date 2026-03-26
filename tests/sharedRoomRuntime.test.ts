@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -27,6 +27,7 @@ declare global {
 type HookValue = ReturnType<typeof useSharedRoomRuntime>;
 
 type HarnessProps = {
+  devBypassEnabled?: boolean;
   sharedRoomStore: SharedRoomStore;
 };
 
@@ -34,8 +35,15 @@ let latestHookValue: HookValue | null = null;
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function HookHarness({ sharedRoomStore }: HarnessProps) {
-  latestHookValue = useSharedRoomRuntime({ sharedRoomStore });
+function HookHarness({ devBypassEnabled = false, sharedRoomStore }: HarnessProps) {
+  const devBootstrapRoomState = useMemo(() => createDefaultRoomState(), []);
+
+  latestHookValue = useSharedRoomRuntime({
+    devBypassEnabled,
+    devBootstrapRoomState,
+    devBootstrapSharedCoins: 120,
+    sharedRoomStore
+  });
   return null;
 }
 
@@ -123,6 +131,7 @@ describe("shared room runtime helpers", () => {
     const roomDocument = createSharedRoomDocument(profile.playerId);
     const loadSharedRoom = vi.fn().mockResolvedValue(roomDocument);
     const sharedRoomStore: SharedRoomStore = {
+      bootstrapDevSharedRoom: vi.fn(),
       createSharedRoom: vi.fn(),
       joinSharedRoom: vi.fn(),
       loadSharedRoom,
@@ -175,6 +184,62 @@ describe("shared room runtime helpers", () => {
   it("commits only confirmed room changes", () => {
     expect(shouldCommitSharedRoomChange("snapshot")).toBe(false);
     expect(shouldCommitSharedRoomChange("committed")).toBe(true);
+  });
+
+  it("auto-enters the dev shared room", async () => {
+    const profile = createProfile();
+    const roomDocument = createSharedRoomDocument(profile.playerId, {
+      roomId: "dev-shared-room",
+      inviteCode: "DEVROOM",
+      memberIds: [profile.playerId],
+      members: [
+        {
+          playerId: profile.playerId,
+          displayName: profile.displayName,
+          role: "creator",
+          joinedAt: profile.createdAt
+        }
+      ]
+    });
+    const bootstrapDevSharedRoom = vi.fn().mockResolvedValue(roomDocument);
+    const sharedRoomStore: SharedRoomStore = {
+      bootstrapDevSharedRoom,
+      createSharedRoom: vi.fn(),
+      joinSharedRoom: vi.fn(),
+      loadSharedRoom: vi.fn(),
+      commitSharedRoomState: vi.fn()
+    };
+
+    saveSharedPlayerProfile(profile);
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          devBypassEnabled: true,
+          sharedRoomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(bootstrapDevSharedRoom).toHaveBeenCalledTimes(1);
+    expect(bootstrapDevSharedRoom).toHaveBeenCalledWith({
+      profile: expect.objectContaining({
+        playerId: profile.playerId
+      }),
+      sharedCoins: 120,
+      sourceRoomState: expect.objectContaining({
+        metadata: expect.objectContaining({
+          roomId: "local-sandbox-room"
+        })
+      })
+    });
+    expect(latestHookValue?.devBypassActive).toBe(true);
+    expect(latestHookValue?.runtimeSnapshot?.roomId).toBe("dev-shared-room");
   });
 
   it("creates a session from the canonical room document", () => {
