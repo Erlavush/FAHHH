@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Risk It All is a browser-based cozy couple-room game built around shared intimacy, earned decoration, and emotional stakes. The current repo already ships a local solo 3D sandbox plus authoring tools; the active milestone is to turn that foundation into a jam-ready shared room where two partners can pair, progress together, personalize the room, and risk losing that shared progress on breakup.
+Risk It All is a browser-based cozy couple-room game built around shared intimacy, earned decoration, and emotional stakes. v1.0 now ships the jam-ready shared-room MVP on the current local/dev runtime: two partners can pair into one room, decorate it together, progress together, personalize the space, and explicitly risk resetting that shared history.
 
 ## Core Value
 
@@ -17,22 +17,22 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] User can earn coins through the desk PC minigame and persist sandbox progress locally.
 - [x] User can preview furniture and author imported mobs and pets through Preview Studio and Mob Lab.
 - [x] User can run the room with four-wall windows, world-clock lighting, and local pet prototypes.
-- [x] Couple can create or join one shared room via invite code and load the same canonical room document. Validated in Phase 1.
-- [x] Confirmed shared-room buy, place, store, sell, and remove flows persist through the shared-room store without collapsing ownership into placement. Validated in Phase 1.
-- [x] Shared-room state survives refresh and reconnect against the dev file-backed shared-room store while keeping Preview Studio and Mob Lab persistence separate. Validated in Phase 1.
-- [x] Development builds auto-enter a deterministic shared room for iteration, while shipped builds keep the real create/join flow. Validated in Phase 2 Plan 02.
-- [x] Each partner can see when the other partner joins, reconnects, or leaves through non-blocking presence status UX. Validated in Phase 2 Plan 02.
-- [x] Same-item shared-room edits use soft locks and stale local assumptions recover by canonical reload instead of silent drift. Validated in Phase 2 Plan 03.
-- [x] Each shared-room partner keeps a persistent personal wallet, XP, level, and desk-PC history inside the canonical room document. Validated in Phase 3.
-- [x] The live room shell surfaces personal wallet/XP plus shared streak and ritual state without a separate dashboard. Validated in Phase 3.
-- [x] The desk PC now drives a shared daily ritual that grants both partners a bonus on the second distinct same-day completion. Validated in Phase 3.
+- [x] Couple can create or join one canonical shared room and persist shared-room buy, place, store, sell, and remove flows without inventory drift.
+- [x] Shared-room state survives refresh, reconnect, and migration from the solo sandbox model while preserving existing room invariants.
+- [x] Live partner presence now covers avatar visibility, join/reconnect status UX, and predictable same-item edit convergence.
+- [x] Each partner keeps a persistent wallet, XP, and level while the couple shares a visible streak and one daily ritual loop.
+- [x] The shipped room runtime now separates a player-facing shell from a developer workspace and keeps Preview Studio and Mob Lab as explicit authoring tools.
+- [x] Couple can place one shared memory object, own one canonical shared cat, and trigger an explicit breakup-reset flow with confirmation.
 
 ### Active
 
-- [ ] Player-facing room UI is organized, aesthetic, and readable instead of looking like a stacked development shell.
-- [ ] Developer tooling lives in a separate developer view/workspace so iteration stays fast without polluting the shipped player experience.
-- [ ] Shared memories such as editable photo frames make the room personal.
-- [ ] Shared-room pet presence and breakup-reset stakes work without regressing the current sandbox foundation.
+- [ ] Select and integrate a production backend/auth path for one-couple room ownership instead of the dev file-backed shared-room store.
+- [ ] **RITL-02**: Couple can rotate through multiple daily ritual variants.
+- [ ] **ACTV-01**: Couple can access another repeatable earn loop beyond the desk PC path.
+- [ ] **MEMR-02**: Couple can maintain a richer memory collection beyond a single frame or object.
+- [ ] **PETS-02**: Shared-room pets have deeper behavior such as needs, moods, or interactions.
+- [ ] **CONT-01**: Room themes, decor sets, and cosmetic variants expand after the first shared loop is stable.
+- [ ] Close the v1.0 verification/process debt carried by missing phase `VERIFICATION.md` artifacts for Phases `2`, `3.1`, and `4`.
 
 ### Out of Scope
 
@@ -43,30 +43,37 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 ## Context
 
-- Brownfield React, Vite, TypeScript, and React Three Fiber codebase with a working local sandbox and extensive repo docs.
-- Refreshed brownfield implementation mapping now lives in `.planning/codebase/*` and should be treated as the canonical navigation layer for architecture, structure, testing, and concerns.
-- Current runtime truth lives in README and docs/AI_HANDOFF.md, docs/CURRENT_SYSTEMS.md, docs/ARCHITECTURE.md, docs/CODEBASE_MAP.md, and docs/GAME_OVERVIEW.md.
-- Current save boundary is browser-local via `devLocalState.ts`, `devWorldSettings.ts`, and `mobLabState.ts`.
-- Firebase-shaped env vars and rules files remain in the repo, but the active runtime inside `src/` does not currently import a live backend path.
-- The existing room schema, furniture registry, placement math, and preview tooling are stable assets that future phases should reuse rather than rewrite.
-- The missing product slice is not "make a room builder"; it is "turn this room builder into a shared couple experience."
+- Brownfield React, Vite, TypeScript, and React Three Fiber codebase with a working solo sandbox and a shipped local/dev shared-room MVP.
+- The repo currently contains 157 `.ts` / `.tsx` files and about 25,959 TypeScript lines across `src/` and `tests/`.
+- Refreshed brownfield implementation mapping in `.planning/codebase/*` remains the canonical navigation layer for architecture, structure, testing, and concerns.
+- Current runtime truth lives in README plus `docs/AI_HANDOFF.md`, `docs/CURRENT_SYSTEMS.md`, `docs/ARCHITECTURE.md`, `docs/CODEBASE_MAP.md`, and `docs/GAME_OVERVIEW.md`.
+- Current shared-room persistence is still the browser/dev-file-backed path around `devLocalState.ts`, `devWorldSettings.ts`, `mobLabState.ts`, and the dev shared-room store.
+- Firebase-shaped env vars and rules files remain in the repo, but the active runtime inside `src/` does not currently import a live production backend path.
+- The existing room schema, furniture registry, placement math, and preview tooling are stable assets for the next milestone rather than rewrite targets.
 
 ## Current State
 
-- Phase 3 is complete. The shared-room runtime now carries canonical personal progression, desk-PC ritual history, daily streak state, and conflict-aware replay for progression-affecting mutations.
-- Phase 03.1 is complete. The runtime now ships with a room-first player shell while Preview Studio, Mob Lab, and diagnostics stay in a separate developer workspace.
-- Shared-room commits remain authoritative for confirmed room and progression mutations, while live presence updates, item locks, camera/player transforms, and authoring-tool persistence stay outside canonical room revisions.
-- Phase 4 is complete. Shared wall-frame memories, one canonical shared cat, and breakup-reset stakes now finish the v1 emotional loop.
-- The current roadmap is fully executed and ready for milestone completion or the next milestone definition step.
+- v1.0 Shared Room MVP shipped on 2026-03-27 and is archived under `.planning/milestones/`.
+- The live runtime now supports canonical room identity, committed shared edits, live partner presence, personal and couple progression, a room-first player shell, developer-only authoring workspace surfaces, shared memories, one canonical shared cat, and breakup-reset stakes.
+- Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
+- The v1.0 milestone audit was archived with accepted gaps because Phases `2`, `3.1`, and `4` are missing `VERIFICATION.md`.
+- The next step is milestone definition, not more ad hoc v1 work.
+
+## Next Milestone Goals
+
+- Replace the dev file-backed shared-room stack with a real backend/auth path for one-couple room ownership.
+- Deepen return-play motivation with more rituals and at least one second repeatable earn loop.
+- Expand personalization through richer memories, deeper pet behavior, and additional room content sets.
+- Retire v1.0 process debt by making phase verification artifacts and milestone tooling consistent.
 
 ## Constraints
 
 - **Architecture**: Extend `roomState.ts`, `furnitureRegistry.ts`, and the current sandbox data model - replacing them would throw away proven brownfield behavior.
-- **Scope**: Favor a jam-MVP slice over broad feature expansion - shared room, progression, memory, and breakup stakes matter more than extra content breadth.
+- **Scope**: Favor the next milestone's highest-leverage slice over breadth - backend/auth, loop depth, and content follow-through matter more than feature sprawl.
 - **Compatibility**: Preserve `ownedFurniture` vs `furniture`, anchor-based surface decor, four-wall support, and current placement rules - these are existing invariants.
 - **Performance**: Keep the browser-first 3D runtime responsive on typical desktop and laptop hardware - new shared-state work cannot require a renderer rewrite.
-- **Authoring boundary**: Keep Mob Lab and Preview Studio as explicit authoring tools - do not merge their persistence into shared room runtime state.
-- **Delivery**: Plan around the current repo and docs as source of truth - the helper CLI is sandbox-blocked in this environment, so initialization artifacts must remain human-readable and directly editable.
+- **Authoring boundary**: Keep Mob Lab and Preview Studio as explicit authoring tools - do not merge their persistence into shared-room runtime state.
+- **Delivery**: Keep planning artifacts milestone-scoped and archive shipped milestone documents to `.planning/milestones/`.
 
 ## Key Decisions
 
@@ -74,7 +81,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 |----------|-----------|---------|
 | Treat initialization as brownfield, not greenfield | The repo already contains working systems and detailed architecture docs | Good |
 | Use the solo sandbox as validated foundation and scope the roadmap around missing jam-MVP systems | Prevents re-planning features that already exist | Good |
-| Extend the current room schema for shared-room sync instead of reviving deleted legacy architecture | Repo docs explicitly warn against restoring obsolete backend paths | Pending |
+| Extend the current room schema for shared-room sync instead of reviving deleted legacy architecture | Repo docs explicitly warn against restoring obsolete backend paths | Good |
 | Sync only committed room edits first, then layer live presence and shared progression | Matches current edit flow and reduces conflict complexity | Good |
 | Keep Mob Lab as the pet and imported-model authoring path while shared-room pet behavior stays runtime-specific | Preserves the existing separation between tooling and gameplay state | Good |
 | Treat `.planning/codebase/*` as the canonical brownfield map during GSD execution | The repo is moving into GSD flow and needs one implementation navigation source | Good |
@@ -85,9 +92,10 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Phase 2 development builds auto-enter `dev-shared-room` instead of showing pairing chrome first | Keeps iteration fast without splitting the shipped pairing/runtime path | Good |
 | Phase 2 partner status UX comes from presence freshness instead of room commits | Waiting/reconnect states must stay reliable even when canonical room state does not change | Good |
 | Phase 2 same-item conflicts use TTL soft locks plus canonical reload recovery | Reduces collisions without inventing fake client-side merge semantics | Good |
-| Insert urgent Phase 03.1 before personalization/stakes work | The current shell mixes real player UI with developer tooling, making both the shipped experience and daily iteration worse | Good |
-| Phase 4 personalization lives beside RoomState inside the shared-room document | Memories and the shared pet need canonical persistence without perturbing furniture ownership or placement rules | Good |
+| Insert urgent Phase `03.1` before personalization/stakes work | The mixed player/debug shell was hurting both shipped UX and daily iteration | Good |
+| Phase 4 personalization lives beside `RoomState` inside the shared-room document | Memories and the shared pet need canonical persistence without perturbing furniture ownership or placement rules | Good |
 | Breakup reset rebuilds one fresh shared baseline through the normal mutation pipeline | Destructive state changes still need stale-revision replay safety and one authoritative reset contract | Good |
+| Archive v1.0 despite milestone audit gaps | HEAD is stable enough to treat the missing verification artifacts as process debt rather than reopen shipped scope | Revisit |
 
 ## Evolution
 
@@ -103,8 +111,8 @@ This document evolves at phase transitions and milestone boundaries.
 **After each milestone** (via `$gsd-complete-milestone`):
 1. Full review of all sections
 2. Core Value check - still the right priority?
-3. Audit Out of Scope - reasons still valid?
-4. Update Context with current state
+3. Audit Out of Scope and active next-milestone goals
+4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-27 after Phase 04 completion*
+*Last updated: 2026-03-27 after v1.0 milestone completion*
