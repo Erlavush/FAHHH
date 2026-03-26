@@ -2,6 +2,10 @@ import type {
   FurnitureInteractionType,
   FurnitureType
 } from "../lib/furnitureRegistry";
+import type {
+  SharedPresenceActivity,
+  SharedPresencePose
+} from "../lib/sharedPresenceTypes";
 import type { OwnedFurnitureItem, Vector3Tuple } from "../lib/roomState";
 
 export type PreviewStudioMode = "furniture" | "mob_lab";
@@ -27,6 +31,13 @@ export type PlayerInteractionStatus =
       furnitureId: string;
     }
   | null;
+
+export interface LocalPlayerPresenceSnapshot {
+  position: Vector3Tuple;
+  facingY: number;
+  activity: SharedPresenceActivity;
+  interactionPose: SharedPresencePose | null;
+}
 
 export type SceneJumpRequest = {
   requestId: number;

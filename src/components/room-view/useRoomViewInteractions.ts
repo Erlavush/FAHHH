@@ -14,6 +14,10 @@ import {
   getFurnitureAABBs,
   getPlayerAABB
 } from "../../lib/furnitureCollision";
+import type {
+  SharedPresenceActivity,
+  SharedPresencePose
+} from "../../lib/sharedPresenceTypes";
 import {
   getFurnitureInteractionTarget,
   type FurnitureInteractionTarget
@@ -48,14 +52,7 @@ type PlayerTeleportRequest = {
   position: Vector3Tuple;
 } | null;
 
-type PlayerInteractionPose =
-  | {
-      type: FurnitureInteractionTarget["type"];
-      position: Vector3Tuple;
-      rotationY: number;
-      poseOffset?: Vector3Tuple;
-    }
-  | null;
+type PlayerInteractionPose = SharedPresencePose | null;
 
 type UseRoomViewInteractionsOptions = {
   buildModeEnabled: boolean;
@@ -135,6 +132,23 @@ export function useRoomViewInteractions({
       poseOffset: activeInteraction.poseOffset
     };
   }, [activeInteraction]);
+
+  const playerPresenceActivity = useMemo<SharedPresenceActivity>(() => {
+    if (activeInteraction) {
+      return activeInteraction.type;
+    }
+
+    if (pendingInteraction) {
+      return "walking";
+    }
+
+    const distanceToTarget = Math.hypot(
+      targetPosition[0] - playerWorldPosition[0],
+      targetPosition[2] - playerWorldPosition[2]
+    );
+
+    return distanceToTarget > 0.02 ? "walking" : "idle";
+  }, [activeInteraction, pendingInteraction, playerWorldPosition, targetPosition]);
 
   const resetPlayerInteractions = useCallback(() => {
     setPendingInteraction(null);
@@ -628,6 +642,7 @@ export function useRoomViewInteractions({
     interactionHint,
     jumpPlayerToPosition,
     pendingInteraction,
+    playerPresenceActivity,
     playerInteractionPose,
     playerTeleportRequest,
     resetPlayerInteractions,

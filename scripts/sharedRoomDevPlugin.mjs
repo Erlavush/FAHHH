@@ -6,6 +6,10 @@ import {
   isValidSharedPlayerProfile,
   validateSharedRoomDocument
 } from "../src/lib/sharedRoomValidation";
+import {
+  validateSharedPresenceRoomSnapshot,
+  validateSharedPresenceSnapshot
+} from "../src/lib/sharedPresenceValidation";
 
 export const SHARED_ROOM_DEV_DB_FILENAME = "shared-room-dev-db.json";
 
@@ -21,7 +25,8 @@ export function createEmptySharedRoomDevDatabase() {
   return {
     profiles: {},
     invites: {},
-    rooms: {}
+    rooms: {},
+    presenceByRoom: {}
   };
 }
 
@@ -66,7 +71,8 @@ export async function readSharedRoomDevDatabase(databasePath) {
     return {
       profiles: parsedDatabase?.profiles ?? {},
       invites: parsedDatabase?.invites ?? {},
-      rooms: parsedDatabase?.rooms ?? {}
+      rooms: parsedDatabase?.rooms ?? {},
+      presenceByRoom: parsedDatabase?.presenceByRoom ?? {}
     };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
@@ -204,6 +210,94 @@ export function commitSharedRoomStateInDatabase(database, input) {
   return nextRoomDocument;
 }
 
+function ensurePlayerBelongsToSharedRoom(roomDocument, playerId) {
+  if (!roomDocument.memberIds.includes(playerId)) {
+    throw new SharedRoomHttpError("Player is not a member of this shared room", 403);
+  }
+}
+
+function createEmptySharedPresenceRoomSnapshot(roomId, updatedAt = createTimestamp()) {
+  return validateSharedPresenceRoomSnapshot({
+    roomId,
+    presences: [],
+    updatedAt
+  });
+}
+
+function loadSharedRoomPresenceSnapshotInDatabase(database, roomId) {
+  loadSharedRoomInDatabase(database, roomId);
+
+  const roomPresence = database.presenceByRoom[roomId];
+
+  if (!roomPresence) {
+    const emptySnapshot = createEmptySharedPresenceRoomSnapshot(roomId);
+    database.presenceByRoom[roomId] = emptySnapshot;
+    return emptySnapshot;
+  }
+
+  const validatedPresence = validateSharedPresenceRoomSnapshot(roomPresence);
+  database.presenceByRoom[roomId] = validatedPresence;
+  return validatedPresence;
+}
+
+export function upsertSharedPresenceInDatabase(database, input) {
+  const presence = validateSharedPresenceSnapshot(input?.presence);
+  const roomDocument = loadSharedRoomInDatabase(database, presence.roomId);
+  const timestamp = createTimestamp();
+
+  ensurePlayerBelongsToSharedRoom(roomDocument, presence.playerId);
+
+  const roomPresence = loadSharedRoomPresenceSnapshotInDatabase(database, presence.roomId);
+  const nextRoomPresence = validateSharedPresenceRoomSnapshot({
+    roomId: presence.roomId,
+    presences: [
+      ...roomPresence.presences.filter((entry) => entry.playerId !== presence.playerId),
+      {
+        ...presence,
+        updatedAt: timestamp
+      }
+    ],
+    updatedAt: timestamp
+  });
+
+  database.presenceByRoom[presence.roomId] = nextRoomPresence;
+
+  return nextRoomPresence.presences.find((entry) => entry.playerId === presence.playerId);
+}
+
+export function loadRoomPresenceInDatabase(database, roomId) {
+  return loadSharedRoomPresenceSnapshotInDatabase(database, roomId);
+}
+
+export function leaveSharedPresenceInDatabase(database, input) {
+  const roomId = input?.roomId;
+  const playerId = input?.playerId;
+
+  if (typeof roomId !== "string" || roomId.length === 0) {
+    throw new SharedRoomHttpError("Room id is required", 400);
+  }
+
+  if (typeof playerId !== "string" || playerId.length === 0) {
+    throw new SharedRoomHttpError("Player id is required", 400);
+  }
+
+  const roomDocument = loadSharedRoomInDatabase(database, roomId);
+  const timestamp = createTimestamp();
+
+  ensurePlayerBelongsToSharedRoom(roomDocument, playerId);
+
+  const roomPresence = loadSharedRoomPresenceSnapshotInDatabase(database, roomId);
+  const nextRoomPresence = validateSharedPresenceRoomSnapshot({
+    roomId,
+    presences: roomPresence.presences.filter((entry) => entry.playerId !== playerId),
+    updatedAt: timestamp
+  });
+
+  database.presenceByRoom[roomId] = nextRoomPresence;
+
+  return nextRoomPresence;
+}
+
 async function readRequestJson(request) {
   const chunks = [];
 
@@ -273,6 +367,34 @@ export function sharedRoomDevPlugin() {
             const roomDocument = commitSharedRoomStateInDatabase(database, requestBody);
             await writeSharedRoomDevDatabase(databasePath, database);
             writeJson(response, 200, roomDocument);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/presence/upsert") {
+            const requestBody = await readRequestJson(request);
+            const presence = upsertSharedPresenceInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, presence);
+            return;
+          }
+
+          if (
+            method === "GET" &&
+            requestUrl.pathname.startsWith("/api/dev/shared-room/presence/room/")
+          ) {
+            const roomId = decodeURIComponent(
+              requestUrl.pathname.slice("/api/dev/shared-room/presence/room/".length)
+            );
+            const roomPresence = loadRoomPresenceInDatabase(database, roomId);
+            writeJson(response, 200, roomPresence);
+            return;
+          }
+
+          if (method === "POST" && requestUrl.pathname === "/api/dev/shared-room/presence/leave") {
+            const requestBody = await readRequestJson(request);
+            const roomPresence = leaveSharedPresenceInDatabase(database, requestBody);
+            await writeSharedRoomDevDatabase(databasePath, database);
+            writeJson(response, 200, roomPresence);
             return;
           }
 

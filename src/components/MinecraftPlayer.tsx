@@ -1,3 +1,4 @@
+import { Html } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useControls } from "leva";
@@ -11,6 +12,7 @@ import {
 } from "three";
 import { resolvePlayerMovement } from "../lib/physics";
 import { RoomFurniturePlacement } from "../lib/roomState";
+import type { SharedPresencePose } from "../lib/sharedPresenceTypes";
 
 type CubeFace = "right" | "left" | "top" | "bottom" | "front" | "back";
 
@@ -39,21 +41,21 @@ interface SkinSet {
 }
 
 interface MinecraftPlayerProps {
+  displayName?: string | null;
   initialPosition: [number, number, number];
+  initialFacingY?: number;
+  mode?: "local" | "remote";
   teleportPosition: [number, number, number] | null;
   teleportRequestId: number;
   skinSrc: string | null;
   targetPosition: [number, number, number];
+  targetFacingY?: number | null;
   furniture: RoomFurniturePlacement[];
-  interaction:
-    | {
-        type: "sit" | "lie" | "use_pc";
-        position: [number, number, number];
-        rotationY: number;
-        poseOffset?: [number, number, number];
-      }
-    | null;
-  onPositionChange: (position: [number, number, number]) => void;
+  interaction: SharedPresencePose | null;
+  onTransformChange?: (
+    position: [number, number, number],
+    facingY: number
+  ) => void;
   shadowsEnabled: boolean;
 }
 
@@ -352,14 +354,18 @@ function lerpAngle(current: number, target: number, factor: number): number {
 }
 
 export function MinecraftPlayer({
+  displayName = null,
   initialPosition,
+  initialFacingY = 0,
+  mode = "local",
   teleportPosition,
   teleportRequestId,
   skinSrc,
   targetPosition,
+  targetFacingY = null,
   furniture,
   interaction,
-  onPositionChange,
+  onTransformChange,
   shadowsEnabled
 }: MinecraftPlayerProps) {
   const { moveSpeed } = useControls("Player", {
@@ -377,6 +383,7 @@ export function MinecraftPlayer({
   const leftLegRef = useRef<Group>(null);
   const stepTimeRef = useRef(0);
   const lastSentTimeRef = useRef(0);
+  const isRemote = mode === "remote";
 
   useEffect(() => {
     if (!teleportPosition || !rootRef.current) {
@@ -389,6 +396,14 @@ export function MinecraftPlayer({
       teleportPosition[2]
     );
   }, [teleportPosition, teleportRequestId]);
+
+  useEffect(() => {
+    if (!rootRef.current) {
+      return;
+    }
+
+    rootRef.current.rotation.y = initialFacingY;
+  }, [initialFacingY]);
 
   useEffect(() => {
     let cancelled = false;
@@ -468,6 +483,7 @@ export function MinecraftPlayer({
     const dz = targetPosition[2] - root.position.z;
     const distance = Math.hypot(dx, dz);
     const isMoving = distance > 0.02;
+    const desiredFacingY = targetFacingY ?? root.rotation.y;
     const interactionDistance = interaction
       ? Math.hypot(
           interaction.position[0] - root.position.x,
@@ -505,28 +521,40 @@ export function MinecraftPlayer({
       root.rotation.y = lerpAngle(root.rotation.y, interaction.rotationY, Math.min(1, delta * 12));
       stepTimeRef.current += delta * 1.4;
     } else if (isMoving) {
-      const moveStep = Math.min(distance, moveSpeed * delta);
-      const movementResult = resolvePlayerMovement(
-        [root.position.x, root.position.y, root.position.z],
-        [
-          root.position.x + (dx / distance) * moveStep,
-          root.position.y,
-          root.position.z + (dz / distance) * moveStep
-        ],
-        furniture
-      );
+      if (isRemote) {
+        const smoothing = Math.min(1, delta * 6);
+        root.position.x += dx * smoothing;
+        root.position.z += dz * smoothing;
+        root.rotation.y = lerpAngle(root.rotation.y, desiredFacingY, Math.min(1, delta * 8));
+        stepTimeRef.current += delta * 10;
+      } else {
+        const moveStep = Math.min(distance, moveSpeed * delta);
+        const movementResult = resolvePlayerMovement(
+          [root.position.x, root.position.y, root.position.z],
+          [
+            root.position.x + (dx / distance) * moveStep,
+            root.position.y,
+            root.position.z + (dz / distance) * moveStep
+          ],
+          furniture
+        );
 
-      root.position.set(
-        movementResult.position[0],
-        movementResult.position[1],
-        movementResult.position[2]
-      );
+        root.position.set(
+          movementResult.position[0],
+          movementResult.position[1],
+          movementResult.position[2]
+        );
 
-      const targetYaw = Math.atan2(dx, dz);
-      root.rotation.y = lerpAngle(root.rotation.y, targetYaw, Math.min(1, delta * 10));
+        const targetYaw = Math.atan2(dx, dz);
+        root.rotation.y = lerpAngle(root.rotation.y, targetYaw, Math.min(1, delta * 10));
 
-      stepTimeRef.current += delta * 12;
+        stepTimeRef.current += delta * 12;
+      }
     } else {
+      if (isRemote) {
+        root.rotation.y = lerpAngle(root.rotation.y, desiredFacingY, Math.min(1, delta * 8));
+      }
+
       stepTimeRef.current += delta * 2.3;
     }
 
@@ -637,9 +665,12 @@ export function MinecraftPlayer({
       leftLeg.rotation.z = 0;
     }
 
-    if (state.clock.elapsedTime - lastSentTimeRef.current >= 0.1) {
+    if (onTransformChange && state.clock.elapsedTime - lastSentTimeRef.current >= 0.1) {
       lastSentTimeRef.current = state.clock.elapsedTime;
-      onPositionChange([root.position.x, root.position.y, root.position.z]);
+      onTransformChange(
+        [root.position.x, root.position.y, root.position.z],
+        root.rotation.y
+      );
     }
   });
 
@@ -649,6 +680,11 @@ export function MinecraftPlayer({
 
   return (
     <group ref={rootRef} position={initialPosition}>
+      {displayName ? (
+        <Html position={[0, 2.3, 0]} center distanceFactor={14}>
+          <div className="minecraft-player__nameplate">{displayName}</div>
+        </Html>
+      ) : null}
       <group ref={poseRef}>
         <group ref={headRef} position={[0, 1.75, 0]}>
           <mesh castShadow={shadowsEnabled} material={skinSet.head}>
