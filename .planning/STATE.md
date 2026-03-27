@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Online Foundation
-status: ready_to_execute
+milestone: v1.0
+milestone_name: milestone
+status: executing
 stopped_at: Phase 5 planned
-last_updated: "2026-03-27T12:28:52.6253677+08:00"
-last_activity: 2026-03-27 -- Started milestone v1.1 Online Foundation
+last_updated: "2026-03-27T04:44:22.571Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 12
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 5 execution for v1.1 Online Foundation
+**Current focus:** Phase 5 — Online Backend and Couple Ownership
 
 ## Current Position
 
-Phase: 05 (online-backend-and-couple-ownership) - NOT STARTED
-Plan: 05-01, 05-02, 05-03
-Status: Phase 05 planned and ready to execute
-Last activity: 2026-03-27 -- Started milestone v1.1 Online Foundation
+Phase: 5 (Online Backend and Couple Ownership) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-03-27
 
 Progress: [----------] 0%
 
@@ -116,6 +116,7 @@ Recent decisions affecting current work:
 - [ ] [RT-02] [Create Ceiling Furniture Set](file:///z:/FAHHHH/.planning/todos/furniture-system/ceiling-furniture-set.md)
 - [ ] [SC-01] [Implement Global Surface Customization](file:///z:/FAHHHH/.planning/todos/surface-customization/global-surface-customization.md)
 - [ ] [RA-01] [Implement Unrestricted Vertical Placement](file:///z:/FAHHHH/.planning/todos/room-architecture/vertical-placement-freedom.md)
+- [ ] [NV-01] [Implement Player and Pet Pathfinding](file:///z:/FAHHHH/.planning/todos/navigation/player-and-pet-pathfinding.md)
 - [ ] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
 - [ ] [AP-01] [Bulk mod asset import](file:///z:/FAHHHH/.planning/todos/asset-pipeline/bulk-mod-asset-import.md)
 
