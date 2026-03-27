@@ -12,6 +12,7 @@ import {
   ensureSharedRoomProgressionMembers,
   selectActivePlayerProgression
 } from "../src/lib/sharedProgression";
+import type { SharedRoomProgressionState } from "../src/lib/sharedProgressionTypes";
 
 function createMembers() {
   return [
@@ -130,6 +131,111 @@ describe("sharedProgression", () => {
       coins: 0,
       xp: 0,
       level: 1
+    });
+  });
+
+  it("migrates legacy streak fields into Together Days without losing progress", () => {
+    const progression = createProgression(0);
+    const legacyProgression = {
+      ...progression,
+      couple: {
+        streakCount: 4,
+        longestStreakCount: 7,
+        lastCompletedDayKey: "2026-03-24",
+        ritual: {
+          dayKey: "2026-03-26",
+          completionsByPlayerId: {},
+          completedAt: null,
+          bonusAppliedAt: null
+        },
+        updatedAt: "2026-03-26T08:00:00.000Z"
+      }
+    } as unknown as SharedRoomProgressionState;
+
+    const ensured = ensureSharedRoomProgressionMembers(
+      legacyProgression,
+      ["player-1", "player-2"],
+      createMembers(),
+      "2026-03-26T10:00:00.000Z"
+    );
+
+    expect(ensured.couple.togetherDaysCount).toBe(4);
+    expect(ensured.couple.bestTogetherDaysCount).toBe(7);
+    expect(ensured.couple.lastTogetherDayKey).toBe("2026-03-24");
+  });
+
+  it("seeds visit day and featured activity for the current room day", () => {
+    const progression = createProgression(0);
+
+    expect(progression.couple.visitDay).toEqual({
+      dayKey: "2026-03-26",
+      visitedByPlayerId: {},
+      countedAt: null
+    });
+    expect(progression.couple.featuredActivity?.dayKey).toBe("2026-03-26");
+    expect(["pc_snake", "pc_block_stacker", "pc_runner", "cozy_rest"]).toContain(
+      progression.couple.featuredActivity?.activityId
+    );
+    expect(progression.couple.activityClaimsByDayKey).toEqual({});
+  });
+
+  it("normalizes mixed per-player and couple claim records", () => {
+    const progression = createProgression(0);
+    const rawProgression = {
+      ...progression,
+      couple: {
+        ...progression.couple,
+        activityClaimsByDayKey: {
+          "2026-03-26": {
+            pc_snake: {
+              activityId: "pc_snake",
+              claimMode: "per_player",
+              perPlayerClaimsByPlayerId: {
+                "player-1": {
+                  claimedAt: "2026-03-26T10:00:00.000Z",
+                  rewardCoins: 6,
+                  rewardXp: 4,
+                  score: 12
+                }
+              },
+              coupleClaim: null
+            },
+            cozy_rest: {
+              activityId: "cozy_rest",
+              claimMode: "couple",
+              perPlayerClaimsByPlayerId: {},
+              coupleClaim: {
+                claimedAt: "2026-03-26T11:00:00.000Z",
+                rewardCoins: 10,
+                rewardXp: 6,
+                score: 0
+              }
+            }
+          }
+        }
+      }
+    } as SharedRoomProgressionState;
+
+    const ensured = ensureSharedRoomProgressionMembers(
+      rawProgression,
+      ["player-1", "player-2"],
+      createMembers(),
+      "2026-03-26T12:00:00.000Z"
+    );
+
+    expect(
+      ensured.couple.activityClaimsByDayKey["2026-03-26"]?.pc_snake?.perPlayerClaimsByPlayerId[
+        "player-1"
+      ]
+    ).toMatchObject({
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12
+    });
+    expect(ensured.couple.activityClaimsByDayKey["2026-03-26"]?.cozy_rest?.coupleClaim).toMatchObject({
+      rewardCoins: 10,
+      rewardXp: 6,
+      score: 0
     });
   });
 
