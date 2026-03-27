@@ -95,6 +95,21 @@ function createSharedPresenceStore(
       roomId: "shared-room-1",
       updatedAt: new Date(Date.now()).toISOString(),
       locks: []
+    }),
+    upsertPairLinkPresence: vi.fn().mockResolvedValue({
+      pendingLinkId: "pending:player-1:player-2",
+      updatedAt: new Date(Date.now()).toISOString(),
+      presences: []
+    }),
+    loadPairLinkPresence: vi.fn().mockResolvedValue({
+      pendingLinkId: "pending:player-1:player-2",
+      updatedAt: new Date(Date.now()).toISOString(),
+      presences: []
+    }),
+    leavePairLinkPresence: vi.fn().mockResolvedValue({
+      pendingLinkId: "pending:player-1:player-2",
+      updatedAt: new Date(Date.now()).toISOString(),
+      presences: []
     })
   };
 }

@@ -5,6 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createInitialSharedRoomProgression } from "../src/lib/sharedProgression";
 import { useSharedRoomRuntime } from "../src/app/hooks/useSharedRoomRuntime";
+import {
+  createEmptyFirebaseHostedDatabase,
+  createFirebaseOwnershipStore
+} from "../src/lib/firebaseOwnershipStore";
+import { createFirebasePresenceStore } from "../src/lib/firebasePresenceStore";
 import { cloneRoomState, createDefaultRoomState } from "../src/lib/roomState";
 import {
   saveSharedPlayerProfile,
@@ -12,6 +17,7 @@ import {
 } from "../src/lib/sharedRoomSession";
 import type { SharedRoomStore } from "../src/lib/sharedRoomStore";
 import type {
+  SharedRoomBootstrapState,
   SharedPlayerProfile,
   SharedRoomDocument
 } from "../src/lib/sharedRoomTypes";
@@ -61,6 +67,30 @@ function createProfile(
     createdAt: overrides.createdAt ?? "2026-03-26T00:00:00.000Z",
     updatedAt: overrides.updatedAt ?? "2026-03-26T00:00:00.000Z"
   };
+}
+
+function requirePendingLinkState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "pending_link" }> {
+  expect(state.kind).toBe("pending_link");
+
+  if (state.kind !== "pending_link") {
+    throw new Error("Expected pending_link bootstrap state.");
+  }
+
+  return state;
+}
+
+function requirePairedRoomState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "paired_room" }> {
+  expect(state.kind).toBe("paired_room");
+
+  if (state.kind !== "paired_room") {
+    throw new Error("Expected paired_room bootstrap state.");
+  }
+
+  return state;
 }
 
 function createSharedRoomDocument(
@@ -143,6 +173,60 @@ describe("shared room edit locks", () => {
     container = null;
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("rejects a conflicting partner lock", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const presenceStore = createFirebasePresenceStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const creatorProfile = createProfile({
+      playerId: "player-1",
+      displayName: "Ari"
+    });
+    const partnerProfile = createProfile({
+      playerId: "player-2",
+      displayName: "Bea"
+    });
+    const partnerBootstrap = await ownershipStore.loadBootstrapState({
+      profile: partnerProfile
+    });
+    const pendingBootstrap = await ownershipStore.submitPairCode({
+      profile: creatorProfile,
+      pairCode: partnerBootstrap.selfPairCode
+    });
+    const pendingLinkState = requirePendingLinkState(pendingBootstrap);
+
+    await ownershipStore.confirmPairLink({
+      profile: creatorProfile,
+      pendingLinkId: pendingLinkState.pendingLink.pendingLinkId
+    });
+    const pairedBootstrap = await ownershipStore.confirmPairLink({
+      profile: partnerProfile,
+      pendingLinkId: pendingLinkState.pendingLink.pendingLinkId
+    });
+    const pairedRoomState = requirePairedRoomState(pairedBootstrap);
+
+    await presenceStore.acquireEditLock({
+      roomId: pairedRoomState.membership.roomId,
+      furnitureId: "starter-bed",
+      playerId: creatorProfile.playerId,
+      displayName: creatorProfile.displayName
+    });
+
+    await expect(
+      presenceStore.acquireEditLock({
+        roomId: pairedRoomState.membership.roomId,
+        furnitureId: "starter-bed",
+        playerId: partnerProfile.playerId,
+        displayName: partnerProfile.displayName
+      })
+    ).rejects.toThrow("Your partner is editing this item");
   });
 
   it("blocks same-item edits until the lock expires", () => {

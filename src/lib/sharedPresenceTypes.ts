@@ -49,6 +49,19 @@ export interface SharedEditLockRoomSnapshot {
   updatedAt: string;
 }
 
+export interface SharedPairLinkPresence {
+  pendingLinkId: string;
+  playerId: string;
+  displayName: string;
+  updatedAt: string;
+}
+
+export interface SharedPairLinkPresenceSnapshot {
+  pendingLinkId: string;
+  presences: SharedPairLinkPresence[];
+  updatedAt: string;
+}
+
 export interface UpsertSharedPresenceInput {
   presence: SharedPresenceSnapshot;
 }
@@ -83,5 +96,20 @@ export interface ReleaseSharedEditLockInput {
 
 export interface LeaveSharedPresenceInput {
   roomId: string;
+  playerId: string;
+}
+
+export interface UpsertPairLinkPresenceInput {
+  pendingLinkId: string;
+  playerId: string;
+  displayName: string;
+}
+
+export interface LoadPairLinkPresenceInput {
+  pendingLinkId: string;
+}
+
+export interface LeavePairLinkPresenceInput {
+  pendingLinkId: string;
   playerId: string;
 }

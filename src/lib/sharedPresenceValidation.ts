@@ -1,9 +1,12 @@
 import type { Vector3Tuple } from "./roomState";
 import type {
   AcquireSharedEditLockInput,
+  LoadPairLinkPresenceInput,
   LoadSharedRoomLocksInput,
   ReleaseSharedEditLockInput,
   RenewSharedEditLockInput,
+  SharedPairLinkPresence,
+  SharedPairLinkPresenceSnapshot,
   SharedPresenceActivity,
   SharedEditLock,
   SharedEditLockRoomSnapshot,
@@ -109,6 +112,30 @@ export function isValidSharedEditLockRoomSnapshot(
   );
 }
 
+export function isValidSharedPairLinkPresence(
+  value: unknown
+): value is SharedPairLinkPresence {
+  return (
+    isRecord(value) &&
+    typeof value.pendingLinkId === "string" &&
+    typeof value.playerId === "string" &&
+    typeof value.displayName === "string" &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
+export function isValidSharedPairLinkPresenceSnapshot(
+  value: unknown
+): value is SharedPairLinkPresenceSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.pendingLinkId === "string" &&
+    Array.isArray(value.presences) &&
+    value.presences.every(isValidSharedPairLinkPresence) &&
+    isIsoDateString(value.updatedAt)
+  );
+}
+
 export function isValidLoadSharedRoomLocksInput(
   value: unknown
 ): value is LoadSharedRoomLocksInput {
@@ -125,6 +152,12 @@ export function isValidAcquireSharedEditLockInput(
     typeof value.playerId === "string" &&
     typeof value.displayName === "string"
   );
+}
+
+export function isValidLoadPairLinkPresenceInput(
+  value: unknown
+): value is LoadPairLinkPresenceInput {
+  return isRecord(value) && typeof value.pendingLinkId === "string";
 }
 
 export function isValidRenewSharedEditLockInput(
@@ -208,5 +241,33 @@ export function validateSharedEditLockRoomSnapshot(
     roomId: roomSnapshot.roomId,
     updatedAt: roomSnapshot.updatedAt,
     locks: roomSnapshot.locks.map(validateSharedEditLock)
+  };
+}
+
+export function validateSharedPairLinkPresence(
+  value: unknown
+): SharedPairLinkPresence {
+  if (!isValidSharedPairLinkPresence(value)) {
+    throw new Error("Invalid shared pair-link presence");
+  }
+
+  return {
+    ...(value as SharedPairLinkPresence)
+  };
+}
+
+export function validateSharedPairLinkPresenceSnapshot(
+  value: unknown
+): SharedPairLinkPresenceSnapshot {
+  if (!isValidSharedPairLinkPresenceSnapshot(value)) {
+    throw new Error("Invalid shared pair-link presence snapshot");
+  }
+
+  const snapshot = value as SharedPairLinkPresenceSnapshot;
+
+  return {
+    pendingLinkId: snapshot.pendingLinkId,
+    updatedAt: snapshot.updatedAt,
+    presences: snapshot.presences.map(validateSharedPairLinkPresence)
   };
 }
