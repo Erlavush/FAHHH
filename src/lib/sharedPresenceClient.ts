@@ -1,13 +1,19 @@
+import { getSharedBackendMode } from "./sharedBackendConfig";
+import { createFirebasePresenceStore } from "./firebasePresenceStore";
 import type {
   AcquireSharedEditLockInput,
+  LeavePairLinkPresenceInput,
   LeaveSharedPresenceInput,
+  LoadPairLinkPresenceInput,
   LoadSharedRoomLocksInput,
   LoadSharedRoomPresenceInput,
   ReleaseSharedEditLockInput,
   RenewSharedEditLockInput,
   SharedEditLockRoomSnapshot,
+  SharedPairLinkPresenceSnapshot,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot,
+  UpsertPairLinkPresenceInput,
   UpsertSharedPresenceInput
 } from "./sharedPresenceTypes";
 import type { SharedPresenceStore } from "./sharedPresenceStore";
@@ -158,8 +164,45 @@ export function createSharedPresenceStore(
           body: JSON.stringify(input)
         }
       );
+    },
+    upsertPairLinkPresence(
+      input: UpsertPairLinkPresenceInput
+    ): Promise<SharedPairLinkPresenceSnapshot> {
+      return Promise.resolve({
+        pendingLinkId: input.pendingLinkId,
+        presences: [
+          {
+            pendingLinkId: input.pendingLinkId,
+            playerId: input.playerId,
+            displayName: input.displayName,
+            updatedAt: new Date().toISOString()
+          }
+        ],
+        updatedAt: new Date().toISOString()
+      });
+    },
+    loadPairLinkPresence(
+      input: LoadPairLinkPresenceInput
+    ): Promise<SharedPairLinkPresenceSnapshot> {
+      return Promise.resolve({
+        pendingLinkId: input.pendingLinkId,
+        presences: [],
+        updatedAt: new Date().toISOString()
+      });
+    },
+    leavePairLinkPresence(
+      input: LeavePairLinkPresenceInput
+    ): Promise<SharedPairLinkPresenceSnapshot> {
+      return Promise.resolve({
+        pendingLinkId: input.pendingLinkId,
+        presences: [],
+        updatedAt: new Date().toISOString()
+      });
     }
   };
 }
 
-export const sharedPresenceClient = createSharedPresenceStore();
+export const sharedPresenceClient =
+  getSharedBackendMode() === "firebase"
+    ? createFirebasePresenceStore()
+    : createSharedPresenceStore();

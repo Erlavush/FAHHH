@@ -1,3 +1,5 @@
+import { getSharedBackendMode } from "./sharedBackendConfig";
+import { createFirebaseRoomStore } from "./firebaseRoomStore";
 import type { SharedRoomDocument } from "./sharedRoomTypes";
 import type {
   BootstrapDevSharedRoomInput,
@@ -27,7 +29,12 @@ export class SharedRoomClientError extends Error {
 export function isSharedRoomConflictError(
   error: unknown
 ): error is SharedRoomClientError {
-  return error instanceof SharedRoomClientError && error.status === 409;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 409
+  );
 }
 
 async function readResponseBody(response: Response): Promise<unknown> {
@@ -107,4 +114,7 @@ export function createSharedRoomStore(fetchImpl: SharedRoomFetch = fetch): Share
   };
 }
 
-export const sharedRoomClient = createSharedRoomStore();
+export const sharedRoomClient =
+  getSharedBackendMode() === "firebase"
+    ? createFirebaseRoomStore()
+    : createSharedRoomStore();
