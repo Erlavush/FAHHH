@@ -239,6 +239,8 @@ describe("sharedProgression", () => {
     });
   });
 
+  it.todo("increments Together Days once when both partners visit the same room day");
+
   it("spends only the acting player's wallet and rejects overspend", () => {
     const baseProgression = createProgression(20);
     const spentProgression = applyPersonalWalletSpend(
@@ -390,3 +392,4 @@ describe("sharedProgression", () => {
     expect(nextDayProgression.couple.ritual.completionsByPlayerId).toEqual({});
   });
 });
+

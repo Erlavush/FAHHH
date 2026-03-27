@@ -5,11 +5,18 @@ import {
 } from "./pcMinigame";
 import type { SharedRoomMember, SharedRoomSession } from "./sharedRoomTypes";
 import type {
+  SharedActivityClaimMode,
   SharedCoupleProgression,
   SharedCoupleRitualContribution,
   SharedCoupleRitualDay,
+  SharedCoupleVisitDay,
+  SharedFeaturedActivityDay,
   SharedPlayerDeskPcProgress,
   SharedPlayerProgression,
+  SharedRoomActivityClaim,
+  SharedRoomActivityClaimDay,
+  SharedRoomActivityId,
+  SharedRoomActivityRewardClaim,
   SharedRoomProgressionState
 } from "./sharedProgressionTypes";
 
@@ -17,6 +24,12 @@ export const ROOM_LEVEL_XP_THRESHOLDS = [0, 20, 55, 95, 140, 190] as const;
 export const DESK_PC_XP_OFFSET = 4;
 export const DAILY_RITUAL_BONUS_COINS = 12;
 export const DAILY_RITUAL_BONUS_XP = 16;
+export const SHARED_ROOM_ACTIVITY_IDS = [
+  "pc_snake",
+  "pc_block_stacker",
+  "pc_runner",
+  "cozy_rest"
+] as const satisfies readonly SharedRoomActivityId[];
 
 export interface SharedRitualStatusView {
   title: string;
@@ -57,6 +70,29 @@ function normalizeNowIso(nowIso: string): string {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
 }
 
+function normalizeActivityId(value: unknown): SharedRoomActivityId | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  return SHARED_ROOM_ACTIVITY_IDS.includes(value as SharedRoomActivityId)
+    ? (value as SharedRoomActivityId)
+    : null;
+}
+
+function getDefaultClaimMode(activityId: SharedRoomActivityId): SharedActivityClaimMode {
+  return activityId === "cozy_rest" ? "couple" : "per_player";
+}
+
+function normalizeClaimMode(
+  value: unknown,
+  activityId: SharedRoomActivityId
+): SharedActivityClaimMode {
+  return value === "per_player" || value === "couple"
+    ? value
+    : getDefaultClaimMode(activityId);
+}
+
 function createDefaultDeskPcProgress(): SharedPlayerDeskPcProgress {
   return {
     bestScore: 0,
@@ -72,6 +108,209 @@ function cloneDeskPcProgress(progress: SharedPlayerDeskPcProgress): SharedPlayer
   return {
     ...progress
   };
+}
+
+function createEmptyVisitDay(dayKey: string): SharedCoupleVisitDay {
+  return {
+    dayKey,
+    visitedByPlayerId: {},
+    countedAt: null
+  };
+}
+
+function cloneVisitDay(day: SharedCoupleVisitDay): SharedCoupleVisitDay {
+  return {
+    ...day,
+    visitedByPlayerId: { ...day.visitedByPlayerId }
+  };
+}
+
+export function selectFeaturedActivityId(dayKey: string): SharedRoomActivityId {
+  const seed = Array.from(dayKey).reduce(
+    (total, character, index) => total + character.charCodeAt(0) * (index + 1),
+    0
+  );
+
+  return SHARED_ROOM_ACTIVITY_IDS[seed % SHARED_ROOM_ACTIVITY_IDS.length];
+}
+
+function createFeaturedActivityDay(
+  dayKey: string,
+  nowIso: string
+): SharedFeaturedActivityDay {
+  return {
+    dayKey,
+    activityId: selectFeaturedActivityId(dayKey),
+    selectedAt: nowIso
+  };
+}
+
+function cloneFeaturedActivityDay(
+  activity: SharedFeaturedActivityDay | null
+): SharedFeaturedActivityDay | null {
+  if (!activity) {
+    return null;
+  }
+
+  return {
+    ...activity
+  };
+}
+
+function normalizeVisitDay(value: unknown, dayKey: string): SharedCoupleVisitDay {
+  if (!isRecord(value)) {
+    return createEmptyVisitDay(dayKey);
+  }
+
+  const visitedByPlayerId = isRecord(value.visitedByPlayerId)
+    ? Object.fromEntries(
+        Object.entries(value.visitedByPlayerId)
+          .map(([playerId, visitedAt]) => [playerId, normalizeIsoString(visitedAt)] as const)
+          .filter((entry): entry is [string, string] => entry[1] !== null)
+      )
+    : {};
+
+  return {
+    dayKey: normalizeIsoString(value.dayKey, dayKey) ?? dayKey,
+    visitedByPlayerId,
+    countedAt: normalizeIsoString(value.countedAt)
+  };
+}
+
+function normalizeFeaturedActivity(
+  value: unknown,
+  dayKey: string,
+  nowIso: string
+): SharedFeaturedActivityDay {
+  if (!isRecord(value)) {
+    return createFeaturedActivityDay(dayKey, nowIso);
+  }
+
+  const normalizedDayKey = normalizeIsoString(value.dayKey, dayKey) ?? dayKey;
+  const activityId = normalizeActivityId(value.activityId) ?? selectFeaturedActivityId(normalizedDayKey);
+
+  return {
+    dayKey: normalizedDayKey,
+    activityId,
+    selectedAt: normalizeIsoString(value.selectedAt, nowIso) ?? nowIso
+  };
+}
+
+function normalizeActivityRewardClaim(
+  value: unknown,
+  nowIso: string
+): SharedRoomActivityRewardClaim | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    claimedAt: normalizeIsoString(value.claimedAt, nowIso) ?? nowIso,
+    rewardCoins: normalizeInteger(value.rewardCoins),
+    rewardXp: normalizeInteger(value.rewardXp),
+    score: normalizeInteger(value.score)
+  };
+}
+
+function cloneActivityRewardClaim(
+  claim: SharedRoomActivityRewardClaim
+): SharedRoomActivityRewardClaim {
+  return {
+    ...claim
+  };
+}
+
+function normalizeActivityClaim(
+  activityId: SharedRoomActivityId,
+  value: unknown,
+  nowIso: string
+): SharedRoomActivityClaim | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const claimMode = normalizeClaimMode(value.claimMode, activityId);
+  const perPlayerClaimsByPlayerId = isRecord(value.perPlayerClaimsByPlayerId)
+    ? Object.fromEntries(
+        Object.entries(value.perPlayerClaimsByPlayerId)
+          .map(([playerId, claim]) => [playerId, normalizeActivityRewardClaim(claim, nowIso)] as const)
+          .filter((entry): entry is [string, SharedRoomActivityRewardClaim] => entry[1] !== null)
+      )
+    : {};
+
+  return {
+    activityId,
+    claimMode,
+    perPlayerClaimsByPlayerId,
+    coupleClaim: normalizeActivityRewardClaim(value.coupleClaim, nowIso)
+  };
+}
+
+function cloneActivityClaim(claim: SharedRoomActivityClaim): SharedRoomActivityClaim {
+  return {
+    ...claim,
+    perPlayerClaimsByPlayerId: Object.fromEntries(
+      Object.entries(claim.perPlayerClaimsByPlayerId).map(([playerId, playerClaim]) => [
+        playerId,
+        cloneActivityRewardClaim(playerClaim)
+      ])
+    ),
+    coupleClaim: claim.coupleClaim ? cloneActivityRewardClaim(claim.coupleClaim) : null
+  };
+}
+
+function cloneActivityClaimDay(day: SharedRoomActivityClaimDay): SharedRoomActivityClaimDay {
+  return Object.fromEntries(
+    Object.entries(day).map(([activityId, claim]) => [activityId, cloneActivityClaim(claim)])
+  ) as SharedRoomActivityClaimDay;
+}
+
+function normalizeActivityClaimDay(
+  value: unknown,
+  nowIso: string
+): SharedRoomActivityClaimDay {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const dayClaims: SharedRoomActivityClaimDay = {};
+
+  Object.entries(value).forEach(([activityKey, claimValue]) => {
+    const activityId = normalizeActivityId(activityKey);
+    if (!activityId) {
+      return;
+    }
+
+    const claim = normalizeActivityClaim(activityId, claimValue, nowIso);
+    if (!claim) {
+      return;
+    }
+
+    dayClaims[activityId] = claim;
+  });
+
+  return dayClaims;
+}
+
+function normalizeActivityClaimsByDayKey(
+  value: unknown,
+  nowIso: string
+): Record<string, SharedRoomActivityClaimDay> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([dayKey, claimDay]) => [dayKey, normalizeActivityClaimDay(claimDay, nowIso)])
+  );
+}
+
+function cloneActivityClaimsByDayKey(
+  claimsByDayKey: Record<string, SharedRoomActivityClaimDay>
+): Record<string, SharedRoomActivityClaimDay> {
+  return Object.fromEntries(
+    Object.entries(claimsByDayKey).map(([dayKey, claimDay]) => [dayKey, cloneActivityClaimDay(claimDay)])
+  );
 }
 
 function clonePlayerProgression(progress: SharedPlayerProgression): SharedPlayerProgression {
@@ -104,6 +343,9 @@ function cloneRitualDay(day: SharedCoupleRitualDay): SharedCoupleRitualDay {
 function cloneCoupleProgression(progress: SharedCoupleProgression): SharedCoupleProgression {
   return {
     ...progress,
+    visitDay: cloneVisitDay(progress.visitDay),
+    featuredActivity: cloneFeaturedActivityDay(progress.featuredActivity),
+    activityClaimsByDayKey: cloneActivityClaimsByDayKey(progress.activityClaimsByDayKey),
     ritual: cloneRitualDay(progress.ritual)
   };
 }
@@ -169,6 +411,12 @@ function createEmptyCoupleProgression(dayKey: string, nowIso: string): SharedCou
     streakCount: 0,
     longestStreakCount: 0,
     lastCompletedDayKey: null,
+    togetherDaysCount: 0,
+    bestTogetherDaysCount: 0,
+    lastTogetherDayKey: null,
+    visitDay: createEmptyVisitDay(dayKey),
+    featuredActivity: createFeaturedActivityDay(dayKey, nowIso),
+    activityClaimsByDayKey: {},
     ritual: createEmptyRitualDay(dayKey),
     updatedAt: nowIso
   };
@@ -215,9 +463,7 @@ function splitLegacySharedCoins(
   return allocation;
 }
 
-function normalizeDeskPcProgress(
-  deskPc: unknown
-): SharedPlayerDeskPcProgress {
+function normalizeDeskPcProgress(deskPc: unknown): SharedPlayerDeskPcProgress {
   if (!isRecord(deskPc)) {
     return createDefaultDeskPcProgress();
   }
@@ -258,7 +504,8 @@ function normalizePlayerProgression(
 }
 
 function normalizeRitualContribution(
-  value: unknown
+  value: unknown,
+  nowIso: string
 ): SharedCoupleRitualContribution | null {
   if (!isRecord(value)) {
     return null;
@@ -266,7 +513,7 @@ function normalizeRitualContribution(
 
   return {
     source: "desk_pc",
-    completedAt: normalizeIsoString(value.completedAt, new Date().toISOString()) ?? new Date().toISOString(),
+    completedAt: normalizeIsoString(value.completedAt, nowIso) ?? nowIso,
     score: normalizeInteger(value.score),
     rewardCoins: normalizeInteger(value.rewardCoins)
   };
@@ -287,19 +534,30 @@ function normalizeCoupleProgression(
     : {};
   const completionsByPlayerId = Object.fromEntries(
     Object.entries(rawCompletions)
-      .map(([playerId, contribution]) => [playerId, normalizeRitualContribution(contribution)] as const)
+      .map(([playerId, contribution]) => [playerId, normalizeRitualContribution(contribution, nowIso)] as const)
       .filter((entry): entry is [string, SharedCoupleRitualContribution] => entry[1] !== null)
+  );
+  const legacyStreakCount = normalizeInteger(couple.streakCount);
+  const legacyLongestStreakCount = normalizeInteger(couple.longestStreakCount);
+  const lastCompletedDayKey = normalizeIsoString(couple.lastCompletedDayKey);
+  const togetherDaysCount = normalizeInteger(couple.togetherDaysCount, legacyStreakCount);
+  const bestTogetherDaysCount = Math.max(
+    togetherDaysCount,
+    normalizeInteger(couple.bestTogetherDaysCount, legacyLongestStreakCount)
   );
 
   return {
-    streakCount: normalizeInteger(couple.streakCount),
-    longestStreakCount: normalizeInteger(couple.longestStreakCount),
-    lastCompletedDayKey: normalizeIsoString(couple.lastCompletedDayKey),
+    streakCount: legacyStreakCount,
+    longestStreakCount: legacyLongestStreakCount,
+    lastCompletedDayKey,
+    togetherDaysCount,
+    bestTogetherDaysCount,
+    lastTogetherDayKey: normalizeIsoString(couple.lastTogetherDayKey, lastCompletedDayKey),
+    visitDay: normalizeVisitDay(couple.visitDay, dayKey),
+    featuredActivity: normalizeFeaturedActivity(couple.featuredActivity, dayKey, nowIso),
+    activityClaimsByDayKey: normalizeActivityClaimsByDayKey(couple.activityClaimsByDayKey, nowIso),
     ritual: {
-      dayKey:
-        typeof rawRitual.dayKey === "string" && rawRitual.dayKey.length > 0
-          ? rawRitual.dayKey
-          : dayKey,
+      dayKey: normalizeIsoString(rawRitual.dayKey, dayKey) ?? dayKey,
       completionsByPlayerId,
       completedAt: normalizeIsoString(rawRitual.completedAt),
       bonusAppliedAt: normalizeIsoString(rawRitual.bonusAppliedAt)
