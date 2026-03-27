@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Online Foundation
 status: ready_to_plan
-stopped_at: Phase 5 gap closure executed; manual retest pending
-last_updated: "2026-03-27T06:54:40.5053865Z"
+stopped_at: Phase 5 UAT retest partial; follow-up gap plans ready
+last_updated: "2026-03-27T07:12:43.3007994Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 4
@@ -108,6 +108,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Hosted-unavailable and local-dev fallback are explicit player-shell states, so localhost verification cannot silently masquerade as Firebase auth success.
 - [Phase 05]: Stale reconnecting presence now degrades into partner-away after a bounded timeout, with stale dev presence pruned on read.
 - [Phase 05]: Shared cat motion, richer remote locomotion, and bed-slot identity travel through the ephemeral presence channel instead of canonical room revisions.
+- [Phase 05]: Passive canonical updates still need a better refresh/subscription path for first-time shared-pet adoption visibility on the non-authoritative browser.
+- [Phase 05]: Current remote actor playback is improved but still not smooth enough to meet the desired Minecraft-like multiplayer feel.
+- [Phase 05]: Bed slot identity exists, but the actual bed offsets and lie pose geometry still overlap visually.
 
 ### Roadmap Evolution
 
@@ -118,6 +121,7 @@ Recent decisions affecting current work:
 - Milestone v1.1 opened: phases `5`-`8` planned for online foundation, loop depth, personalization depth, and content expansion.
 - Phase 05 completed: Google-auth couple ownership, hosted room and presence adapters, mutual link confirmation, and automatic paired-room re-entry are now the active baseline.
 - Phase 05 gap closure completed: hosted fallback truth, calmer partner-away status, shared cat live sync, smoother remote locomotion, and occupancy-aware bed slots are patched into the online baseline.
+- Phase 05 UAT retest partial: localhost confirms partner-away recovery, but shared-pet adoption visibility, remote motion smoothness, and bed pose separation still need a second gap-closure pass.
 
 ### Pending Todos
 
