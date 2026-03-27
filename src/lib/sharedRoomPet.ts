@@ -40,6 +40,7 @@ export function createSharedPetLiveState(
     stridePhase: 0,
     targetPosition: null,
     updatedAt: nowIso,
+    velocity: [0, 0, 0],
     walkAmount: 0
   };
 }
@@ -50,6 +51,7 @@ export function cloneSharedPetLiveState(
   return {
     ...petState,
     position: [...petState.position] as Vector3Tuple,
+    velocity: [...petState.velocity] as Vector3Tuple,
     targetPosition:
       petState.targetPosition === null
         ? null

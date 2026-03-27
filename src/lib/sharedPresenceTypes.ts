@@ -32,6 +32,7 @@ export interface SharedPetLiveState {
   stridePhase: number;
   targetPosition: Vector3Tuple | null;
   updatedAt: string;
+  velocity: Vector3Tuple;
   walkAmount: number;
 }
 

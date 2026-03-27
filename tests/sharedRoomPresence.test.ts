@@ -239,6 +239,7 @@ describe("sharedRoomPresence", () => {
         stridePhase: 2.2,
         targetPosition: [1.2, 0, 0.8],
         updatedAt: "2026-03-26T13:05:00.000Z",
+        velocity: [0.35, 0, -0.1],
         walkAmount: 0.68
       }
     });
@@ -249,6 +250,7 @@ describe("sharedRoomPresence", () => {
     expect(roomPresence.sharedPetState).toMatchObject({
       petId: "shared-pet-minecraft_cat",
       position: [0.5, 0, 1.5],
+      velocity: [0.35, 0, -0.1],
       targetPosition: [1.2, 0, 0.8]
     });
   });

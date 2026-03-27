@@ -61,7 +61,7 @@ describe("furniture interactions", () => {
     const target = getFurnitureInteractionTarget(bed);
 
     expect(target?.type).toBe("lie");
-    expect(target?.position[0]).toBeCloseTo(1.38);
+    expect(target?.position[0]).toBeCloseTo(1.22);
     expect(target?.position[2]).toBeCloseTo(-0.8);
     expect(target?.slotId).toBe("primary");
     expect(target?.approachPosition?.[0]).toBeCloseTo(0.05);
@@ -85,14 +85,17 @@ describe("furniture interactions", () => {
     const targets = getFurnitureInteractionTargets(bed);
 
     expect(targets).toHaveLength(2);
-    expect(targets[0]?.position[0]).toBeCloseTo(1.38);
-    expect(targets[1]?.position[0]).toBeCloseTo(2);
+    expect(targets[0]?.position[0]).toBeCloseTo(1.22);
+    expect(targets[1]?.position[0]).toBeCloseTo(2.78);
+    expect(
+      Math.abs((targets[1]?.position[0] ?? 0) - (targets[0]?.position[0] ?? 0))
+    ).toBeGreaterThan(1.5);
     expect(targets[0]?.slotId).toBe("primary");
     expect(targets[1]?.slotId).toBe("secondary");
     expect(targets[0]?.position[2]).toBeCloseTo(-0.8);
-    expect(targets[1]?.position[2]).toBeCloseTo(-0.5);
-    expect(targets[0]?.approachPosition?.[0]).toBeLessThan(0.5);
-    expect(targets[1]?.approachPosition?.[0]).toBeGreaterThan(3.4);
+    expect(targets[1]?.position[2]).toBeCloseTo(-0.8);
+    expect(targets[0]?.approachPosition?.[0]).toBeCloseTo(0.05);
+    expect(targets[1]?.approachPosition?.[0]).toBeCloseTo(3.95);
     expect(targets[0]?.poseOffset).toEqual([0, 0.84, 1]);
     expect(targets[1]?.poseOffset).toEqual([0, 0.84, 1]);
   });
@@ -129,7 +132,7 @@ describe("furniture interactions", () => {
     });
 
     expect(target?.slotId).toBe("secondary");
-    expect(target?.position[0]).toBeCloseTo(2);
+    expect(target?.position[0]).toBeCloseTo(2.78);
   });
 
   it("returns null when both bed sides are already occupied", () => {

@@ -238,6 +238,7 @@ describe("shared room runtime helpers", () => {
     }
 
     container = null;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -686,6 +687,67 @@ describe("shared room runtime helpers", () => {
       expect.arrayContaining([ari.playerId, bea.playerId])
     );
     expect(latestHookValue?.session?.partnerId).toBe(ari.playerId);
+  });
+
+  it("refreshes a passive room snapshot when the shared cat is adopted canonically", async () => {
+    vi.useFakeTimers();
+    const profile = seedRuntimeProfile({
+      playerId: "firebase-user-1"
+    });
+    const initialRoomDocument = createSharedRoomDocument(profile.playerId, {
+      revision: 1,
+      sharedPet: null
+    });
+    const adoptedRoomDocument = createSharedRoomDocument(profile.playerId, {
+      revision: 2,
+      sharedPet: createSharedRoomPetRecord(
+        [0.5, 0, 1.5],
+        "player-2",
+        "2026-03-26T00:02:00.000Z"
+      )
+    });
+    const loadSharedRoom = vi
+      .fn<SharedRoomStore["loadSharedRoom"]>()
+      .mockResolvedValueOnce(initialRoomDocument)
+      .mockResolvedValue(adoptedRoomDocument);
+    const sharedRoomStore: SharedRoomStore = {
+      bootstrapDevSharedRoom: vi.fn(),
+      createSharedRoom: vi.fn(),
+      joinSharedRoom: vi.fn(),
+      loadSharedRoom,
+      commitSharedRoomState: vi.fn()
+    };
+
+    saveSharedRoomSession({
+      playerId: profile.playerId,
+      partnerId: "player-2",
+      roomId: initialRoomDocument.roomId,
+      inviteCode: initialRoomDocument.inviteCode,
+      lastKnownRevision: initialRoomDocument.revision
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HookHarness, { sharedRoomStore }));
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.runtimeSnapshot?.sharedPet).toBeNull();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    await flushHookEffects();
+
+    expect(loadSharedRoom).toHaveBeenCalledTimes(2);
+    expect(latestHookValue?.runtimeSnapshot?.sharedPet).toMatchObject({
+      id: "shared-pet-minecraft_cat"
+    });
+    expect(latestHookValue?.runtimeSnapshot?.revision).toBe(2);
   });
 
   it("creates a session from the canonical room document", () => {

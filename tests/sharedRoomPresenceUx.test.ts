@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSharedRoomPresence } from "../src/app/hooks/useSharedRoomPresence";
 import type { SharedRoomRuntimeBootstrapKind } from "../src/app/hooks/useSharedRoomRuntime";
 import type { LocalPlayerPresenceSnapshot } from "../src/app/types";
+import { pushBufferedMotionSample, sampleBufferedMotion } from "../src/lib/liveMotionPlayback";
 import type { SharedPresenceStore } from "../src/lib/sharedPresenceStore";
 import type { SharedPlayerProfile } from "../src/lib/sharedRoomTypes";
 
@@ -319,5 +320,34 @@ describe("sharedRoomPresence UX", () => {
 
     expect(latestHookValue?.remotePresence?.pose?.furnitureId).toBe("bed-a");
     expect(latestHookValue?.remotePresence?.pose?.slotId).toBe("secondary");
+  });
+
+  it("samples remote partner motion from buffered snapshots instead of a single target jump", () => {
+    const samples = pushBufferedMotionSample(
+      pushBufferedMotionSample([], {
+        position: [0, 0, 0],
+        receivedAtMs: 1000,
+        rotationY: 0,
+        stridePhase: 0,
+        velocity: [2, 0, 0],
+        walkAmount: 0.65
+      }),
+      {
+        position: [0.2, 0, 0],
+        receivedAtMs: 1100,
+        rotationY: Math.PI / 2,
+        stridePhase: 1.2,
+        velocity: [2, 0, 0],
+        walkAmount: 0.65
+      }
+    );
+
+    const sampled = sampleBufferedMotion(samples, 1210, {
+      playbackDelayMs: 100
+    });
+
+    expect(sampled?.position[0]).toBeGreaterThan(0.2);
+    expect(sampled?.rotationY).toBeCloseTo(Math.PI / 2, 1);
+    expect(sampled?.walkAmount).toBeCloseTo(0.65);
   });
 });

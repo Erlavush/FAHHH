@@ -85,6 +85,7 @@ export function isValidSharedPetLiveState(value: unknown): value is SharedPetLiv
     typeof value.petId === "string" &&
     typeof value.ownerPlayerId === "string" &&
     isValidVector3Tuple(value.position) &&
+    isValidVector3Tuple(value.velocity) &&
     (value.targetPosition === null || isValidVector3Tuple(value.targetPosition)) &&
     typeof value.rotationY === "number" &&
     Number.isFinite(value.rotationY) &&
@@ -288,6 +289,7 @@ export function validateSharedPetLiveState(value: unknown): SharedPetLiveState {
   return {
     ...petState,
     position: [...petState.position] as Vector3Tuple,
+    velocity: [...petState.velocity] as Vector3Tuple,
     targetPosition:
       petState.targetPosition === null
         ? null

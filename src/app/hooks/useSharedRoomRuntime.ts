@@ -99,6 +99,7 @@ const HOSTED_LOADING_TITLE = "Loading your room...";
 const HOSTED_VERIFY_ERROR_TITLE = "We couldn't verify your room right now.";
 const HOSTED_UNAVAILABLE_TITLE = "Hosted couple room setup is incomplete.";
 const PENDING_LINK_POLL_INTERVAL_MS = 1000;
+const ROOM_PASSIVE_SYNC_INTERVAL_MS = 1000;
 
 const defaultSharedAuthAdapter: SharedAuthAdapter<unknown> = {
   signInWithGoogle() {
@@ -812,6 +813,55 @@ export function useSharedRoomRuntime({
     pendingLink,
     profile,
     resolvedSharedRoomOwnershipStore
+  ]);
+
+  useEffect(() => {
+    if (
+      bootstrapKind !== "room_ready" ||
+      !session?.roomId ||
+      !roomDocument ||
+      roomDocument.sharedPet
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncSharedPetPresence = async () => {
+      try {
+        const nextRoomDocument = await sharedRoomStore.loadSharedRoom({
+          roomId: session.roomId
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          nextRoomDocument.revision > roomDocument.revision ||
+          (roomDocument.sharedPet === null && nextRoomDocument.sharedPet !== null)
+        ) {
+          applyRoomDocument(nextRoomDocument);
+        }
+      } catch {
+        // Passive sync should stay quiet; explicit reload paths still surface errors.
+      }
+    };
+
+    const pollId = window.setInterval(() => {
+      void syncSharedPetPresence();
+    }, ROOM_PASSIVE_SYNC_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+    };
+  }, [
+    applyRoomDocument,
+    bootstrapKind,
+    roomDocument,
+    session?.roomId,
+    sharedRoomStore
   ]);
 
   const reloadRoom = useCallback(async () => {

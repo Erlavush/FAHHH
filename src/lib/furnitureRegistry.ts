@@ -107,8 +107,8 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     unlockKey: "starter-bed",
     starterUnlocked: true,
     interactionType: "lie",
-    interactionOffset: [-0.62, 0, 0.2],
-    interactionSecondaryOffset: [0, 0, 0.5],
+    interactionOffset: [-0.78, 0, 0.2],
+    interactionSecondaryOffset: [0.78, 0, 0.2],
     interactionRotationOffsetY: Math.PI,
     interactionPoseOffset: [0, 0.84, 1],
     interactionSecondaryPoseOffset: [0, 0.84, 1]

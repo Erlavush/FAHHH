@@ -10,6 +10,11 @@ import {
   NearestFilter,
   SRGBColorSpace
 } from "three";
+import {
+  pushBufferedMotionSample,
+  sampleBufferedMotion,
+  type BufferedMotionSample
+} from "../lib/liveMotionPlayback";
 import { resolvePlayerMovement } from "../lib/physics";
 import { RoomFurniturePlacement } from "../lib/roomState";
 import type {
@@ -388,7 +393,32 @@ export function MinecraftPlayer({
   const leftLegRef = useRef<Group>(null);
   const stepTimeRef = useRef(0);
   const lastSentTimeRef = useRef(0);
+  const remoteSamplesRef = useRef<BufferedMotionSample[]>([]);
   const isRemote = mode === "remote";
+
+  useEffect(() => {
+    if (!isRemote) {
+      remoteSamplesRef.current = [];
+      return;
+    }
+
+    remoteSamplesRef.current = pushBufferedMotionSample(remoteSamplesRef.current, {
+      position: [...targetPosition],
+      receivedAtMs: performance.now(),
+      rotationY: targetFacingY ?? initialFacingY,
+      stridePhase: remoteMotion?.stridePhase ?? stepTimeRef.current,
+      velocity: remoteMotion?.velocity ?? [0, 0, 0],
+      walkAmount: remoteMotion?.walkAmount ?? 0
+    });
+  }, [
+    initialFacingY,
+    isRemote,
+    remoteMotion?.stridePhase,
+    remoteMotion?.velocity,
+    remoteMotion?.walkAmount,
+    targetFacingY,
+    targetPosition
+  ]);
 
   useEffect(() => {
     if (!teleportPosition || !rootRef.current) {
@@ -489,8 +519,13 @@ export function MinecraftPlayer({
     const distance = Math.hypot(dx, dz);
     const isMoving = distance > 0.02;
     const desiredFacingY = targetFacingY ?? root.rotation.y;
-    const remoteWalkAmount = remoteMotion?.walkAmount ?? 0;
-    const remoteVelocity = remoteMotion?.velocity ?? [0, 0, 0];
+    const sampledRemoteMotion = isRemote
+      ? sampleBufferedMotion(remoteSamplesRef.current, performance.now())
+      : null;
+    const remoteWalkAmount =
+      sampledRemoteMotion?.walkAmount ?? remoteMotion?.walkAmount ?? 0;
+    const remoteVelocity =
+      sampledRemoteMotion?.velocity ?? remoteMotion?.velocity ?? [0, 0, 0];
     const remoteSpeed = Math.hypot(remoteVelocity[0], remoteVelocity[2]);
     const isRemoteMoving = isRemote && remoteWalkAmount > 0.05;
     const interactionDistance = interaction
@@ -531,22 +566,24 @@ export function MinecraftPlayer({
       stepTimeRef.current += delta * 1.4;
     } else if (isMoving || isRemoteMoving) {
       if (isRemote) {
-        const predictedX = targetPosition[0] + remoteVelocity[0] * 0.25;
-        const predictedZ = targetPosition[2] + remoteVelocity[2] * 0.25;
-        const remoteDx = predictedX - root.position.x;
-        const remoteDz = predictedZ - root.position.z;
-        const smoothing = Math.min(1, delta * 6);
+        const playbackPosition =
+          sampledRemoteMotion?.position ?? targetPosition;
+        const remoteDx = playbackPosition[0] - root.position.x;
+        const remoteDz = playbackPosition[2] - root.position.z;
+        const smoothing = Math.min(1, delta * 14);
         root.position.x += remoteDx * smoothing;
         root.position.z += remoteDz * smoothing;
         root.rotation.y = lerpAngle(
           root.rotation.y,
-          remoteSpeed > 0.05 ? Math.atan2(remoteVelocity[0], remoteVelocity[2]) : desiredFacingY,
-          Math.min(1, delta * 10)
+          sampledRemoteMotion?.rotationY ??
+            (remoteSpeed > 0.05
+              ? Math.atan2(remoteVelocity[0], remoteVelocity[2])
+              : desiredFacingY),
+          Math.min(1, delta * 14)
         );
-        if (remoteMotion) {
-          stepTimeRef.current = Math.max(stepTimeRef.current, remoteMotion.stridePhase);
+        if (sampledRemoteMotion) {
+          stepTimeRef.current = sampledRemoteMotion.stridePhase;
         }
-        stepTimeRef.current += delta * Math.max(4, remoteSpeed * 4);
       } else {
         const moveStep = Math.min(distance, moveSpeed * delta);
         const movementResult = resolvePlayerMovement(
@@ -572,7 +609,11 @@ export function MinecraftPlayer({
       }
     } else {
       if (isRemote) {
-        root.rotation.y = lerpAngle(root.rotation.y, desiredFacingY, Math.min(1, delta * 8));
+        root.rotation.y = lerpAngle(
+          root.rotation.y,
+          sampledRemoteMotion?.rotationY ?? desiredFacingY,
+          Math.min(1, delta * 10)
+        );
       }
 
       stepTimeRef.current += delta * 2.3;

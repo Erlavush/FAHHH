@@ -9,8 +9,15 @@ import {
 import type { OwnedPet } from "../../lib/pets";
 import type { RoomFurniturePlacement, Vector3Tuple } from "../../lib/roomState";
 import type { SharedPetLiveState } from "../../lib/sharedPresenceTypes";
+import {
+  pushBufferedMotionSample,
+  sampleBufferedMotion,
+  type BufferedMotionSample
+} from "../../lib/liveMotionPlayback";
 import { ImportedMobActor } from "../mob-lab/ImportedMobActor";
 import type { MobExternalMotionState } from "../mob-lab/MobPreviewActor";
+
+const SHARED_PET_BROADCAST_INTERVAL_MS = 100;
 
 function createSeededRandom(seedText: string): () => number {
   let seed = 2166136261;
@@ -55,6 +62,7 @@ export function RoomPetActor({
   const targetPositionRef = useRef<Vector3Tuple | null>(null);
   const idleTimerRef = useRef(0.8);
   const lastBroadcastTimeRef = useRef(0);
+  const replicaSamplesRef = useRef<BufferedMotionSample[]>([]);
   const motionStateRef = useRef<MobExternalMotionState>({
     position:
       sharedLiveState?.position
@@ -67,15 +75,30 @@ export function RoomPetActor({
 
   useEffect(() => {
     if (!sharedLiveState) {
+      replicaSamplesRef.current = [];
+      targetPositionRef.current = null;
       return;
     }
 
-    motionStateRef.current = {
+    const hadReplicaSamples = replicaSamplesRef.current.length > 0;
+    replicaSamplesRef.current = pushBufferedMotionSample(replicaSamplesRef.current, {
       position: [...sharedLiveState.position] as Vector3Tuple,
+      receivedAtMs: performance.now(),
       rotationY: sharedLiveState.rotationY,
-      walkAmount: sharedLiveState.walkAmount,
-      stridePhase: sharedLiveState.stridePhase
-    };
+      stridePhase: sharedLiveState.stridePhase,
+      velocity: [...sharedLiveState.velocity] as Vector3Tuple,
+      walkAmount: sharedLiveState.walkAmount
+    });
+
+    if (!hadReplicaSamples) {
+      motionStateRef.current = {
+        position: [...sharedLiveState.position] as Vector3Tuple,
+        rotationY: sharedLiveState.rotationY,
+        walkAmount: sharedLiveState.walkAmount,
+        stridePhase: sharedLiveState.stridePhase
+      };
+    }
+
     targetPositionRef.current = sharedLiveState.targetPosition
       ? ([...sharedLiveState.targetPosition] as Vector3Tuple)
       : null;
@@ -86,23 +109,31 @@ export function RoomPetActor({
     const isReplicatingSharedState = sharedLiveState !== null && !authorityActive;
 
     if (isReplicatingSharedState) {
+      const sampledMotion = sampleBufferedMotion(
+        replicaSamplesRef.current,
+        performance.now()
+      );
+      const playbackPosition =
+        sampledMotion?.position ?? sharedLiveState.position;
       motion.position = [
-        motion.position[0] + (sharedLiveState.position[0] - motion.position[0]) * Math.min(1, delta * 8),
+        motion.position[0] + (playbackPosition[0] - motion.position[0]) * Math.min(1, delta * 14),
         0,
-        motion.position[2] + (sharedLiveState.position[2] - motion.position[2]) * Math.min(1, delta * 8)
+        motion.position[2] + (playbackPosition[2] - motion.position[2]) * Math.min(1, delta * 14)
       ];
       motion.rotationY = lerpAngle(
         motion.rotationY,
-        sharedLiveState.rotationY,
-        Math.min(1, delta * 10)
+        sampledMotion?.rotationY ?? sharedLiveState.rotationY,
+        Math.min(1, delta * 14)
       );
-      motion.walkAmount = sharedLiveState.walkAmount;
-      motion.stridePhase = sharedLiveState.stridePhase;
+      motion.walkAmount = sampledMotion?.walkAmount ?? sharedLiveState.walkAmount;
+      motion.stridePhase = sampledMotion?.stridePhase ?? sharedLiveState.stridePhase;
       targetPositionRef.current = sharedLiveState.targetPosition
         ? ([...sharedLiveState.targetPosition] as Vector3Tuple)
         : null;
       return;
     }
+
+    const previousPosition = [...motion.position] as Vector3Tuple;
 
     const nextRandom = randomSourceRef.current;
     const isCat = preset.id === "better_cat_glb";
@@ -138,6 +169,11 @@ export function RoomPetActor({
           pet.id,
           motion,
           targetPositionRef.current,
+          [
+            (motion.position[0] - previousPosition[0]) / Math.max(delta, 0.016),
+            0,
+            (motion.position[2] - previousPosition[2]) / Math.max(delta, 0.016)
+          ],
           lastBroadcastTimeRef
         );
         return;
@@ -173,6 +209,7 @@ export function RoomPetActor({
         pet.id,
         motion,
         null,
+        [0, 0, 0],
         lastBroadcastTimeRef
       );
       return;
@@ -202,6 +239,7 @@ export function RoomPetActor({
         pet.id,
         motion,
         targetPositionRef.current,
+        [0, 0, 0],
         lastBroadcastTimeRef
       );
       return;
@@ -223,6 +261,11 @@ export function RoomPetActor({
       pet.id,
       motion,
       targetPositionRef.current,
+      [
+        (motion.position[0] - previousPosition[0]) / Math.max(delta, 0.016),
+        0,
+        (motion.position[2] - previousPosition[2]) / Math.max(delta, 0.016)
+      ],
       lastBroadcastTimeRef
     );
   });
@@ -245,6 +288,7 @@ function maybeBroadcastSharedState(
   petId: string,
   motion: MobExternalMotionState,
   targetPosition: Vector3Tuple | null,
+  velocity: Vector3Tuple,
   lastBroadcastTimeRef: MutableRefObject<number>
 ) {
   if (!authorityActive || !sharedLiveState || !onSharedLiveStateChange) {
@@ -253,7 +297,10 @@ function maybeBroadcastSharedState(
 
   const nowMs = Date.now();
 
-  if (nowMs - lastBroadcastTimeRef.current < 200) {
+  if (
+    nowMs - lastBroadcastTimeRef.current <
+    SHARED_PET_BROADCAST_INTERVAL_MS
+  ) {
     return;
   }
 
@@ -266,6 +313,7 @@ function maybeBroadcastSharedState(
     stridePhase: motion.stridePhase,
     targetPosition: targetPosition ? ([...targetPosition] as Vector3Tuple) : null,
     updatedAt: new Date(nowMs).toISOString(),
+    velocity: [...velocity] as Vector3Tuple,
     walkAmount: motion.walkAmount
   });
 }
