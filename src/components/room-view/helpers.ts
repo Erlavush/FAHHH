@@ -182,6 +182,10 @@ function getWallRoomFacingWorldOffset(
 export function getPlacementActionOffset(item: RoomFurniturePlacement): [number, number, number] {
   let offset: [number, number, number];
 
+  if (item.surface === "ceiling") {
+    return [0, -0.86, 0];
+  }
+
   switch (item.type) {
     case "bed":
       offset = [0, 1.5, 0];
@@ -244,6 +248,10 @@ export function getGizmoOffset(item: RoomFurniturePlacement): [number, number, n
 
   if (isWallSurface(item.surface)) {
     return [0, Math.max(0.42, actionOffset[1] - 0.72), 0.16];
+  }
+
+  if (item.surface === "ceiling") {
+    return [0, -0.82, 0];
   }
 
   if (item.surface === "surface") {

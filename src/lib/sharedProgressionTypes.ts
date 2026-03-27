@@ -1,3 +1,12 @@
+export interface SharedPlayerDeskPcActivityProgress {
+  bestScore: number;
+  gamesPlayed: number;
+  lastRewardCoins: number;
+  lastScore: number;
+  lastCompletedAt: string | null;
+  totalCoinsEarned: number;
+}
+
 export interface SharedPlayerDeskPcProgress {
   bestScore: number;
   gamesPlayed: number;
@@ -5,6 +14,7 @@ export interface SharedPlayerDeskPcProgress {
   lastScore: number;
   lastCompletedAt: string | null;
   totalCoinsEarned: number;
+  appsByActivityId?: Record<string, SharedPlayerDeskPcActivityProgress>;
 }
 
 export interface SharedPlayerProgression {

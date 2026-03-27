@@ -1,6 +1,11 @@
-import { OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
+import { OrbitControls, OrthographicCamera } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CeilingFanModel,
+  CeilingLightModel,
+  HangingPlantModel
+} from "./CeilingFurnitureModels";
 import { ChairModel } from "./ChairModel";
 import { FloorLampModel } from "./FloorLampModel";
 import { FridgeModel } from "./FridgeModel";
@@ -69,6 +74,7 @@ const PREVIEW_BACKDROP_OPTIONS: Array<{ mode: PreviewBackdropMode; label: string
 ];
 
 const ISOMETRIC_CAMERA_POSITION: [number, number, number] = [10, 10, 10];
+const CEILING_PREVIEW_CAMERA_POSITION: [number, number, number] = [10, 7.4, 10];
 
 const PREVIEW_MODEL_FRAMES: Record<
   FurnitureType,
@@ -88,6 +94,9 @@ const PREVIEW_MODEL_FRAMES: Record<
   office_desk: { width: 2.85, height: 1.45, depth: 0.95, targetY: 0.72 },
   office_chair: { width: 0.92, height: 1.18, depth: 0.92, targetY: 0.66 },
   floor_lamp: { width: 0.78, height: 2.12, depth: 0.78, targetY: 0.94 },
+  ceiling_light: { width: 1.08, height: 0.88, depth: 1.08, targetY: -0.46 },
+  ceiling_fan: { width: 2.8, height: 0.72, depth: 2.8, targetY: -0.42 },
+  hanging_plant: { width: 1.12, height: 1.12, depth: 1.12, targetY: -0.64 },
   window: { width: 1.82, height: 2.18, depth: 0.38, targetY: 1.02 },
   vase: { width: 0.36, height: 0.84, depth: 0.36, targetY: 0.38 },
   books: { width: 0.58, height: 0.32, depth: 0.38, targetY: 0.16 },
@@ -171,6 +180,12 @@ function renderPreviewFurnitureModel(type: FurnitureType) {
       return <OfficeChairModel {...commonProps} />;
     case "floor_lamp":
       return <FloorLampModel {...commonProps} nightFactor={1} />;
+    case "ceiling_light":
+      return <CeilingLightModel {...commonProps} nightFactor={1} />;
+    case "ceiling_fan":
+      return <CeilingFanModel {...commonProps} />;
+    case "hanging_plant":
+      return <HangingPlantModel {...commonProps} />;
     case "window":
       return <WallWindowModel {...commonProps} daylightAmount={1} />;
     case "vase":
@@ -198,14 +213,20 @@ function PreviewStudioScene({
   const { size } = useThree();
   const definition = getFurnitureDefinition(selectedType);
   const projectedFrame = useMemo(() => getProjectedPreviewFrame(selectedType), [selectedType]);
+  const cameraPosition =
+    definition.surface === "ceiling"
+      ? CEILING_PREVIEW_CAMERA_POSITION
+      : ISOMETRIC_CAMERA_POSITION;
   const cameraZoom = useMemo(() => {
     const widthFit = (size.width * 0.56) / projectedFrame.projectedWidth;
     const heightFit = (size.height * 0.62) / projectedFrame.projectedHeight;
 
     return Math.max(48, Math.min(widthFit, heightFit));
   }, [projectedFrame.projectedHeight, projectedFrame.projectedWidth, size.height, size.width]);
-  const showWallBackdrop = definition.surface === "wall";
-  const showGroundPlane = definition.surface !== "wall";
+  const showWallBackdrop =
+    definition.surface === "wall" || definition.surface === "ceiling";
+  const showGroundPlane =
+    definition.surface === "floor" || definition.surface === "surface";
   const backdrop = useMemo(() => getPreviewBackdropPalette(backdropMode), [backdropMode]);
 
   return (
@@ -215,7 +236,7 @@ function PreviewStudioScene({
         makeDefault
         far={120}
         near={0.1}
-        position={ISOMETRIC_CAMERA_POSITION}
+        position={cameraPosition}
         zoom={cameraZoom}
         onUpdate={(camera) => {
           camera.lookAt(0, projectedFrame.targetY, 0);

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   controlHoursToMinutes,
   formatClock24h,
+  formatClock12h,
   getLocalClockMinutes,
   minutesToControlHours,
   wrapClockMinutes
@@ -20,6 +21,8 @@ export interface SandboxWorldClockState {
   worldTimeMinutes: number;
   worldTicks: number;
   worldTimeLabel: string;
+  worldTimeLabel12h: string;
+  ampm: 'AM' | 'PM';
   useMinecraftTime: boolean;
   minecraftTimeHours: number;
   timeLocked: boolean;
@@ -87,6 +90,10 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
 
   const worldTimeLabel = useMemo(
     () => formatClock24h(worldTimeMinutes),
+    [worldTimeMinutes]
+  );
+  const worldTime12h = useMemo(
+    () => formatClock12h(worldTimeMinutes),
     [worldTimeMinutes]
   );
   const minecraftTimeHours = useMemo(
@@ -441,6 +448,8 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
     worldTimeMinutes,
     worldTicks,
     worldTimeLabel,
+    worldTimeLabel12h: worldTime12h.time,
+    ampm: worldTime12h.ampm,
     useMinecraftTime,
     minecraftTimeHours,
     timeLocked,

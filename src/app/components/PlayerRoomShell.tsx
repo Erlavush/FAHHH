@@ -7,6 +7,7 @@ type PlayerRoomShellProps = {
   overlays?: ReactNode;
   stage: ReactNode;
   topLeft?: ReactNode;
+  topCenter?: ReactNode;
   topRight?: ReactNode;
   viewSwitch?: ReactNode;
 };
@@ -18,6 +19,7 @@ export function PlayerRoomShell({
   overlays,
   stage,
   topLeft,
+  topCenter,
   topRight,
   viewSwitch
 }: PlayerRoomShellProps) {
@@ -27,6 +29,7 @@ export function PlayerRoomShell({
       <div className="app-shell__overlay-layer">
         {viewSwitch ? <div className="player-room-shell__view-switch">{viewSwitch}</div> : null}
         {topLeft ? <div className="player-room-shell__top-left">{topLeft}</div> : null}
+        {topCenter ? <div className="player-room-shell__top-center">{topCenter}</div> : null}
         {topRight ? <div className="player-room-shell__top-right">{topRight}</div> : null}
         {bottomLeft ? <div className="player-room-shell__bottom-left">{bottomLeft}</div> : null}
         {bottomCenter ? <div className="player-room-shell__bottom-center">{bottomCenter}</div> : null}

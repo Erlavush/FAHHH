@@ -26,3 +26,18 @@ export function formatClock24h(minutes: number): string {
     .toString()
     .padStart(2, "0")}`;
 }
+
+export function formatClock12h(minutes: number): { time: string; ampm: 'AM' | 'PM' } {
+  const normalizedMinutes = wrapClockMinutes(Math.round(minutes));
+  const hours24 = Math.floor(normalizedMinutes / 60);
+  const remainingMinutes = normalizedMinutes % 60;
+
+  const ampm = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+
+  const time = `${hours12.toString().padStart(2, "0")}:${remainingMinutes
+    .toString()
+    .padStart(2, "0")}`;
+
+  return { time, ampm };
+}

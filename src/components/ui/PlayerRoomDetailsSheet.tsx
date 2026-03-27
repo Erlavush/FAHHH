@@ -2,7 +2,7 @@ import { useState } from "react";
 import type {
   PlayerRoomDetailsAction,
   PlayerRoomDetailsState
-} from "../shellViewModel";
+} from "../../app/shellViewModel";
 
 type PlayerRoomDetailsSheetProps = {
   onAction: (id: PlayerRoomDetailsAction["id"]) => void;
@@ -48,6 +48,12 @@ export function PlayerRoomDetailsSheet({
         </button>
       </div>
 
+      <div className="player-room-details-sheet__card">
+        <span className="player-room-details-sheet__card-label">Together Days</span>
+        <strong>{state.togetherDaysLabel}</strong>
+        <span>{state.visitStatusLabel}</span>
+      </div>
+
       {state.inviteCodeVisible ? (
         <div className="player-room-details-sheet__card">
           <span className="player-room-details-sheet__card-label">Invite code</span>
@@ -72,6 +78,16 @@ export function PlayerRoomDetailsSheet({
           <code>{state.roomId}</code>
         </div>
       ) : null}
+
+      <div className="player-room-details-sheet__card">
+        <span className="player-room-details-sheet__card-label">Today's activities</span>
+        {state.activityRows.map((row) => (
+          <div className="player-room-details-sheet__code-row" key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </div>
+        ))}
+      </div>
 
       <div className="player-room-details-sheet__actions">
         {state.secondaryActions.map((action) => (

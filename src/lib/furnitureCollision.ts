@@ -329,6 +329,25 @@ export function getFurnitureCollisionReason(
     return null;
   }
 
+  if (selectedDefinition.surface === "ceiling") {
+    const selectedRect = getFurnitureFootprintRect(selectedFurniture);
+
+    if (
+      otherFurniture.some((placement) => {
+        const otherDefinition = getFurnitureDefinition(placement.type);
+
+        return (
+          otherDefinition.surface === "ceiling" &&
+          rectanglesOverlap(selectedRect, getFurnitureFootprintRect(placement))
+        );
+      })
+    ) {
+      return "furniture_overlap";
+    }
+
+    return null;
+  }
+
   const selectedRect = getFurnitureFootprintRect(selectedFurniture);
   const selectedAABBs = getFurnitureAABBs(selectedFurniture);
   const playerAABB = getPlayerAABB(playerPosition);

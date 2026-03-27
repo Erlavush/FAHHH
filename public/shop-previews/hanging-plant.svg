@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="mount" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#614b3b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3f2e23;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="basket" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#9b724d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6f4e34;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="50" cy="14" rx="14" ry="5" fill="#4b382c" />
+  <rect x="39" y="14" width="22" height="9" rx="4.5" fill="url(#mount)" />
+
+  <path d="M41 22 L31 47" stroke="#8a6a4f" stroke-width="2.5" />
+  <path d="M59 22 L69 47" stroke="#8a6a4f" stroke-width="2.5" />
+  <path d="M45 22 L43 47" stroke="#8a6a4f" stroke-width="2.5" />
+  <path d="M55 22 L57 47" stroke="#8a6a4f" stroke-width="2.5" />
+
+  <circle cx="50" cy="43" r="15" fill="#648d52" />
+  <circle cx="37" cy="46" r="10" fill="#557e45" />
+  <circle cx="63" cy="46" r="10" fill="#557e45" />
+  <circle cx="50" cy="56" r="12" fill="#4d7540" />
+
+  <path d="M32 52 C39 47 61 47 68 52 L62 68 C60 74 40 74 38 68 Z" fill="url(#basket)" />
+
+  <path d="M39 63 C34 74 28 81 25 92" stroke="#5c8448" stroke-width="4" stroke-linecap="round" />
+  <path d="M51 66 C51 78 49 86 47 95" stroke="#5c8448" stroke-width="4" stroke-linecap="round" />
+  <path d="M61 62 C67 71 73 78 77 89" stroke="#5c8448" stroke-width="4" stroke-linecap="round" />
+</svg>

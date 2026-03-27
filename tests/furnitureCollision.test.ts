@@ -129,6 +129,21 @@ function makeVase(
   };
 }
 
+function makeCeilingLight(
+  id: string,
+  position: [number, number, number],
+  rotationY = 0
+): PersistedFurniturePlacement {
+  return {
+    id,
+    type: "ceiling_light",
+    surface: "ceiling",
+    position,
+    rotationY,
+    ownedFurnitureId: createOwnedFurnitureId(id)
+  };
+}
+
 describe("furnitureCollision", () => {
   it("allows valid floor placement when no furniture or player overlap exists", () => {
     const selectedChair = makeChair("chair-1", [0, 0, 0], 0);
@@ -234,6 +249,15 @@ describe("furnitureCollision", () => {
     const otherFurniture = [makeVase("vase-2", [0, 2.1, 0], "fridge-1")];
 
     expect(getFurnitureCollisionReason(selectedVase, otherFurniture, farAwayPlayer)).toBeNull();
+  });
+
+  it("blocks overlapping ceiling fixtures on the same overhead footprint", () => {
+    const selectedCeilingLight = makeCeilingLight("ceiling-light-1", [0, 4.22, 0]);
+    const otherFurniture = [makeCeilingLight("ceiling-light-2", [0.4, 4.22, 0.2])];
+
+    expect(getFurnitureCollisionReason(selectedCeilingLight, otherFurniture, farAwayPlayer)).toBe(
+      "furniture_overlap"
+    );
   });
 });
 

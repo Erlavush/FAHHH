@@ -46,6 +46,8 @@ export function findSpawnPlacement({
       ? getPreferredWallSurface(targetPosition)
       : definition.surface === "surface"
         ? "surface"
+        : definition.surface === "ceiling"
+          ? "ceiling"
         : "floor";
 
   if (spawnSurface === "surface" && editableSurfaceHosts.length === 0) {

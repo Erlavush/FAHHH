@@ -53,6 +53,28 @@ export type RoomSelectedFurnitureLayerProps = {
   windowSurfaceLightAmount: number;
 };
 
+export function isSelectedFurnitureVisible(input: {
+  buildModeEnabled: boolean;
+  selectedFurniture: RoomFurniturePlacement | null;
+  wallVisibility: Record<string, boolean>;
+}): boolean {
+  const { buildModeEnabled, selectedFurniture, wallVisibility } = input;
+
+  if (!selectedFurniture) {
+    return false;
+  }
+
+  if (selectedFurniture.surface === "floor" || selectedFurniture.surface === "surface") {
+    return true;
+  }
+
+  if (selectedFurniture.surface === "ceiling") {
+    return buildModeEnabled || wallVisibility.ceiling !== false;
+  }
+
+  return wallVisibility[selectedFurniture.surface] !== false;
+}
+
 export function RoomSelectedFurnitureLayer({
   buildModeEnabled,
   frameMemories,
@@ -106,10 +128,11 @@ export function RoomSelectedFurnitureLayer({
     return null;
   }
 
-  const isVisible =
-    selectedFurniture.surface === "floor" ||
-    selectedFurniture.surface === "surface" ||
-    wallVisibility[selectedFurniture.surface] !== false;
+  const isVisible = isSelectedFurnitureVisible({
+    buildModeEnabled,
+    selectedFurniture,
+    wallVisibility
+  });
   const shouldUsePivotControls =
     buildModeEnabled && isVisible && selectedFurnitureMatrix && !prefersTouchControls;
   const shouldRenderFallbackActor = isVisible && !shouldUsePivotControls;
@@ -126,6 +149,7 @@ export function RoomSelectedFurnitureLayer({
           activeAxes={getActiveAxes(selectedFurniture)}
           disableRotations={
             selectedFurniture.surface !== "floor" &&
+            selectedFurniture.surface !== "ceiling" &&
             selectedFurniture.surface !== "surface"
           }
           disableScaling
@@ -135,6 +159,7 @@ export function RoomSelectedFurnitureLayer({
           fixed
           scale={
             selectedFurniture.surface === "floor" ||
+            selectedFurniture.surface === "ceiling" ||
             selectedFurniture.surface === "surface"
               ? FLOOR_GIZMO_SCREEN_SIZE
               : WALL_GIZMO_SCREEN_SIZE

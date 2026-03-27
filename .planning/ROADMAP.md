@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v1.0 Shared Room MVP** - Phases `1`, `2`, `3`, `3.1`, and `4` shipped on 2026-03-27. Archive: `.planning/milestones/v1.0-ROADMAP.md`
-- [ ] **v1.1 Online Foundation** - Phases `5`, `6`, `7`, and `8` planned.
+- [ ] **v1.1 Online Foundation** - Phases `5`, `6`, `7`, `8`, and `9` on roadmap.
 
 ## Overview
 
@@ -14,7 +14,7 @@ This milestone moves the shared-room MVP from a local/dev-only stack toward a du
 ## Phases
 
 **Phase Numbering:**
-- Integer phases continue from the previous milestone (`5`, `6`, `7`, `8`)
+- Integer phases continue from the previous milestone (`5`, `6`, `7`, `8`, `9`)
 - Decimal phases (`5.1`, `6.1`) remain available for urgent insertions if needed
 
 ### Phase 5: Online Backend and Couple Ownership
@@ -47,13 +47,29 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Define ritual rotation rules, shared reward contracts, and hosted persistence needs
-- [ ] 06-02: Add a second repeatable earn loop beyond the desk PC path
-- [ ] 06-03: Surface ritual selection, rotation, and activity-state UX in the player shell
+- [x] 06-01: Define ritual rotation rules, shared reward contracts, and hosted persistence needs
+- [x] 06-02: Add a second repeatable earn loop beyond the desk PC path
+- [x] 06-03: Surface ritual selection, rotation, and activity-state UX in the player shell
+
+### Phase 06.1: Codebase modularization and oversized-file decomposition (INSERTED)
+**Goal**: Reduce oversized orchestrator and runtime files before Phase 7 so the next feature phase can land on stable, modular boundaries.
+**Depends on**: Phase 6
+**Requirements**: [CODE-01]
+**Success Criteria** (what must be TRUE):
+  1. `src/App.tsx`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/lib/sharedProgression.ts`, and `tests/sharedRoomRuntime.test.ts` are decomposed so no refactor-target file remains above 1000 lines.
+  2. App-shell composition, shared-room bootstrap/commit flow, and shared progression rules each live behind focused modules with clear ownership.
+  3. Existing room-builder, shared-room, Preview Studio, and Mob Lab behavior remains unchanged aside from internal modularization.
+  4. Automated regression coverage and the TypeScript build pass after the refactor.
+**Plans**: 3 plans
+
+Plans:
+- [x] 06.1-01: Split shared progression rules into focused domain modules with stable exports
+- [x] 06.1-02: Decompose shared room runtime bootstrap, hosted pairing, and commit flows plus split runtime tests
+- [x] 06.1-03: Break App shell orchestration into dedicated hooks and composition components without regressing player/developer views
 
 ### Phase 7: Memory Collection and Shared Pet Depth
 **Goal**: Expand personalization so the room can hold a richer shared memory collection and a more meaningful shared-pet loop.
-**Depends on**: Phase 6
+**Depends on**: Phase 06.1
 **Requirements**: [MEMR-02, PETS-02]
 **UI hint**: yes
 **Success Criteria** (what must be TRUE):
@@ -85,14 +101,25 @@ Plans:
 - [ ] 08-02: Add at least one expanded room theme or decor set with progression-aware acquisition
 - [ ] 08-03: Polish catalog, preview, and in-room presentation so the new content feels shipped
 
+### Phase 9: MAJOR IMPROVEMENTS
+**Goal**: [To be planned]
+**Depends on**: Phase 8
+**Requirements**: TBD
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run `/gsd-plan-phase 9` to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 5 -> 6 -> 06.1 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 5. Online Backend and Couple Ownership | v1.1 | 3/3 | Complete | 2026-03-27 |
-| 6. Ritual Variety and Earn Loop Expansion | v1.1 | 0/3 | Not started | - |
+| 6. Ritual Variety and Earn Loop Expansion | v1.1 | 3/3 | Complete | 2026-03-27 |
+| 06.1. Codebase modularization and oversized-file decomposition | v1.1 | 3/3 | Complete | 2026-03-27 |
 | 7. Memory Collection and Shared Pet Depth | v1.1 | 0/3 | Not started | - |
 | 8. Themes and Content Expansion | v1.1 | 0/3 | Not started | - |
+| 9. MAJOR IMPROVEMENTS | v1.1 | 0/0 | Not planned | - |

@@ -2,6 +2,7 @@ import { type ThreeEvent } from "@react-three/fiber";
 import type { Dispatch, SetStateAction } from "react";
 import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { RoomFurnitureActor } from "./RoomFurnitureActor";
+import { isWallSurface } from "./helpers";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 export type RoomFurnitureLayerProps = {
@@ -66,7 +67,11 @@ export function RoomFurnitureLayer({
             return false;
           }
 
-          if (item.surface !== "floor" && item.surface !== "surface") {
+          if (item.surface === "ceiling") {
+            return wallVisibility.ceiling !== false;
+          }
+
+          if (isWallSurface(item.surface)) {
             return wallVisibility[item.surface] !== false;
           }
 

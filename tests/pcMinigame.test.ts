@@ -52,7 +52,7 @@ describe("pc desk minigame", () => {
     expect(getPcDeskRewardCoins("pc_runner", 12)).toBeGreaterThan(0);
   });
 
-  it("launches Snake, Block Stacker, and Runner from the retro desktop shell", async () => {
+  it("launches distinct Snake, Block Stacker, and Runner boards from the retro desktop shell", async () => {
     const onComplete = vi.fn<(result: PcDeskRunResult) => void>();
 
     await act(async () => {
@@ -66,32 +66,69 @@ describe("pc desk minigame", () => {
       );
     });
 
-    expect(queryButton("Snake")).not.toBeNull();
-    expect(queryButton("Block Stacker")).not.toBeNull();
-    expect(queryButton("Runner")).not.toBeNull();
-
     await act(async () => {
       queryButton("Snake")?.click();
     });
-    expect(container?.textContent).toContain("SNAKE.EXE");
+    await act(async () => {
+      queryButton("Run app")?.click();
+    });
+    expect(container?.querySelector('[aria-label="Snake grid"]')).not.toBeNull();
+    expect(queryButton("Up")).not.toBeNull();
 
     await act(async () => {
       queryButton("Back to desktop")?.click();
+    });
+    await act(async () => {
       queryButton("Block Stacker")?.click();
     });
-    expect(container?.textContent).toContain("STACKER.EXE");
+    await act(async () => {
+      queryButton("Run app")?.click();
+    });
+    expect(container?.querySelector('[aria-label="Block Stacker board"]')).not.toBeNull();
+    expect(queryButton("Drop block")).not.toBeNull();
 
     await act(async () => {
       queryButton("Back to desktop")?.click();
+    });
+    await act(async () => {
       queryButton("Runner")?.click();
     });
-    expect(container?.textContent).toContain("RUNNER.EXE");
+    await act(async () => {
+      queryButton("Run app")?.click();
+    });
+    expect(container?.querySelector('[aria-label="Runner track"]')).not.toBeNull();
+    expect(queryButton("Jump")).not.toBeNull();
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("lets block stacker score from a timed drop instead of the old click-target flow", async () => {
+    await act(async () => {
+      root?.render(
+        createElement(PcMinigameOverlay, {
+          currentCoins: 12,
+          onComplete: vi.fn(),
+          onExit: vi.fn(),
+          progress: createDefaultPcDeskProgress()
+        })
+      );
+    });
+
+    await act(async () => {
+      queryButton("Block Stacker")?.click();
+    });
+    await act(async () => {
+      queryButton("Run app")?.click();
+    });
+    await act(async () => {
+      queryButton("Drop block")?.click();
+    });
+
+    expect(container?.textContent).toContain("Score 4");
+    expect(container?.querySelectorAll(".pc-minigame__target").length).toBe(0);
   });
 
   it("shows paid and practice-only result states without blocking replay", async () => {
     const onComplete = vi.fn<(result: PcDeskRunResult) => void>();
-    vi.spyOn(Math, "random").mockReturnValue(0.1);
 
     await act(async () => {
       root?.render(
@@ -133,7 +170,7 @@ describe("pc desk minigame", () => {
     await act(async () => {
       root?.render(
         createElement(PcMinigameOverlay, {
-          key: "paid-run",
+          key: "practice-run",
           currentCoins: 18,
           onComplete,
           onExit: vi.fn(),
@@ -158,13 +195,4 @@ describe("pc desk minigame", () => {
     expect(queryButton("Play again")).not.toBeNull();
   });
 });
-
-
-
-
-
-
-
-
-
 

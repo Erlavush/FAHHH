@@ -16,7 +16,7 @@ export interface PcDeskRunResult {
   completedAt: number;
 }
 
-export type PcMinigameResult = PcDeskRunResult;
+export type PcMinigameResult = Omit<PcDeskRunResult, "activityId"> & { activityId?: PcDeskActivityId };
 
 export interface PcDeskAppDefinition {
   id: PcDeskActivityId;
@@ -113,4 +113,5 @@ export function applyPcMinigameResult(
     lastCompletedAt: completedAt
   };
 }
+
 

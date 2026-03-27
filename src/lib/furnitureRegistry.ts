@@ -13,10 +13,20 @@ export type FurnitureType =
   | "poster"
   | "wall_frame"
   | "rug"
-  | "floor_lamp";
+  | "floor_lamp"
+  | "ceiling_light"
+  | "ceiling_fan"
+  | "hanging_plant";
 
-export type FurnitureSurfaceFamily = "floor" | "wall" | "surface";
-export type FurniturePlacementSurface = "floor" | "wall_back" | "wall_left" | "wall_front" | "wall_right" | "surface";
+export type FurnitureSurfaceFamily = "floor" | "wall" | "surface" | "ceiling";
+export type FurniturePlacementSurface =
+  | "floor"
+  | "wall_back"
+  | "wall_left"
+  | "wall_front"
+  | "wall_right"
+  | "surface"
+  | "ceiling";
 export type FurnitureCatalogCategory =
   | "Floor Furniture"
   | "Wall Decor"
@@ -72,7 +82,10 @@ export interface FurnitureDefinition {
     | "poster"
     | "wall_frame"
     | "rug"
-    | "floor_lamp";
+    | "floor_lamp"
+    | "ceiling_light"
+    | "ceiling_fan"
+    | "hanging_plant";
   surface: FurnitureSurfaceFamily;
   footprintWidth: number;
   footprintDepth: number;
@@ -364,6 +377,51 @@ export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
     category: "Accents",
     unlockKey: "starter-floor-lamp",
     starterUnlocked: true
+  },
+  ceiling_light: {
+    type: "ceiling_light",
+    label: "Ceiling Light",
+    price: 42,
+    shopPreviewSrc: "/shop-previews/ceiling-light.svg",
+    shortDescription: "A warm overhead light that brightens the whole room without taking any floor space.",
+    modelKey: "ceiling_light",
+    surface: "ceiling",
+    footprintWidth: 1.2,
+    footprintDepth: 1.2,
+    defaultRotationY: 0,
+    category: "Accents",
+    unlockKey: "starter-ceiling-light",
+    starterUnlocked: true
+  },
+  ceiling_fan: {
+    type: "ceiling_fan",
+    label: "Ceiling Fan",
+    price: 55,
+    shopPreviewSrc: "/shop-previews/ceiling-fan.svg",
+    shortDescription: "A soft-spinning fan that makes the room feel more lived-in and breezy overhead.",
+    modelKey: "ceiling_fan",
+    surface: "ceiling",
+    footprintWidth: 2.8,
+    footprintDepth: 2.8,
+    defaultRotationY: 0,
+    category: "Accents",
+    unlockKey: "starter-ceiling-fan",
+    starterUnlocked: true
+  },
+  hanging_plant: {
+    type: "hanging_plant",
+    label: "Hanging Plant",
+    price: 24,
+    shopPreviewSrc: "/shop-previews/hanging-plant.svg",
+    shortDescription: "A trailing hanging planter that softens the ceiling line with a little cozy greenery.",
+    modelKey: "hanging_plant",
+    surface: "ceiling",
+    footprintWidth: 1.1,
+    footprintDepth: 1.1,
+    defaultRotationY: 0,
+    category: "Accents",
+    unlockKey: "starter-hanging-plant",
+    starterUnlocked: true
   }
 };
 
@@ -396,6 +454,20 @@ const FURNITURE_COLLISION_BOXES: Partial<Record<FurnitureType, FurnitureCollisio
     { center: [0, 0.05, 0], size: [0.6, 0.1, 0.6] },
     { center: [0, 0.72, 0], size: [0.12, 1.34, 0.12] },
     { center: [0, 1.81, 0], size: [0.68, 0.54, 0.68] }
+  ],
+  ceiling_light: [
+    { center: [0, -0.08, 0], size: [0.5, 0.16, 0.5] },
+    { center: [0, -0.38, 0], size: [0.24, 0.42, 0.24] },
+    { center: [0, -0.62, 0], size: [0.82, 0.42, 0.82] }
+  ],
+  ceiling_fan: [
+    { center: [0, -0.18, 0], size: [0.34, 0.36, 0.34] },
+    { center: [0, -0.48, 0], size: [2.62, 0.14, 0.52] },
+    { center: [0, -0.48, 0], size: [0.52, 0.14, 2.62] }
+  ],
+  hanging_plant: [
+    { center: [0, -0.08, 0], size: [0.34, 0.16, 0.34] },
+    { center: [0, -0.42, 0], size: [0.58, 0.94, 0.58] }
   ]
 };
 
@@ -423,6 +495,10 @@ export function getDefaultPlacementSurface(
 
   if (surfaceFamily === "surface") {
     return "surface";
+  }
+
+  if (surfaceFamily === "ceiling") {
+    return "ceiling";
   }
 
   return "floor";

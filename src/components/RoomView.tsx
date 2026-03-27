@@ -157,7 +157,8 @@ export function RoomView({
     wall_back: true,
     wall_left: true,
     wall_front: true,
-    wall_right: true
+    wall_right: true,
+    ceiling: false
   });
 
   const {
@@ -290,6 +291,7 @@ export function RoomView({
     moonOpacity,
     moonShadowMapSize,
     pointLightIntensity,
+    pointLightPosition,
     pointLightVisible,
     postProcessing,
     roomSurfaceLightAmount,
@@ -453,6 +455,7 @@ export function RoomView({
           moonOpacity={moonOpacity}
           moonShadowMapSize={moonShadowMapSize}
           pointLightIntensity={pointLightIntensity}
+          pointLightPosition={pointLightPosition}
           pointLightVisible={pointLightVisible}
           shadowsEnabled={shadowsEnabled}
           sunEnabled={sunEnabled}
@@ -471,6 +474,9 @@ export function RoomView({
           onWallClick={handleWallClick}
           onWallPointerMove={handleSurfacePointerMove}
           onWallPointerUp={handleSurfacePointerUp}
+          onCeilingClick={handleWallClick}
+          onCeilingPointerMove={handleSurfacePointerMove}
+          onCeilingPointerUp={handleSurfacePointerUp}
         />
         <FloorStage
           targetPosition={targetPosition}
@@ -632,6 +638,7 @@ export function RoomView({
           }
           canRotate={
             editDockFurniture.surface === "floor" ||
+            editDockFurniture.surface === "ceiling" ||
             editDockFurniture.surface === "surface"
           }
           canSwapWall={
@@ -642,6 +649,7 @@ export function RoomView({
           }
           canNudgeVertical={
             editDockFurniture.surface === "floor" ||
+            editDockFurniture.surface === "ceiling" ||
             editDockFurniture.surface === "surface" ||
             !hasFixedWallVerticalPlacement(editDockFurniture.type)
           }
@@ -690,6 +698,8 @@ function getSelectedSurfaceLabel(
       return "Floor item";
     case "surface":
       return "Surface decor";
+    case "ceiling":
+      return "Ceiling item";
     case "wall_back":
       return "Back wall";
     case "wall_left":

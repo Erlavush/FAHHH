@@ -16,6 +16,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - Production backend/auth and real room ownership across browsers and devices
 - Multiple ritual variants plus a second repeatable earn loop
 - Richer memory collection, deeper pet behavior, and additional themed room content
+- Oversized runtime and regression files are decomposed before deeper milestone work so active code does not keep growing past 1k-line boundaries
 - Mandatory phase verification artifacts to retire the process debt carried out of v1.0
 
 ## Requirements
@@ -30,15 +31,15 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] Couple can create or join one canonical shared room and persist shared-room buy, place, store, sell, and remove flows without inventory drift.
 - [x] Shared-room state survives refresh, reconnect, and migration from the solo sandbox model while preserving existing room invariants.
 - [x] Live partner presence now covers avatar visibility, join/reconnect status UX, and predictable same-item edit convergence.
-- [x] Each partner keeps a persistent wallet, XP, and level while the couple shares a visible streak and one daily ritual loop.
+- [x] Each partner keeps a persistent wallet, XP, and level while the couple shares Together Days and a lightweight daily ritual loop.
 - [x] The shipped room runtime now separates a player-facing shell from a developer workspace and keeps Preview Studio and Mob Lab as explicit authoring tools.
 - [x] Couple can place one shared memory object, own one canonical shared cat, and trigger an explicit breakup-reset flow with confirmation.
 - [x] Couple can authenticate or reclaim their room identity through Google sign-in, exclusive couple linking, and automatic paired-room re-entry across browsers or devices.
 - [x] Shared-room documents, presence, progression, memories, and the shared cat now sync through hosted Firebase adapters instead of the dev-only shared-room store.
+- [x] Couple now has Together Days, a retro three-app desk PC with once-per-room-day payouts, and a bed-based Cozy Rest earn loop surfaced in the player shell.
 
 ### Active
 
-- [ ] Couple can rotate through multiple daily ritual variants and access a second repeatable earn loop beyond the desk PC.
 - [ ] Couple can maintain a richer memory collection, interact with a deeper shared-pet loop, and unlock additional themed content.
 - [ ] Every v1.1 phase closes with explicit `VERIFICATION.md` coverage so the next milestone audit is evidence-complete.
 
@@ -64,10 +65,14 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 - v1.0 Shared Room MVP shipped on 2026-03-27 and is archived under `.planning/milestones/`.
 - The live runtime now supports canonical room identity, committed shared edits, live partner presence, personal and couple progression, a room-first player shell, developer-only authoring workspace surfaces, shared memories, one canonical shared cat, and breakup-reset stakes.
+- The room-builder now supports ceiling placement with a starter catalog set of overhead fixtures and decor, including preview-studio support and practical nighttime ceiling lighting.
+- Camera-occluded walls and the ceiling now preserve their shadow-casting occluders, so room lighting stays stable while peeling surfaces away for interior visibility.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
 - Phase 5 now adds Google-auth couple ownership, hosted room/bootstrap adapters, pair-link presence, and automatic paired-room re-entry without breaking the brownfield local dev sandbox fallback.
-- v1.1 is now scoped around ritual/activity depth, richer memories and pet behavior, and additional content expansion on top of the online foundation.
-- The next step is Phase 6 planning/execution, not more milestone bootstrap work.
+- v1.1 is now scoped around ritual/activity depth, richer memories and pet behavior, additional content expansion, and one follow-on Phase 9 slot for major improvements on top of the online foundation.
+- Phase 6 is now complete: Together Days, the retro desk-PC activity suite, Cozy Rest, and the matching shell surfacing are part of the active baseline.
+- Phase 06.1 is now complete: `src/App.tsx`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/lib/sharedProgression.ts`, and the shared-room runtime regression coverage are split into modular seams under the 1k guardrail.
+- The next planned phase directory on disk is Phase 09; roadmap placeholders 7 and 8 still need planning before that broader follow-on work is reshaped.
 
 ## Constraints
 
@@ -102,6 +107,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Breakup reset rebuilds one fresh shared baseline through the normal mutation pipeline | Destructive state changes still need stale-revision replay safety and one authoritative reset contract | Good |
 | Archive v1.0 despite milestone audit gaps | HEAD is stable enough to treat the missing verification artifacts as process debt rather than reopen shipped scope | Revisit |
 | Continue numbering from Phase 5 and require verification artifacts in every v1.1 phase | Keeps history continuous while preventing another milestone audit evidence gap | Pending |
+| Insert urgent Phase `06.1` before Phase 7 to pay down oversized-file debt | `App.tsx`, `useSharedRoomRuntime.ts`, `sharedProgression.ts`, and the shared-room runtime regression coverage were already too large for safe feature growth | Good |
 
 ## Evolution
 
@@ -121,4 +127,8 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-27 after completing Phase 5*
+*Last updated: 2026-03-27 after completing Phase 06.1 codebase modularization*
+
+
+
+

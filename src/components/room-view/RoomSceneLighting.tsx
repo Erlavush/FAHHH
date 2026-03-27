@@ -9,6 +9,7 @@ type RoomSceneLightingProps = {
   moonOpacity: number;
   moonShadowMapSize: number;
   pointLightIntensity: number;
+  pointLightPosition: [number, number, number];
   pointLightVisible: boolean;
   shadowsEnabled: boolean;
   sunEnabled: boolean;
@@ -28,6 +29,7 @@ export function RoomSceneLighting({
   moonOpacity,
   moonShadowMapSize,
   pointLightIntensity,
+  pointLightPosition,
   pointLightVisible,
   shadowsEnabled,
   sunEnabled,
@@ -47,7 +49,7 @@ export function RoomSceneLighting({
       />
       {pointLightVisible ? (
         <pointLight
-          position={[0, 2.55, -1.45]}
+          position={pointLightPosition}
           color="#ffcf9f"
           intensity={pointLightIntensity}
           distance={13.5}

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="mount" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6b5746;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#443126;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff5df;stop-opacity:0.96" />
+      <stop offset="100%" style="stop-color:#f0d7a7;stop-opacity:0.88" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="58%" r="42%">
+      <stop offset="0%" style="stop-color:#ffd483;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#ffd483;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <ellipse cx="50" cy="52" rx="26" ry="24" fill="url(#glow)" opacity="0.7" />
+
+  <ellipse cx="50" cy="14" rx="17" ry="5" fill="#4b382c" />
+  <rect x="37" y="14" width="26" height="10" rx="5" fill="url(#mount)" />
+  <rect x="47" y="22" width="6" height="15" rx="3" fill="#2d231d" />
+  <ellipse cx="50" cy="39" rx="11" ry="5" fill="#5a4233" />
+
+  <path d="M28 44 C32 29 68 29 72 44 L64 65 C61 73 39 73 36 65 Z" fill="url(#glass)" stroke="#e5ccb2" stroke-width="1" />
+  <circle cx="50" cy="51" r="7" fill="#fff4d9" />
+  <circle cx="50" cy="51" r="4" fill="#ffcb73" opacity="0.9" />
+
+  <path d="M18 49 L6 42 L10 57 Z" fill="#ffcb73" opacity="0.28" />
+  <path d="M82 49 L94 42 L90 57 Z" fill="#ffcb73" opacity="0.28" />
+  <path d="M50 73 L50 86" stroke="#ffcb73" stroke-width="3" opacity="0.32" />
+</svg>

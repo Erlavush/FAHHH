@@ -322,6 +322,92 @@ describe("sharedRoomPresence UX", () => {
     expect(latestHookValue?.remotePresence?.pose?.slotId).toBe("secondary");
   });
 
+  it("marks Cozy Rest ready when both partners lie on the same bed in different slots", async () => {
+    const sharedPresenceStore = createSharedPresenceStore(
+      vi.fn().mockResolvedValue(
+        createRoomPresenceSnapshot(new Date(Date.now()).toISOString(), {
+          type: "lie",
+          furnitureId: "bed-a",
+          position: [2, 0, -0.5],
+          rotationY: Math.PI,
+          slotId: "secondary",
+          poseOffset: [0, 0.84, 1]
+        })
+      )
+    );
+    const localPresence = {
+      ...createLocalPresence(),
+      activity: "lie" as const,
+      interactionPose: {
+        type: "lie" as const,
+        furnitureId: "bed-a",
+        position: [2, 0, -0.5] as [number, number, number],
+        rotationY: Math.PI,
+        slotId: "primary",
+        poseOffset: [0, 0.84, -1] as [number, number, number]
+      }
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HookHarness, { localPresence, sharedPresenceStore }));
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.cozyRestEligibility).toEqual({
+      eligible: true,
+      furnitureId: "bed-a",
+      localSlotId: "primary",
+      partnerSlotId: "secondary"
+    });
+  });
+
+  it("does not mark Cozy Rest ready when both partners occupy the same bed slot", async () => {
+    const sharedPresenceStore = createSharedPresenceStore(
+      vi.fn().mockResolvedValue(
+        createRoomPresenceSnapshot(new Date(Date.now()).toISOString(), {
+          type: "lie",
+          furnitureId: "bed-a",
+          position: [2, 0, -0.5],
+          rotationY: Math.PI,
+          slotId: "primary",
+          poseOffset: [0, 0.84, -1]
+        })
+      )
+    );
+    const localPresence = {
+      ...createLocalPresence(),
+      activity: "lie" as const,
+      interactionPose: {
+        type: "lie" as const,
+        furnitureId: "bed-a",
+        position: [2, 0, -0.5] as [number, number, number],
+        rotationY: Math.PI,
+        slotId: "primary",
+        poseOffset: [0, 0.84, -1] as [number, number, number]
+      }
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HookHarness, { localPresence, sharedPresenceStore }));
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.cozyRestEligibility).toEqual({
+      eligible: false,
+      furnitureId: "bed-a",
+      localSlotId: "primary",
+      partnerSlotId: "primary"
+    });
+  });
+
   it("samples remote partner motion from buffered snapshots instead of a single target jump", () => {
     const samples = pushBufferedMotionSample(
       pushBufferedMotionSample([], {
@@ -351,3 +437,4 @@ describe("sharedRoomPresence UX", () => {
     expect(sampled?.walkAmount).toBeCloseTo(0.65);
   });
 });
+

@@ -6,28 +6,16 @@ import {
   toSharedPlayerProfile as mapFirebasePlayerProfile
 } from "../../lib/firebaseAuth";
 import { getSharedBackendState } from "../../lib/sharedBackendConfig";
-import { isSharedRoomConflictError, sharedRoomClient } from "../../lib/sharedRoomClient";
+import { sharedRoomClient } from "../../lib/sharedRoomClient";
 import { sharedRoomOwnershipClient } from "../../lib/sharedRoomOwnershipClient";
-import {
-  cloneRoomState,
-  createDefaultRoomState,
-  type RoomState
-} from "../../lib/roomState";
-import { cloneSharedRoomFrameMemories } from "../../lib/sharedRoomMemories";
-import { cloneSharedRoomPetRecord } from "../../lib/sharedRoomPet";
+import type { RoomState } from "../../lib/roomState";
 import { advanceRitualDayIfNeeded } from "../../lib/sharedProgression";
-import type { SharedRoomOwnershipStore } from "../../lib/sharedRoomOwnershipStore";
-import type { SharedRoomStore } from "../../lib/sharedRoomStore";
 import type {
   SharedPendingPairLink,
   SharedPlayerProfile,
   SharedRoomBootstrapState,
-  SharedRoomDocument,
-  SharedRoomFrameMemory,
-  SharedRoomPetRecord,
-  SharedRoomSession
+  SharedRoomDocument
 } from "../../lib/sharedRoomTypes";
-import type { SharedRoomProgressionState } from "../../lib/sharedProgressionTypes";
 import {
   clearSharedRoomSession,
   loadOrCreateSharedPlayerProfile,
@@ -35,71 +23,60 @@ import {
   saveSharedPlayerProfile,
   saveSharedRoomSession
 } from "../../lib/sharedRoomSession";
+import {
+  bootstrapDevRoom as bootstrapDevRoomFlow,
+  createRoom as createRoomFlow,
+  joinRoom as joinRoomFlow,
+  loadLegacyRoom as loadLegacyRoomFlow
+} from "./shared-room-runtime/bootstrapFlow";
+import {
+  applyHostedBootstrapState as applyHostedBootstrapStateFlow,
+  cancelPairLink as cancelPairLinkFlow,
+  confirmPairLink as confirmPairLinkFlow,
+  loadHostedRoom as loadHostedRoomFlow,
+  refreshHostedBootstrapState as refreshHostedBootstrapStateFlow,
+  submitPartnerCode as submitPartnerCodeFlow
+} from "./shared-room-runtime/hostedFlow";
+import {
+  createBlockingState,
+  createHostedUnavailableBody,
+  getSharedRoomErrorMessage,
+  HOSTED_LOADING_TITLE,
+  PENDING_LINK_POLL_INTERVAL_MS,
+  ROOM_PASSIVE_SYNC_INTERVAL_MS
+} from "./shared-room-runtime/runtimeMessages";
+import {
+  createSharedRoomRuntimeSnapshot,
+  createSharedRoomSessionFromDocument,
+  shouldCommitSharedRoomChange
+} from "./shared-room-runtime/runtimeSnapshot";
+import type {
+  SharedAuthAdapter,
+  SharedRoomBlockingState,
+  SharedRoomRuntimeBootstrapKind,
+  SharedRoomRuntimeEntryMode,
+  SharedRoomRuntimeOptions
+} from "./shared-room-runtime/runtimeTypes";
+import {
+  commitRoomMutation as commitRoomMutationFlow,
+  commitRoomState as commitRoomStateFlow,
+  recoverFromStaleSharedEdit as recoverFromStaleSharedEditFlow,
+  reloadRoom as reloadRoomFlow
+} from "./shared-room-runtime/roomCommits";
 
-export interface SharedRoomRuntimeSnapshot {
-  roomId: string;
-  inviteCode: string;
-  revision: number;
-  memberIds: string[];
-  members: SharedRoomDocument["members"];
-  progression: SharedRoomProgressionState;
-  roomState: RoomState;
-  frameMemories: Record<string, SharedRoomFrameMemory>;
-  sharedPet: SharedRoomPetRecord | null;
-}
-
-export interface SharedRoomBlockingState {
-  title: string;
-  body: string;
-  retryable: boolean;
-}
-
-export type SharedRoomRuntimeBootstrapKind =
-  | "legacy"
-  | "signed_out"
-  | "hosted_unavailable"
-  | "needs_linking"
-  | "pending_link"
-  | "loading_room"
-  | "room_ready";
-
-export type SharedRoomRuntimeEntryMode =
-  | "legacy"
-  | "hosted"
-  | "hosted_unavailable"
-  | "dev_fallback";
-
-export interface SharedAuthAdapter<User = unknown> {
-  signInWithGoogle(): Promise<unknown>;
-  signOut(): Promise<void>;
-  subscribe(callback: (user: User | null) => void): () => void;
-  toSharedPlayerProfile(user: User): SharedPlayerProfile;
-}
-
-type SharedRoomMutation = (
-  snapshot: SharedRoomRuntimeSnapshot
-) => {
-  roomState: RoomState;
-  progression: SharedRoomProgressionState;
-  frameMemories: Record<string, SharedRoomFrameMemory>;
-  sharedPet: SharedRoomPetRecord | null;
-};
-
-interface SharedRoomRuntimeOptions {
-  devBootstrapRoomState?: RoomState;
-  devBootstrapSharedCoins?: number;
-  devBypassEnabled?: boolean;
-  hostedFlowEnabled?: boolean;
-  sharedAuthAdapter?: SharedAuthAdapter | null;
-  sharedRoomOwnershipStore?: SharedRoomOwnershipStore | null;
-  sharedRoomStore?: SharedRoomStore;
-}
-
-const HOSTED_LOADING_TITLE = "Loading your room...";
-const HOSTED_VERIFY_ERROR_TITLE = "We couldn't verify your room right now.";
-const HOSTED_UNAVAILABLE_TITLE = "Hosted couple room setup is incomplete.";
-const PENDING_LINK_POLL_INTERVAL_MS = 1000;
-const ROOM_PASSIVE_SYNC_INTERVAL_MS = 1000;
+export type {
+  SharedAuthAdapter,
+  SharedRoomBlockingState,
+  SharedRoomRuntimeBootstrapKind,
+  SharedRoomRuntimeEntryMode,
+  SharedRoomRuntimeOptions,
+  SharedRoomRuntimeSnapshot
+} from "./shared-room-runtime/runtimeTypes";
+export {
+  createSharedRoomRuntimeSnapshot,
+  createSharedRoomSessionFromDocument,
+  shouldCommitSharedRoomChange
+} from "./shared-room-runtime/runtimeSnapshot";
 
 const defaultSharedAuthAdapter: SharedAuthAdapter<unknown> = {
   signInWithGoogle() {
@@ -118,79 +95,6 @@ const defaultSharedAuthAdapter: SharedAuthAdapter<unknown> = {
   }
 };
 
-function getSharedRoomErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Shared room request failed.";
-}
-
-function createBlockingState(
-  title: string,
-  body: string,
-  retryable = false
-): SharedRoomBlockingState {
-  return {
-    title,
-    body,
-    retryable
-  };
-}
-
-function createHostedUnavailableBody(missingKeys: readonly string[]): string {
-  if (missingKeys.length === 0) {
-    return "Google sign-in and hosted couple linking are unavailable until the hosted backend is configured.";
-  }
-
-  return `Missing Firebase setup: ${missingKeys.join(", ")}. Finish the hosted env config before testing Google sign-in and couple linking.`;
-}
-
-export function createSharedRoomSessionFromDocument(
-  playerId: string,
-  roomDocument: SharedRoomDocument
-): SharedRoomSession {
-  const partnerId =
-    roomDocument.memberIds.find((memberId) => memberId !== playerId) ?? null;
-
-  return {
-    playerId,
-    partnerId,
-    roomId: roomDocument.roomId,
-    inviteCode: roomDocument.inviteCode,
-    lastKnownRevision: roomDocument.revision
-  };
-}
-
-export function createSharedRoomRuntimeSnapshot(
-  roomDocument: SharedRoomDocument
-): SharedRoomRuntimeSnapshot {
-  return {
-    roomId: roomDocument.roomId,
-    inviteCode: roomDocument.inviteCode,
-    revision: roomDocument.revision,
-    memberIds: [...roomDocument.memberIds],
-    members: roomDocument.members.map((member) => ({ ...member })),
-    progression: advanceRitualDayIfNeeded(
-      roomDocument.progression,
-      roomDocument.memberIds,
-      roomDocument.members,
-      new Date().toISOString()
-    ),
-    roomState: cloneRoomState(roomDocument.roomState),
-    frameMemories: cloneSharedRoomFrameMemories(roomDocument.frameMemories),
-    sharedPet: roomDocument.sharedPet
-      ? cloneSharedRoomPetRecord(roomDocument.sharedPet)
-      : null
-  };
-}
-
-export function shouldCommitSharedRoomChange(
-  changeKind: "snapshot" | "committed"
-): boolean {
-  return changeKind === "committed";
-}
-
 export function useSharedRoomRuntime({
   devBootstrapRoomState,
   devBootstrapSharedCoins = 0,
@@ -201,8 +105,7 @@ export function useSharedRoomRuntime({
   sharedRoomStore = sharedRoomClient
 }: SharedRoomRuntimeOptions = {}) {
   const backendState = useMemo(() => getSharedBackendState(), []);
-  const wantsHostedFlow =
-    hostedFlowEnabled ?? backendState.firebaseRequested;
+  const wantsHostedFlow = hostedFlowEnabled ?? backendState.firebaseRequested;
   const resolvedSharedAuthAdapter =
     sharedAuthAdapter === undefined
       ? wantsHostedFlow
@@ -237,54 +140,47 @@ export function useSharedRoomRuntime({
   const [profile, setProfile] = useState<SharedPlayerProfile>(initialProfile);
   const [displayName, setDisplayName] = useState(initialProfile.displayName);
   const [roomDocument, setRoomDocument] = useState<SharedRoomDocument | null>(null);
-  const [session, setSession] = useState<SharedRoomSession | null>(() => loadSharedRoomSession());
+  const [session, setSession] = useState(() => loadSharedRoomSession());
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selfPairCode, setSelfPairCode] = useState<string | null>(null);
   const [pendingLink, setPendingLink] = useState<SharedPendingPairLink | null>(null);
-  const [bootstrapKind, setBootstrapKind] = useState<SharedRoomRuntimeBootstrapKind>(
-    () => {
-      if (hostedFlowUnavailable) {
-        return "hosted_unavailable";
-      }
-
-      if (hostedFlowActive || session || devBypassActive) {
-        return "loading_room";
-      }
-
-      return "legacy";
+  const [bootstrapKind, setBootstrapKind] = useState<SharedRoomRuntimeBootstrapKind>(() => {
+    if (hostedFlowUnavailable) {
+      return "hosted_unavailable";
     }
-  );
-  const [blockingState, setBlockingState] = useState<SharedRoomBlockingState | null>(
-    () => {
-      if (hostedFlowUnavailable) {
-        return null;
-      }
 
-      if (hostedFlowActive) {
-        return createBlockingState(
-          HOSTED_LOADING_TITLE,
-          "Checking your couple room."
-        );
-      }
+    if (hostedFlowActive || session || devBypassActive) {
+      return "loading_room";
+    }
 
-      if (session) {
-        return createBlockingState(
-          "Loading shared room...",
-          "Fetching the latest shared room state."
-        );
-      }
-
-      if (devBypassActive) {
-        return createBlockingState(
-          "Loading shared room...",
-          "Bootstrapping the development shared room."
-        );
-      }
-
+    return "legacy";
+  });
+  const [blockingState, setBlockingState] = useState<SharedRoomBlockingState | null>(() => {
+    if (hostedFlowUnavailable) {
       return null;
     }
-  );
+
+    if (hostedFlowActive) {
+      return createBlockingState(HOSTED_LOADING_TITLE, "Checking your couple room.");
+    }
+
+    if (session) {
+      return createBlockingState(
+        "Loading shared room...",
+        "Fetching the latest shared room state."
+      );
+    }
+
+    if (devBypassActive) {
+      return createBlockingState(
+        "Loading shared room...",
+        "Bootstrapping the development shared room."
+      );
+    }
+
+    return null;
+  });
   const statusTimeoutRef = useRef<number | null>(null);
   const devBootstrapRequestRef = useRef(false);
   const activeHostedPlayerIdRef = useRef<string | null>(null);
@@ -373,46 +269,26 @@ export function useSharedRoomRuntime({
   );
 
   const loadLegacyRoom = useCallback(
-    async (
-      roomId: string,
-      loadingBody: string
-    ): Promise<SharedRoomDocument | null> => {
-      setBlockingState(createBlockingState("Loading shared room...", loadingBody));
-      setBootstrapKind("loading_room");
-
-      try {
-        const nextRoomDocument = await sharedRoomStore.loadSharedRoom({ roomId });
-        applyRoomDocument(nextRoomDocument);
-        return nextRoomDocument;
-      } catch (error) {
-        if (
-          error &&
-          typeof error === "object" &&
-          "status" in error &&
-          error.status === 404
-        ) {
-          clearStatusMessage();
-          clearActiveRoomState();
-          setSelfPairCode(null);
-          setPendingLink(null);
-          setBootstrapKind("legacy");
-          setBlockingState(null);
-          setInlineError(null);
-          return null;
-        }
-
-        setBlockingState(
-          createBlockingState(
-            "We couldn't load the shared room. Retry to fetch the latest room state.",
-            "Any unconfirmed local changes will be discarded before the shared room reloads.",
-            true
-          )
-        );
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
-    [applyRoomDocument, clearActiveRoomState, clearStatusMessage, sharedRoomStore]
+    async (roomId: string, loadingBody: string) =>
+      loadLegacyRoomFlow({
+        roomId,
+        loadingBody,
+        sharedRoomStore,
+        applyRoomDocument,
+        clearActiveRoomState,
+        clearStatusMessage,
+        setBlockingState,
+        setBootstrapKind,
+        setInlineError,
+        setSelfPairCode,
+        setPendingLink
+      }),
+    [
+      applyRoomDocument,
+      clearActiveRoomState,
+      clearStatusMessage,
+      sharedRoomStore
+    ]
   );
 
   const loadHostedRoom = useCallback(
@@ -420,44 +296,21 @@ export function useSharedRoomRuntime({
       roomId: string,
       nextProfile: SharedPlayerProfile,
       nextSelfPairCode: string | null
-    ): Promise<SharedRoomDocument | null> => {
-      setBootstrapKind("loading_room");
-      setBlockingState(
-        createBlockingState(
-          HOSTED_LOADING_TITLE,
-          "Verifying your couple room and loading the latest shared state."
-        )
-      );
-
-      try {
-        const nextRoomDocument = await sharedRoomStore.loadSharedRoom({ roomId });
-
-        if (activeHostedPlayerIdRef.current !== nextProfile.playerId) {
-          return null;
-        }
-
-        applyRoomDocument(nextRoomDocument, nextProfile);
-        setSelfPairCode(nextSelfPairCode);
-        return nextRoomDocument;
-      } catch (error) {
-        if (activeHostedPlayerIdRef.current !== nextProfile.playerId) {
-          return null;
-        }
-
-        clearActiveRoomState();
-        setPendingLink(null);
-        setBootstrapKind("loading_room");
-        setBlockingState(
-          createBlockingState(
-            HOSTED_VERIFY_ERROR_TITLE,
-            "Retry to verify your couple room and load the latest shared state.",
-            true
-          )
-        );
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
+    ) =>
+      loadHostedRoomFlow({
+        roomId,
+        nextProfile,
+        nextSelfPairCode,
+        sharedRoomStore,
+        activeHostedPlayerIdRef,
+        applyRoomDocument,
+        clearActiveRoomState,
+        setPendingLink,
+        setBootstrapKind,
+        setBlockingState,
+        setInlineError,
+        setSelfPairCode
+      }),
     [applyRoomDocument, clearActiveRoomState, sharedRoomStore]
   );
 
@@ -465,82 +318,35 @@ export function useSharedRoomRuntime({
     async (
       nextBootstrapState: SharedRoomBootstrapState,
       nextProfile: SharedPlayerProfile
-    ) => {
-      setInlineError(null);
-      setSelfPairCode(nextBootstrapState.selfPairCode);
-
-      if (nextBootstrapState.kind === "needs_linking") {
-        clearActiveRoomState();
-        setPendingLink(null);
-        setBootstrapKind("needs_linking");
-        setBlockingState(null);
-        return null;
-      }
-
-      if (nextBootstrapState.kind === "pending_link") {
-        clearActiveRoomState();
-        setPendingLink(nextBootstrapState.pendingLink);
-        setBootstrapKind("pending_link");
-        setBlockingState(null);
-        return null;
-      }
-
-      setPendingLink(null);
-      return loadHostedRoom(
-        nextBootstrapState.membership.roomId,
+    ) =>
+      applyHostedBootstrapStateFlow({
+        nextBootstrapState,
         nextProfile,
-        nextBootstrapState.selfPairCode
-      );
-    },
+        clearActiveRoomState,
+        setPendingLink,
+        setBootstrapKind,
+        setBlockingState,
+        setInlineError,
+        setSelfPairCode,
+        loadHostedRoom
+      }),
     [clearActiveRoomState, loadHostedRoom]
   );
 
   const refreshHostedBootstrapState = useCallback(
-    async (nextProfile: SharedPlayerProfile) => {
-      if (
-        !hostedFlowActive ||
-        !resolvedSharedRoomOwnershipStore ||
-        activeHostedPlayerIdRef.current !== nextProfile.playerId
-      ) {
-        return null;
-      }
-
-      setInlineError(null);
-      setBootstrapKind("loading_room");
-      setBlockingState(
-        createBlockingState(HOSTED_LOADING_TITLE, "Checking your couple room.")
-      );
-
-      try {
-        const nextBootstrapState =
-          await resolvedSharedRoomOwnershipStore.loadBootstrapState({
-            profile: nextProfile
-          });
-
-        if (activeHostedPlayerIdRef.current !== nextProfile.playerId) {
-          return null;
-        }
-
-        return applyHostedBootstrapState(nextBootstrapState, nextProfile);
-      } catch (error) {
-        if (activeHostedPlayerIdRef.current !== nextProfile.playerId) {
-          return null;
-        }
-
-        clearActiveRoomState();
-        setPendingLink(null);
-        setBootstrapKind("loading_room");
-        setBlockingState(
-          createBlockingState(
-            HOSTED_VERIFY_ERROR_TITLE,
-            "Retry to verify your couple room and load the latest shared state.",
-            true
-          )
-        );
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
+    async (nextProfile: SharedPlayerProfile) =>
+      refreshHostedBootstrapStateFlow({
+        hostedFlowActive,
+        resolvedSharedRoomOwnershipStore,
+        activeHostedPlayerIdRef,
+        nextProfile,
+        clearActiveRoomState,
+        setPendingLink,
+        setBootstrapKind,
+        setBlockingState,
+        setInlineError,
+        applyHostedBootstrapState
+      }),
     [
       applyHostedBootstrapState,
       clearActiveRoomState,
@@ -618,115 +424,71 @@ export function useSharedRoomRuntime({
   ]);
 
   const createRoom = useCallback(
-    async (sourceRoomState: RoomState, sharedCoins: number) => {
-      if (hostedFlowActive) {
-        return null;
-      }
-
-      const nextProfile = persistProfile();
-      setInlineError(null);
-      setBootstrapKind("loading_room");
-      setBlockingState(
-        createBlockingState("Loading shared room...", "Creating your shared room.")
-      );
-
-      try {
-        const nextRoomDocument = await sharedRoomStore.createSharedRoom({
-          profile: nextProfile,
-          sourceRoomState,
-          seedKind: "dev-current-room",
-          sharedCoins
-        });
-
-        applyRoomDocument(nextRoomDocument, nextProfile);
-        setTimedStatusMessage("Room ready to share");
-        return nextRoomDocument;
-      } catch (error) {
-        setBootstrapKind("legacy");
-        setBlockingState(null);
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
-    [applyRoomDocument, hostedFlowActive, persistProfile, setTimedStatusMessage, sharedRoomStore]
+    async (sourceRoomState: RoomState, sharedCoins: number) =>
+      createRoomFlow({
+        hostedFlowActive,
+        persistProfile,
+        setInlineError,
+        setBootstrapKind,
+        setBlockingState,
+        sharedRoomStore,
+        applyRoomDocument,
+        setTimedStatusMessage,
+        sourceRoomState,
+        sharedCoins
+      }),
+    [
+      applyRoomDocument,
+      hostedFlowActive,
+      persistProfile,
+      setTimedStatusMessage,
+      sharedRoomStore
+    ]
   );
 
-  const bootstrapDevRoom = useCallback(async () => {
-    if (!devBypassActive) {
-      return null;
-    }
-
-    const nextProfile = persistProfile();
-    setInlineError(null);
-    setBootstrapKind("loading_room");
-    setBlockingState(
-      createBlockingState(
-        "Loading shared room...",
-        "Bootstrapping the development shared room."
-      )
-    );
-
-    try {
-      const nextRoomDocument = await sharedRoomStore.bootstrapDevSharedRoom({
-        profile: nextProfile,
-        sourceRoomState: cloneRoomState(
-          devBootstrapRoomState ?? createDefaultRoomState()
-        ),
-        sharedCoins: devBootstrapSharedCoins
-      });
-
-      applyRoomDocument(nextRoomDocument, nextProfile);
-      return nextRoomDocument;
-    } catch (error) {
-      setBlockingState(
-        createBlockingState(
-          "We couldn't load the shared room. Retry to fetch the latest room state.",
-          "Any unconfirmed local changes will be discarded before the shared room reloads.",
-          true
-        )
-      );
-      setInlineError(getSharedRoomErrorMessage(error));
-      return null;
-    }
-  }, [
-    applyRoomDocument,
-    devBootstrapRoomState,
-    devBootstrapSharedCoins,
-    devBypassActive,
-    persistProfile,
-    sharedRoomStore
-  ]);
+  const bootstrapDevRoom = useCallback(
+    async () =>
+      bootstrapDevRoomFlow({
+        devBypassActive,
+        persistProfile,
+        setInlineError,
+        setBootstrapKind,
+        setBlockingState,
+        sharedRoomStore,
+        applyRoomDocument,
+        devBootstrapRoomState,
+        devBootstrapSharedCoins
+      }),
+    [
+      applyRoomDocument,
+      devBootstrapRoomState,
+      devBootstrapSharedCoins,
+      devBypassActive,
+      persistProfile,
+      sharedRoomStore
+    ]
+  );
 
   const joinRoom = useCallback(
-    async (code: string) => {
-      if (hostedFlowActive) {
-        return null;
-      }
-
-      const nextProfile = persistProfile();
-      setInlineError(null);
-      setBootstrapKind("loading_room");
-      setBlockingState(
-        createBlockingState("Loading shared room...", "Joining your partner's room.")
-      );
-
-      try {
-        const nextRoomDocument = await sharedRoomStore.joinSharedRoom({
-          code,
-          profile: nextProfile
-        });
-
-        applyRoomDocument(nextRoomDocument, nextProfile);
-        setTimedStatusMessage("Shared room updated");
-        return nextRoomDocument;
-      } catch (error) {
-        setBootstrapKind("legacy");
-        setBlockingState(null);
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
-    [applyRoomDocument, hostedFlowActive, persistProfile, setTimedStatusMessage, sharedRoomStore]
+    async (code: string) =>
+      joinRoomFlow({
+        hostedFlowActive,
+        persistProfile,
+        setInlineError,
+        setBootstrapKind,
+        setBlockingState,
+        sharedRoomStore,
+        applyRoomDocument,
+        setTimedStatusMessage,
+        code
+      }),
+    [
+      applyRoomDocument,
+      hostedFlowActive,
+      persistProfile,
+      setTimedStatusMessage,
+      sharedRoomStore
+    ]
   );
 
   useEffect(() => {
@@ -864,102 +626,65 @@ export function useSharedRoomRuntime({
     sharedRoomStore
   ]);
 
-  const reloadRoom = useCallback(async () => {
-    if (hostedFlowActive) {
-      if (
-        activeHostedPlayerIdRef.current &&
-        activeHostedPlayerIdRef.current === profile.playerId &&
-        bootstrapKind !== "room_ready"
-      ) {
-        return refreshHostedBootstrapState(profile);
-      }
+  const reloadRoom = useCallback(
+    async () =>
+      reloadRoomFlow({
+        hostedFlowActive,
+        activeHostedPlayerIdRef,
+        profile,
+        bootstrapKind,
+        refreshHostedBootstrapState,
+        session,
+        setTimedStatusMessage,
+        loadHostedRoom,
+        selfPairCode,
+        hostedFlowUnavailable,
+        setBootstrapKind,
+        setBlockingState,
+        devBypassActive,
+        bootstrapDevRoom,
+        loadLegacyRoom
+      }),
+    [
+      bootstrapKind,
+      bootstrapDevRoom,
+      devBypassActive,
+      hostedFlowActive,
+      hostedFlowUnavailable,
+      loadHostedRoom,
+      loadLegacyRoom,
+      profile,
+      refreshHostedBootstrapState,
+      selfPairCode,
+      session,
+      setTimedStatusMessage
+    ]
+  );
 
-      if (!session) {
-        return null;
-      }
-
-      setTimedStatusMessage("Reloading latest room...");
-      return loadHostedRoom(session.roomId, profile, selfPairCode);
-    }
-
-    if (hostedFlowUnavailable) {
-      setBootstrapKind("hosted_unavailable");
-      setBlockingState(null);
-      return null;
-    }
-
-    if (!session && devBypassActive) {
-      return bootstrapDevRoom();
-    }
-
-    if (!session) {
-      return null;
-    }
-
-    setTimedStatusMessage("Reloading latest room...");
-    return loadLegacyRoom(session.roomId, "Fetching the latest shared room state.");
-  }, [
-    bootstrapKind,
-    bootstrapDevRoom,
-    devBypassActive,
-    hostedFlowActive,
-    hostedFlowUnavailable,
-    loadHostedRoom,
-    loadLegacyRoom,
-    profile,
-    refreshHostedBootstrapState,
-    selfPairCode,
-    session,
-    setTimedStatusMessage
-  ]);
-
-  const recoverFromStaleSharedEdit = useCallback(async () => {
-    return reloadRoom();
-  }, [reloadRoom]);
+  const recoverFromStaleSharedEdit = useCallback(
+    async () => recoverFromStaleSharedEditFlow({ reloadRoom }),
+    [reloadRoom]
+  );
 
   const commitRoomState = useCallback(
     async (
       nextRoomState: RoomState,
-      progression: SharedRoomProgressionState,
+      progression: SharedRoomDocument["progression"],
       reason: string
-    ) => {
-      if (!session || !roomDocument) {
-        return null;
-      }
-
-      setTimedStatusMessage("Saving shared room...");
-
-      try {
-        const nextRoomDocument = await sharedRoomStore.commitSharedRoomState({
-          roomId: session.roomId,
-          expectedRevision: session.lastKnownRevision,
-          roomState: nextRoomState,
-          progression,
-          frameMemories: roomDocument.frameMemories,
-          sharedPet: roomDocument.sharedPet,
-          reason
-        });
-
-        applyRoomDocument(nextRoomDocument);
-        setTimedStatusMessage("Shared room updated");
-        return nextRoomDocument;
-      } catch (error) {
-        if (isSharedRoomConflictError(error)) {
-          void reloadRoom();
-          return null;
-        }
-
-        setBlockingState(
-          createBlockingState(
-            "We couldn't save your changes to the shared room. Retry to fetch the latest room state and try again.",
-            "Any unconfirmed local changes may be discarded before the shared room reloads.",
-            true
-          )
-        );
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
+    ) =>
+      commitRoomStateFlow({
+        session,
+        roomDocument,
+        setTimedStatusMessage,
+        sharedRoomStore,
+        applyRoomDocument,
+        reloadRoom,
+        setBlockingState,
+        setInlineError,
+        nextRoomState,
+        progression,
+        reason
+      }),
     [
       applyRoomDocument,
       reloadRoom,
@@ -971,64 +696,21 @@ export function useSharedRoomRuntime({
   );
 
   const commitRoomMutation = useCallback(
-    async (reason: string, mutate: SharedRoomMutation) => {
-      if (!session || !roomDocument) {
-        return null;
-      }
-
-      async function attemptCommit(
-        sourceRoomDocument: SharedRoomDocument
-      ): Promise<SharedRoomDocument> {
-        const mutationResult = mutate(createSharedRoomRuntimeSnapshot(sourceRoomDocument));
-
-        return sharedRoomStore.commitSharedRoomState({
-          roomId: sourceRoomDocument.roomId,
-          expectedRevision: sourceRoomDocument.revision,
-          roomState: mutationResult.roomState,
-          progression: mutationResult.progression,
-          frameMemories: mutationResult.frameMemories,
-          sharedPet: mutationResult.sharedPet,
-          reason
-        });
-      }
-
-      setTimedStatusMessage("Saving shared room...");
-
-      try {
-        const nextRoomDocument = await attemptCommit(roomDocument);
-        applyRoomDocument(nextRoomDocument);
-        setTimedStatusMessage("Shared room updated");
-        return nextRoomDocument;
-      } catch (error) {
-        if (isSharedRoomConflictError(error)) {
-          setTimedStatusMessage("Reloading latest room...");
-
-          try {
-            const latestRoomDocument = await sharedRoomStore.loadSharedRoom({
-              roomId: session.roomId
-            });
-            applyRoomDocument(latestRoomDocument);
-
-            const replayedRoomDocument = await attemptCommit(latestRoomDocument);
-            applyRoomDocument(replayedRoomDocument);
-            setTimedStatusMessage("Shared room updated");
-            return replayedRoomDocument;
-          } catch (replayError) {
-            error = replayError;
-          }
-        }
-
-        setBlockingState(
-          createBlockingState(
-            "We couldn't save your changes to the shared room. Retry to fetch the latest room state and try again.",
-            "Any unconfirmed local changes may be discarded before the shared room reloads.",
-            true
-          )
-        );
-        setInlineError(getSharedRoomErrorMessage(error));
-        return null;
-      }
-    },
+    async (
+      reason: string,
+      mutate: Parameters<typeof commitRoomMutationFlow>[0]["mutate"]
+    ) =>
+      commitRoomMutationFlow({
+        session,
+        roomDocument,
+        setTimedStatusMessage,
+        sharedRoomStore,
+        applyRoomDocument,
+        setBlockingState,
+        setInlineError,
+        reason,
+        mutate
+      }),
     [applyRoomDocument, roomDocument, session, setTimedStatusMessage, sharedRoomStore]
   );
 
@@ -1078,38 +760,17 @@ export function useSharedRoomRuntime({
   ]);
 
   const submitPartnerCode = useCallback(
-    async (pairCode: string) => {
-      if (
-        !hostedFlowActive ||
-        bootstrapKind !== "needs_linking" ||
-        !resolvedSharedRoomOwnershipStore ||
-        activeHostedPlayerIdRef.current !== profile.playerId
-      ) {
-        return null;
-      }
-
-      setInlineError(null);
-
-      try {
-        const nextBootstrapState =
-          await resolvedSharedRoomOwnershipStore.submitPairCode({
-            profile,
-            pairCode
-          });
-
-        if (activeHostedPlayerIdRef.current !== profile.playerId) {
-          return null;
-        }
-
-        return applyHostedBootstrapState(nextBootstrapState, profile);
-      } catch (error) {
-        if (activeHostedPlayerIdRef.current === profile.playerId) {
-          setInlineError(getSharedRoomErrorMessage(error));
-        }
-
-        return null;
-      }
-    },
+    async (pairCode: string) =>
+      submitPartnerCodeFlow({
+        hostedFlowActive,
+        bootstrapKind,
+        resolvedSharedRoomOwnershipStore,
+        activeHostedPlayerIdRef,
+        profile,
+        pairCode,
+        setInlineError,
+        applyHostedBootstrapState
+      }),
     [
       applyHostedBootstrapState,
       bootstrapKind,
@@ -1119,87 +780,49 @@ export function useSharedRoomRuntime({
     ]
   );
 
-  const confirmPairLink = useCallback(async () => {
-    if (
-      !hostedFlowActive ||
-      bootstrapKind !== "pending_link" ||
-      !pendingLink ||
-      !resolvedSharedRoomOwnershipStore ||
-      activeHostedPlayerIdRef.current !== profile.playerId
-    ) {
-      return null;
-    }
+  const confirmPairLink = useCallback(
+    async () =>
+      confirmPairLinkFlow({
+        hostedFlowActive,
+        bootstrapKind,
+        pendingLink,
+        resolvedSharedRoomOwnershipStore,
+        activeHostedPlayerIdRef,
+        profile,
+        setInlineError,
+        applyHostedBootstrapState
+      }),
+    [
+      applyHostedBootstrapState,
+      bootstrapKind,
+      hostedFlowActive,
+      pendingLink,
+      profile,
+      resolvedSharedRoomOwnershipStore
+    ]
+  );
 
-    setInlineError(null);
-
-    try {
-      const nextBootstrapState =
-        await resolvedSharedRoomOwnershipStore.confirmPairLink({
-          profile,
-          pendingLinkId: pendingLink.pendingLinkId
-        });
-
-      if (activeHostedPlayerIdRef.current !== profile.playerId) {
-        return null;
-      }
-
-      return applyHostedBootstrapState(nextBootstrapState, profile);
-    } catch (error) {
-      if (activeHostedPlayerIdRef.current === profile.playerId) {
-        setInlineError(getSharedRoomErrorMessage(error));
-      }
-
-      return null;
-    }
-  }, [
-    applyHostedBootstrapState,
-    bootstrapKind,
-    hostedFlowActive,
-    pendingLink,
-    profile,
-    resolvedSharedRoomOwnershipStore
-  ]);
-
-  const cancelPairLink = useCallback(async () => {
-    if (
-      !hostedFlowActive ||
-      bootstrapKind !== "pending_link" ||
-      !pendingLink ||
-      !resolvedSharedRoomOwnershipStore ||
-      activeHostedPlayerIdRef.current !== profile.playerId
-    ) {
-      return null;
-    }
-
-    setInlineError(null);
-
-    try {
-      const nextBootstrapState =
-        await resolvedSharedRoomOwnershipStore.cancelPairLink({
-          profile,
-          pendingLinkId: pendingLink.pendingLinkId
-        });
-
-      if (activeHostedPlayerIdRef.current !== profile.playerId) {
-        return null;
-      }
-
-      return applyHostedBootstrapState(nextBootstrapState, profile);
-    } catch (error) {
-      if (activeHostedPlayerIdRef.current === profile.playerId) {
-        setInlineError(getSharedRoomErrorMessage(error));
-      }
-
-      return null;
-    }
-  }, [
-    applyHostedBootstrapState,
-    bootstrapKind,
-    hostedFlowActive,
-    pendingLink,
-    profile,
-    resolvedSharedRoomOwnershipStore
-  ]);
+  const cancelPairLink = useCallback(
+    async () =>
+      cancelPairLinkFlow({
+        hostedFlowActive,
+        bootstrapKind,
+        pendingLink,
+        resolvedSharedRoomOwnershipStore,
+        activeHostedPlayerIdRef,
+        profile,
+        setInlineError,
+        applyHostedBootstrapState
+      }),
+    [
+      applyHostedBootstrapState,
+      bootstrapKind,
+      hostedFlowActive,
+      pendingLink,
+      profile,
+      resolvedSharedRoomOwnershipStore
+    ]
+  );
 
   const clearRoom = useCallback(() => {
     clearActiveRoomState();

@@ -29,6 +29,13 @@ export interface SharedPresenceStatus {
   tone: "presence" | "success" | "attention";
 }
 
+export interface SharedCozyRestEligibility {
+  eligible: boolean;
+  furnitureId: string | null;
+  localSlotId: string | null;
+  partnerSlotId: string | null;
+}
+
 export interface UseSharedRoomPresenceOptions {
   enabled: boolean;
   bootstrapKind?: SharedRoomRuntimeBootstrapKind;
@@ -220,6 +227,50 @@ export function createSharedPresenceStatus(
         tone: "presence"
       };
   }
+}
+
+export function deriveSharedCozyRestEligibility(input: {
+  localPresence: LocalPlayerPresenceSnapshot | null;
+  remotePresence: SharedPresenceSnapshot | null;
+  remotePresenceFreshness: SharedPresenceFreshness;
+}): SharedCozyRestEligibility {
+  const localPose = input.localPresence?.interactionPose;
+  const remotePose = input.remotePresence?.pose;
+
+  if (
+    input.remotePresenceFreshness !== "live" ||
+    localPose?.type !== "lie" ||
+    remotePose?.type !== "lie"
+  ) {
+    return {
+      eligible: false,
+      furnitureId: null,
+      localSlotId: localPose?.slotId ?? null,
+      partnerSlotId: remotePose?.slotId ?? null
+    };
+  }
+
+  if (
+    localPose.furnitureId !== remotePose.furnitureId ||
+    !localPose.slotId ||
+    !remotePose.slotId ||
+    localPose.slotId === remotePose.slotId
+  ) {
+    return {
+      eligible: false,
+      furnitureId:
+        localPose.furnitureId === remotePose.furnitureId ? localPose.furnitureId ?? null : null,
+      localSlotId: localPose.slotId ?? null,
+      partnerSlotId: remotePose.slotId ?? null
+    };
+  }
+
+  return {
+    eligible: true,
+    furnitureId: localPose.furnitureId ?? null,
+    localSlotId: localPose.slotId ?? null,
+    partnerSlotId: remotePose.slotId ?? null
+  };
 }
 
 export function useSharedRoomPresence({
@@ -523,6 +574,15 @@ export function useSharedRoomPresence({
   }, [profile.playerId, roomLocks?.locks]);
 
   const remotePresenceFreshness = derivePresenceFreshness(remotePresence);
+  const cozyRestEligibility = useMemo(
+    () =>
+      deriveSharedCozyRestEligibility({
+        localPresence,
+        remotePresence,
+        remotePresenceFreshness
+      }),
+    [localPresence, remotePresence, remotePresenceFreshness]
+  );
 
   useEffect(() => {
     hadLivePartnerRef.current = false;
@@ -674,6 +734,7 @@ export function useSharedRoomPresence({
   return {
     acquireEditLock,
     clearInlineError: () => setInlineError(null),
+    cozyRestEligibility,
     inlineError,
     localEditLockIds,
     pairLinkPresence,
@@ -688,3 +749,6 @@ export function useSharedRoomPresence({
     roomPresence
   };
 }
+
+
+

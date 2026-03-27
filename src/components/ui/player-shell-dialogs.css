@@ -1,0 +1,175 @@
+.room-memory-frame-proxy__hint {
+  padding: 6px 10px;
+  border: 1px solid var(--player-shell-border);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.88);
+  color: var(--player-shell-ink);
+  font: 700 11px/1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: var(--player-shell-shadow);
+  white-space: nowrap;
+}
+
+.memory-frame-dialog,
+.breakup-reset-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.memory-frame-dialog__panel,
+.breakup-reset-dialog__panel {
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--player-shell-border);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.98), rgba(0, 0, 0, 0.96));
+  box-shadow: var(--player-shell-shadow);
+}
+
+.memory-frame-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.memory-frame-dialog__eyebrow,
+.breakup-reset-dialog__eyebrow {
+  margin: 0 0 8px;
+  color: var(--player-shell-ink-soft);
+  font: 700 11px/1.1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.memory-frame-dialog__title,
+.breakup-reset-dialog__title {
+  margin: 0;
+  color: var(--player-shell-ink);
+  font: 700 24px/1.08 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.memory-frame-dialog__body,
+.breakup-reset-dialog__body {
+  margin: 12px 0 0;
+  color: var(--player-shell-ink-soft);
+  font: 400 14px/1.5 "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.memory-frame-dialog__close,
+.memory-frame-dialog__button,
+.breakup-reset-dialog__button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--player-shell-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--player-shell-ink);
+  font: 700 12px/1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.memory-frame-dialog__preview {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.memory-frame-dialog__preview img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+}
+
+.memory-frame-dialog__preview-empty {
+  padding: 24px;
+  color: var(--player-shell-ink-soft);
+  font: 600 14px/1.5 "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+}
+
+.memory-frame-dialog__upload,
+.memory-frame-dialog__field,
+.breakup-reset-dialog__field {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.memory-frame-dialog__upload span,
+.memory-frame-dialog__field span,
+.breakup-reset-dialog__field span {
+  color: var(--player-shell-ink-soft);
+  font: 700 11px/1.1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.memory-frame-dialog__upload input,
+.memory-frame-dialog__caption,
+.breakup-reset-dialog__confirm-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--player-shell-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--player-shell-ink);
+  font: 500 14px/1.4 "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.memory-frame-dialog__caption {
+  resize: vertical;
+}
+
+.memory-frame-dialog__actions,
+.breakup-reset-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.memory-frame-dialog__button--primary {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: var(--player-shell-accent);
+  color: #000000;
+}
+
+.memory-frame-dialog__button--secondary,
+.breakup-reset-dialog__button--secondary {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.breakup-reset-dialog__button--danger,
+.player-room-details-sheet__action--danger {
+  border-color: rgba(255, 91, 91, 0.32);
+  background: rgba(127, 17, 17, 0.9);
+  color: #fff5f5;
+}
+
+.memory-frame-dialog__button:disabled,
+.breakup-reset-dialog__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.memory-frame-dialog__error {
+  margin: 14px 0 0;
+  color: #ff7f7f;
+  font: 600 13px/1.4 "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}

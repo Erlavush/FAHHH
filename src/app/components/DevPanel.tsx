@@ -9,6 +9,7 @@ type NumberFieldProps = {
   readOnly?: boolean;
   onCommit?: (value: number) => void;
   variant?: "row" | "card";
+  commitMode?: "blur" | "change";
 };
 
 type SliderRowProps = {
@@ -54,6 +55,8 @@ export type DevPanelProps = {
   collisionDebugCollapsed: boolean;
   actionsCollapsed: boolean;
   playerCoins: number;
+  playerCoinsCommitMode?: "blur" | "change";
+  playerCoinsSourceLabel?: string;
   playerInteractionLabel: string;
   playerPosition: Vector3Tuple;
   cameraPosition: Vector3Tuple;
@@ -169,7 +172,8 @@ function NumberField({
   step = 0.1,
   readOnly = false,
   onCommit,
-  variant = "row"
+  variant = "row",
+  commitMode = "blur"
 }: NumberFieldProps) {
   const [draft, setDraft] = useState(() => formatNumber(value, step));
 
@@ -197,6 +201,20 @@ function NumberField({
     onCommit(parsedValue);
   };
 
+  const commitParsedValue = (nextDraft: string) => {
+    if (readOnly || !onCommit) {
+      return;
+    }
+
+    const parsedValue = Number.parseFloat(nextDraft);
+
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    onCommit(parsedValue);
+  };
+
   return (
     <input
       className={className}
@@ -204,8 +222,22 @@ function NumberField({
       inputMode="decimal"
       value={draft}
       readOnly={readOnly}
-      onBlur={commitDraft}
-      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        if (commitMode === "blur") {
+          commitDraft();
+          return;
+        }
+
+        setDraft(formatNumber(value, step));
+      }}
+      onChange={(event) => {
+        const nextDraft = event.target.value;
+        setDraft(nextDraft);
+
+        if (commitMode === "change") {
+          commitParsedValue(nextDraft);
+        }
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           event.currentTarget.blur();
@@ -358,6 +390,8 @@ export function DevPanel({
   collisionDebugCollapsed,
   actionsCollapsed,
   playerCoins,
+  playerCoinsCommitMode = "change",
+  playerCoinsSourceLabel = "Local sandbox live edit",
   playerInteractionLabel,
   playerPosition,
   cameraPosition,
@@ -456,8 +490,14 @@ export function DevPanel({
         onToggle={onPlayerStateCollapsedChange}
       >
         <PropertyRow label="Coins">
-          <NumberField value={playerCoins} step={1} onCommit={onPlayerCoinsCommit} />
+          <NumberField
+            value={playerCoins}
+            step={1}
+            onCommit={onPlayerCoinsCommit}
+            commitMode={playerCoinsCommitMode}
+          />
         </PropertyRow>
+        <PropertyRow label="Wallet Source" value={playerCoinsSourceLabel} />
         <PropertyRow label="Interaction" value={interactionLabel} />
       </Section>
 

@@ -10,11 +10,15 @@ import {
 import { deriveRoomViewLighting } from "../src/components/room-view/useRoomViewLighting";
 import type { RoomFurniturePlacement } from "../src/lib/roomState";
 
-function createFloorLampPlacement(id: string): RoomFurniturePlacement {
+function createPlacement(
+  id: string,
+  type: RoomFurniturePlacement["type"],
+  surface: RoomFurniturePlacement["surface"]
+): RoomFurniturePlacement {
   return {
     id,
-    type: "floor_lamp",
-    surface: "floor",
+    type,
+    surface,
     position: [0, 0, 0],
     rotationY: 0,
     ownedFurnitureId: `owned-${id}`
@@ -62,8 +66,8 @@ describe("deriveRoomViewLighting", () => {
     });
     const withLamps = deriveLighting({
       furniture: [
-        createFloorLampPlacement("lamp-1"),
-        createFloorLampPlacement("lamp-2")
+        createPlacement("lamp-1", "floor_lamp", "floor"),
+        createPlacement("lamp-2", "floor_lamp", "floor")
       ],
       worldTimeMinutes: 0
     });
@@ -73,5 +77,20 @@ describe("deriveRoomViewLighting", () => {
     expect(withLamps.ambientLightIntensity).toBeGreaterThan(withoutLamps.ambientLightIntensity);
     expect(withLamps.pointLightVisible).toBe(true);
     expect(withLamps.pointLightIntensity).toBeGreaterThan(0);
+  });
+
+  it("treats ceiling lights as practical room lighting at night", () => {
+    const withoutLights = deriveLighting({
+      worldTimeMinutes: 0
+    });
+    const withCeilingLight = deriveLighting({
+      furniture: [createPlacement("ceiling-light-1", "ceiling_light", "ceiling")],
+      worldTimeMinutes: 0
+    });
+
+    expect(withCeilingLight.practicalLampFactor).toBeGreaterThan(withoutLights.practicalLampFactor);
+    expect(withCeilingLight.roomSurfaceLightAmount).toBeGreaterThan(withoutLights.roomSurfaceLightAmount);
+    expect(withCeilingLight.pointLightVisible).toBe(true);
+    expect(withCeilingLight.pointLightPosition[1]).toBeGreaterThan(withoutLights.pointLightPosition[1]);
   });
 });

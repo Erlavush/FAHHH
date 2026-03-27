@@ -5,7 +5,7 @@ import type {
   FurnitureType
 } from "../../lib/furnitureRegistry";
 import type { PetDefinition, PetType } from "../../lib/pets";
-import type { InventoryStats } from "../types";
+import type { InventoryStats } from "../../app/types";
 import { FurnitureInfoControl } from "./FurnitureInfoControl";
 import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
 

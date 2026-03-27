@@ -25,6 +25,30 @@ describe("furniture registry", () => {
     ).toBe(true);
   });
 
+  it("registers the starter ceiling set as ceiling-mounted catalog items", () => {
+    expect(FURNITURE_REGISTRY.ceiling_light).toEqual(
+      expect.objectContaining({
+        surface: "ceiling",
+        category: "Accents",
+        price: expect.any(Number)
+      })
+    );
+    expect(FURNITURE_REGISTRY.ceiling_fan).toEqual(
+      expect.objectContaining({
+        surface: "ceiling",
+        category: "Accents",
+        price: expect.any(Number)
+      })
+    );
+    expect(FURNITURE_REGISTRY.hanging_plant).toEqual(
+      expect.objectContaining({
+        surface: "ceiling",
+        category: "Accents",
+        price: expect.any(Number)
+      })
+    );
+  });
+
   it("defines opening and sunlight metadata for the tall window", () => {
     expect(FURNITURE_REGISTRY.window.wallOpening).toEqual(
       expect.objectContaining({
@@ -43,11 +67,13 @@ describe("furniture registry", () => {
     );
   });
 
-  it("defines authored collision boxes for every floor furniture item", () => {
-    const floorTypes = ALL_FURNITURE_TYPES.filter(
-      (type) => FURNITURE_REGISTRY[type].surface === "floor"
+  it("defines authored collision boxes for every floor or ceiling furniture item", () => {
+    const authoredCollisionTypes = ALL_FURNITURE_TYPES.filter(
+      (type) =>
+        FURNITURE_REGISTRY[type].surface === "floor" ||
+        FURNITURE_REGISTRY[type].surface === "ceiling"
     );
 
-    expect(floorTypes.every((type) => getFurnitureCollisionBoxes(type).length > 0)).toBe(true);
+    expect(authoredCollisionTypes.every((type) => getFurnitureCollisionBoxes(type).length > 0)).toBe(true);
   });
 });

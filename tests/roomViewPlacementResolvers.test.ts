@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { Ray, Vector3 } from "three";
 import type { RoomFurniturePlacement } from "../src/lib/roomState";
 import {
+  CEILING_SURFACE_Y,
   FRONT_WALL_SURFACE_Z,
   RIGHT_WALL_SURFACE_X
 } from "../src/components/room-view/constants";
 import {
   applyPlacementToItem,
   getPreferredWallSurface,
+  resolveCeilingPlacement,
   resolveFloorPlacement,
   resolveFurnitureRotation,
   resolvePlacementFromDragRay,
@@ -31,6 +33,14 @@ describe("room view placement resolvers", () => {
       position: [0.5, 0, -0.5],
       rotationY: Math.PI / 2,
       surface: "floor"
+    });
+  });
+
+  it("snaps ceiling placements to the room grid and keeps them on the ceiling surface", () => {
+    expect(resolveCeilingPlacement(0.12, -0.16, "table", true)).toEqual({
+      position: [0.5, CEILING_SURFACE_Y, -0.5],
+      rotationY: Math.PI / 2,
+      surface: "ceiling"
     });
   });
 
@@ -145,6 +155,26 @@ describe("room view placement resolvers", () => {
       position: [RIGHT_WALL_SURFACE_X, 1.7, 1.5],
       rotationY: -Math.PI / 2,
       surface: "wall_right"
+    });
+  });
+
+  it("projects drag rays onto the ceiling plane", () => {
+    const ceilingPlacement = resolvePlacementFromDragRay(
+      new Ray(new Vector3(1.2, CEILING_SURFACE_Y + 2, -1.1), new Vector3(0, -1, 0)),
+      {
+        furnitureId: "ceiling-preview",
+        type: "table",
+        surface: "ceiling",
+        rotationY: Math.PI / 2
+      },
+      [],
+      true
+    );
+
+    expect(ceilingPlacement).toEqual({
+      position: [1.5, CEILING_SURFACE_Y, -1.5],
+      rotationY: Math.PI / 2,
+      surface: "ceiling"
     });
   });
 

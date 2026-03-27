@@ -36,6 +36,7 @@ export type RoomViewLightingDerivation = {
   moonOpacity: number;
   moonShadowMapSize: number;
   pointLightIntensity: number;
+  pointLightPosition: [number, number, number];
   pointLightVisible: boolean;
   postProcessing: {
     aoIntensity: number;
@@ -78,7 +79,11 @@ export function deriveRoomViewLighting({
 }: UseRoomViewLightingOptions): RoomViewLightingDerivation {
   const lightingState = getWorldLightingState(worldTimeMinutes);
   const floorLampCount = furniture.filter((item) => item.type === "floor_lamp").length;
-  const practicalLampFactor = Math.min(1, floorLampCount / 2) * lightingState.nightFactor;
+  const ceilingLightCount = furniture.filter((item) => item.type === "ceiling_light").length;
+  const practicalLightUnits = floorLampCount / 2 + ceilingLightCount * 0.7;
+  const practicalLampFactor = Math.min(1, practicalLightUnits) * lightingState.nightFactor;
+  const pointLightPosition: [number, number, number] =
+    ceilingLightCount > 0 ? [0, 3.4, 0] : [0, 2.55, -1.45];
   const roomSurfaceLightAmount = clamp01(
     lightingState.interiorDaylightAmount + practicalLampFactor * 0.22
   );
@@ -153,6 +158,7 @@ export function deriveRoomViewLighting({
     moonOpacity: clamp01(lightingState.nightFactor),
     moonShadowMapSize,
     pointLightIntensity: practicalLampFactor * 0.82,
+    pointLightPosition,
     pointLightVisible: practicalLampFactor > 0.001,
     postProcessing: {
       aoIntensity: composerAoIntensity,

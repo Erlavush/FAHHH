@@ -13,7 +13,13 @@ The current room system only supports 4 walls and 1 floor. There is no "ceiling"
 4. **Occlusion**: Implement transparency for the ceiling when the camera looks down, similar to wall occlusion.
 
 ### Progress Tracking
-- [ ] Define `ceiling` surface in `roomState.ts`.
-- [ ] Render `ceiling` mesh in `RoomShell.tsx`.
-- [ ] Implement `ceiling` placement snapping in `placementResolvers.ts`.
-- [ ] Add ceiling occlusion logic for camera clarity.
+- [x] Define `ceiling` placement surface support in the room schema and validators.
+- [x] Render `ceiling` mesh in `RoomShell.tsx`.
+- [x] Implement `ceiling` placement snapping in `placementResolvers.ts`.
+- [x] Add ceiling occlusion logic for camera clarity.
+
+### Implemented Notes
+- Ceiling is now a valid persisted and shared-room placement surface.
+- RoomShell renders a ceiling slab plus an interaction plane when the camera angle allows it.
+- Drag, spawn, pivot, rotate, and nudge paths now understand `ceiling` placements.
+- Actual ceiling-specific furniture definitions still belong to the separate ceiling furniture todo.

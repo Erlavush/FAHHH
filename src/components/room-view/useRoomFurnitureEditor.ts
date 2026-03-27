@@ -36,6 +36,7 @@ import {
 } from "./helpers";
 import {
   applyPlacementToItem,
+  resolveCeilingPlacement,
   resolveFloorPlacement,
   resolveFurnitureRotation,
   resolveSurfacePlacementOnHost,
@@ -499,11 +500,11 @@ export function useRoomFurnitureEditor({
 
     const step = getNudgeStep() * horizontalDirection;
 
-    if (selectedFurniture.surface === "floor") {
+    if (selectedFurniture.surface === "floor" || selectedFurniture.surface === "ceiling") {
       updateFurnitureItem(selectedFurnitureId, (item) =>
         applyPlacementToItem(
           item,
-          resolveFloorPlacement(
+          (item.surface === "ceiling" ? resolveCeilingPlacement : resolveFloorPlacement)(
             item.position[0] + step,
             item.position[2],
             item.type,
@@ -566,11 +567,11 @@ export function useRoomFurnitureEditor({
 
     const step = getNudgeStep() * verticalDirection;
 
-    if (selectedFurniture.surface === "floor") {
+    if (selectedFurniture.surface === "floor" || selectedFurniture.surface === "ceiling") {
       updateFurnitureItem(selectedFurnitureId, (item) =>
         applyPlacementToItem(
           item,
-          resolveFloorPlacement(
+          (item.surface === "ceiling" ? resolveCeilingPlacement : resolveFloorPlacement)(
             item.position[0],
             item.position[2] + step,
             item.type,
@@ -631,6 +632,7 @@ export function useRoomFurnitureEditor({
       !selectedFurnitureId ||
       !selectedFurniture ||
       (selectedFurniture.surface !== "floor" &&
+        selectedFurniture.surface !== "ceiling" &&
         selectedFurniture.surface !== "surface")
     ) {
       return;
@@ -674,13 +676,21 @@ export function useRoomFurnitureEditor({
 
       return {
         ...item,
-        ...resolveFloorPlacement(
-          item.position[0],
-          item.position[2],
-          item.type,
-          gridSnapEnabled,
-          nextRotation
-        ),
+        ...(item.surface === "ceiling"
+          ? resolveCeilingPlacement(
+              item.position[0],
+              item.position[2],
+              item.type,
+              gridSnapEnabled,
+              nextRotation
+            )
+          : resolveFloorPlacement(
+              item.position[0],
+              item.position[2],
+              item.type,
+              gridSnapEnabled,
+              nextRotation
+            )),
         rotationY: nextRotation
       };
     });

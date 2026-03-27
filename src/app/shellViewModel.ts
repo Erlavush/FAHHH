@@ -15,12 +15,14 @@ export type DeveloperWorkspaceTabDefinition = {
 };
 
 export type PlayerActionDockAction = {
-  id: "build" | "inventory" | "interaction";
+  id: "build" | "inventory" | "interaction" | "cozy_rest";
   label: string;
   tone: "primary" | "secondary" | "ghost";
 };
 
 export type PlayerCompanionCardState = {
+  cozyRestStatus: string;
+  deskActivityStatus: string;
   inviteCode: string;
   partnerBody: string;
   partnerTitle:
@@ -29,12 +31,13 @@ export type PlayerCompanionCardState = {
     | "Partner reconnecting"
     | "Partner away";
   ritualBody: string;
-  ritualTitle: "Daily ritual pending" | "Daily ritual complete";
+  ritualTitle: "Room-day visit open" | "Room-day visit complete" | "Visit saved" | "Partner visited";
   roomModeLabel: string | null;
   roomSyncStatus: string | null;
   showInviteCode: boolean;
-  streakLabel: string;
+  togetherDaysLabel: string;
   tone: "presence" | "success" | "attention";
+  visitStatusLabel: string;
 };
 
 export type PlayerRoomDetailsAction = {
@@ -48,6 +51,7 @@ export type PlayerRoomDetailsAction = {
 };
 
 export type PlayerRoomDetailsState = {
+  activityRows: { label: string; value: string }[];
   dangerAction: PlayerRoomDetailsAction | null;
   inviteCode: string;
   inviteCodeVisible: boolean;
@@ -55,6 +59,8 @@ export type PlayerRoomDetailsState = {
   secondaryActions: PlayerRoomDetailsAction[];
   subtitle: string;
   title: string;
+  togetherDaysLabel: string;
+  visitStatusLabel: string;
 };
 
 export type DeveloperWorkspaceTabState = DeveloperWorkspaceTabDefinition & {
@@ -143,9 +149,7 @@ function mapPresenceStatus(
   };
 }
 
-function getRoomModeLabel(
-  runtimeEntryMode: SharedRoomRuntimeEntryMode
-): string | null {
+function getRoomModeLabel(runtimeEntryMode: SharedRoomRuntimeEntryMode): string | null {
   switch (runtimeEntryMode) {
     case "hosted":
       return "Hosted couple room";
@@ -159,18 +163,64 @@ function getRoomModeLabel(
   }
 }
 
-function mapRitualStatus(ritualStatus: SharedRitualStatusView): Pick<PlayerCompanionCardState, "ritualBody" | "ritualTitle"> {
+function mapRitualStatus(
+  ritualStatus: SharedRitualStatusView
+): Pick<PlayerCompanionCardState, "ritualBody" | "ritualTitle"> {
   if (ritualStatus.ritualComplete) {
     return {
-      ritualTitle: "Daily ritual complete",
-      ritualBody: "Today's shared check-in is done. Come back tomorrow to protect the streak."
+      ritualTitle: "Room-day visit complete",
+      ritualBody: "Both visits landed today. Your next Together Day can wait until tomorrow."
+    };
+  }
+
+  if (ritualStatus.selfCompleted && !ritualStatus.partnerCompleted) {
+    return {
+      ritualTitle: "Visit saved",
+      ritualBody: "You visited today. It counts once your partner drops by too."
+    };
+  }
+
+  if (!ritualStatus.selfCompleted && ritualStatus.partnerCompleted) {
+    return {
+      ritualTitle: "Partner visited",
+      ritualBody: "Your partner stopped by today. Visit when you can to count this room-day."
     };
   }
 
   return {
-    ritualTitle: "Daily ritual pending",
-    ritualBody: "Both partners still need one desk check-in today."
+    ritualTitle: "Room-day visit open",
+    ritualBody: "Both visits within the same room-day add one Together Day."
   };
+}
+
+function getVisitStatusLabel(visitCompletedToday: boolean): string {
+  return visitCompletedToday ? "Visited today" : "Visit the room today";
+}
+
+function getDeskActivityStatus(
+  deskActivityReadyNow: boolean,
+  deskActivityPaidToday: boolean
+): string {
+  if (deskActivityPaidToday && !deskActivityReadyNow) {
+    return "Paid today";
+  }
+
+  return "Ready now";
+}
+
+function getCozyRestStatus(
+  cozyRestReadyNow: boolean,
+  cozyRestPaidToday: boolean
+): string {
+  if (cozyRestPaidToday && !cozyRestReadyNow) {
+    return "Paid today";
+  }
+
+  if (cozyRestReadyNow) {
+    return "Ready now";
+  }
+
+  return "Lie down together";
 }
 
 function getInteractionAction(
@@ -222,14 +272,24 @@ export function getDeveloperWorkspaceTabState(
 }
 
 export function getPlayerCompanionCardState({
+  cozyRestPaidToday,
+  cozyRestReadyNow,
+  deskActivityPaidToday,
+  deskActivityReadyNow,
   inviteCode,
   memberCount,
   presenceStatus,
   ritualStatus,
   runtimeEntryMode,
   showInviteCode,
-  statusMessage
+  statusMessage,
+  togetherDaysCount,
+  visitCompletedToday
 }: {
+  cozyRestPaidToday: boolean;
+  cozyRestReadyNow: boolean;
+  deskActivityPaidToday: boolean;
+  deskActivityReadyNow: boolean;
   inviteCode: string;
   memberCount: number;
   presenceStatus: SharedPresenceStatus | null;
@@ -237,13 +297,18 @@ export function getPlayerCompanionCardState({
   runtimeEntryMode: SharedRoomRuntimeEntryMode;
   showInviteCode: boolean;
   statusMessage: string | null;
+  togetherDaysCount: number;
+  visitCompletedToday: boolean;
 }): PlayerCompanionCardState {
   return {
     inviteCode,
     roomModeLabel: getRoomModeLabel(runtimeEntryMode),
     roomSyncStatus: statusMessage,
     showInviteCode,
-    streakLabel: `Streak ${ritualStatus.streakCount}`,
+    togetherDaysLabel: `Together Days ${togetherDaysCount}`,
+    visitStatusLabel: getVisitStatusLabel(visitCompletedToday),
+    deskActivityStatus: getDeskActivityStatus(deskActivityReadyNow, deskActivityPaidToday),
+    cozyRestStatus: getCozyRestStatus(cozyRestReadyNow, cozyRestPaidToday),
     ...mapPresenceStatus(presenceStatus, memberCount),
     ...mapRitualStatus(ritualStatus)
   };
@@ -252,10 +317,14 @@ export function getPlayerCompanionCardState({
 export function getPlayerActionDockState({
   buildModeEnabled,
   catalogOpen,
+  cozyRestPaidToday = false,
+  cozyRestReadyNow = false,
   playerInteractionStatus
 }: {
   buildModeEnabled: boolean;
   catalogOpen: boolean;
+  cozyRestPaidToday?: boolean;
+  cozyRestReadyNow?: boolean;
   playerInteractionStatus: PlayerInteractionStatus;
 }): {
   actions: PlayerActionDockAction[];
@@ -275,32 +344,54 @@ export function getPlayerActionDockState({
   ];
   const interactionAction = getInteractionAction(playerInteractionStatus);
 
+  if (cozyRestReadyNow) {
+    actions.push({
+      id: "cozy_rest",
+      label: "Cozy Rest",
+      tone: "secondary"
+    });
+  }
+
   if (interactionAction) {
     actions.push(interactionAction);
   }
 
+  let statusLabel = buildModeEnabled
+    ? catalogOpen
+      ? "Build mode active / inventory open"
+      : "Build mode active"
+    : "Room mode";
+
+  if (cozyRestReadyNow) {
+    statusLabel = "Cozy Rest ready now";
+  } else if (cozyRestPaidToday) {
+    statusLabel = "Cozy Rest paid today";
+  }
+
   return {
     actions,
-    statusLabel: buildModeEnabled
-      ? catalogOpen
-        ? "Build mode active • inventory open"
-        : "Build mode active"
-      : "Room mode"
+    statusLabel
   };
 }
 
 export function getPlayerRoomDetailsState({
+  activityRows,
   gridSnapEnabled,
   inviteCode,
   memberCount,
   roomId,
-  sharedRoomActive
+  sharedRoomActive,
+  togetherDaysCount,
+  visitCompletedToday
 }: {
+  activityRows: { label: string; value: string }[];
   gridSnapEnabled: boolean;
   inviteCode: string;
   memberCount: number;
   roomId: string | null;
   sharedRoomActive: boolean;
+  togetherDaysCount: number;
+  visitCompletedToday: boolean;
 }): PlayerRoomDetailsState {
   const secondaryActions: PlayerRoomDetailsAction[] = [
     {
@@ -328,9 +419,10 @@ export function getPlayerRoomDetailsState({
   }
 
   return {
+    activityRows,
     title: "Room details",
     subtitle: sharedRoomActive
-      ? "Secondary room actions, invite sharing, build settings, and room safety."
+      ? "Canonical room actions, visit state, and today's activity payouts."
       : "Build settings and local room profile actions.",
     dangerAction: sharedRoomActive
       ? {
@@ -341,7 +433,9 @@ export function getPlayerRoomDetailsState({
     inviteCode,
     inviteCodeVisible: memberCount < 2 && inviteCode.length > 0,
     roomId,
-    secondaryActions
+    secondaryActions,
+    togetherDaysLabel: `Together Days ${togetherDaysCount}`,
+    visitStatusLabel: getVisitStatusLabel(visitCompletedToday)
   };
 }
 
@@ -388,7 +482,7 @@ export function getDeveloperSessionPanelState({
     presenceTitle: presenceStatus?.title ?? "Waiting for partner",
     presenceBody:
       presenceStatus?.body ?? "The room stays usable while your partner is away.",
-    syncStatus: statusMessage,
+    syncStatus: statusMessage
   };
 }
 

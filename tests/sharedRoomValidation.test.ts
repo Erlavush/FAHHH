@@ -79,11 +79,32 @@ describe("sharedRoomValidation", () => {
     expect(sharedRoomDocument.progression.players["player-1"]?.coins).toBe(50);
   });
 
+  it("accepts ceiling placements", () => {
+    const document = createSharedRoomDocument();
+    document.roomState.furniture[0] = {
+      ...document.roomState.furniture[0],
+      id: "ceiling-poster",
+      surface: "ceiling",
+      position: [0, 4.22, 0]
+    } as any;
+
+    const sharedRoomDocument = validateSharedRoomDocument(document);
+
+    expect(sharedRoomDocument.roomState.furniture).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "ceiling-poster",
+          surface: "ceiling"
+        })
+      ])
+    );
+  });
+
   it("rejects unknown placement surfaces", () => {
     const invalidDocument = createSharedRoomDocument();
     invalidDocument.roomState.furniture[0] = {
       ...invalidDocument.roomState.furniture[0],
-      surface: "ceiling"
+      surface: "roof"
     } as any;
 
     expect(() => validateSharedRoomDocument(invalidDocument)).toThrow(

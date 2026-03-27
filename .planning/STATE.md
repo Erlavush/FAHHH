@@ -1,17 +1,17 @@
----
+﻿---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Online Foundation
-status: executing
-stopped_at: Phase 6 planned and ready for execution
-last_updated: "2026-03-27T16:45:00+08:00"
-last_activity: 2026-03-27 -- Completed Phase 06 plan 01
+milestone: v1.0
+milestone_name: milestone
+status: planned
+stopped_at: Phase 06.1 execution completed; Phase 09 is the next planned phase directory
+last_updated: "2026-03-27T12:33:05.7924727Z"
+last_activity: 2026-03-27 -- Completed quick task QT-07 collapsible companion side panel
 progress:
-  total_phases: 5
-  completed_phases: 1
-  total_plans: 11
-  completed_plans: 9
-  percent: 25
+  total_phases: 6
+  completed_phases: 3
+  total_plans: 14
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 06 — ritual-variety-and-earn-loop-expansion
+**Current focus:** Phase 09 - major-improvements
 
 ## Current Position
 
-Phase: 06 (ritual-variety-and-earn-loop-expansion) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 06
-Last activity: 2026-03-27 -- Completed Phase 06 plan 01
+Phase: 09
+Plan: Not started
+Status: Phase 06.1 complete; Phase 09 is the next planned phase directory
+Last activity: 2026-03-27 -- Completed quick task QT-07 collapsible companion side panel
 
-Progress: [###-------] 33%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
+- Total plans completed: 9
 - Average duration: 1 session per completed plan
 - Total execution time: -
 
@@ -45,21 +45,22 @@ Progress: [###-------] 33%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 05 | 3/3 | 3 sessions | 1.0 session |
-| 06 | 1/3 | 1 session | 1.0 session |
+| 06 | 3/3 | 2 sessions | 0.7 session |
+| 06.1 | 3/3 | 1 session | 0.3 session |
 | 07 | 0/3 | - | - |
 | 08 | 0/3 | - | - |
 | 09 | 0/0 | - | - |
 
 **Recent Trend:**
 
-- Latest completed phase: Phase 5 Online Backend and Couple Ownership
-- Trend: Phase 6 execution is underway; 06-02 is next
+- Latest completed phase: Phase 06.1 Codebase modularization and oversized-file decomposition
+- Trend: the oversized-file modularization pass is complete; roadmap placeholders 7 and 8 still need planning, and Phase 09 is the next existing phase directory
 
 ## Milestone Scope
 
 - Milestone: `v1.1 Online Foundation`
 - Goal: Move the shared-room MVP onto a real backend/auth foundation while deepening rituals, personalization, and content breadth.
-- Roadmap phases: `5`, `6`, `7`, `8`, `9`
+- Roadmap phases: `5`, `6`, `6.1`, `7`, `8`, `9`
 - Planning guardrail: every phase must produce `VERIFICATION.md`
 
 ## Quick Tasks Completed
@@ -69,6 +70,10 @@ Progress: [###-------] 33%
 | QT-01 | Perfected Cat AI and Animation Overhaul | Unified user-verified GLB coefficients with energetic, long-distance species-specific AI and grounded idle logic. |
 | QT-02 | Fix synchronization loop and JSON corruption | Eliminated infinite commit loops, fixed FPS drops during placement, and added atomic singleton persistence. |
 | QT-03 | UI Refactor and Minecraft Clock | Moved player-facing UI to `src/components/ui/` and implemented a top-center Minecraft-style digital clock. |
+| QT-04 | Bottom-Center Player Dock Polish | Reworked the bottom-center player dock into a cohesive warm HUD bar with clearer stats, integrated status messaging, and less awkward primary-action framing. |
+| QT-05 | AMOLED Player Theme and CSS Modularization | Rethemed the player-facing shell to high-contrast black and white, modularized the UI CSS, and aligned the HUD, overlays, and inventory drawer with the digital clock. |
+| QT-06 | Compact Mobile-Friendly Player Dock Sizing | Reduced the bottom-center dock footprint on desktop, tightened bottom offsets, and compressed the mobile layout so the HUD stays readable without dominating small screens. |
+| QT-07 | Collapsible Companion Side Panel | Turned the top-right companion card into a slide-out panel with a side-tab toggle so it can stay off-screen until needed. |
 
 ## Milestone Archive
 
@@ -125,15 +130,19 @@ Recent decisions affecting current work:
 - Phase 05 gap closure completed: hosted fallback truth, calmer partner-away status, shared cat live sync, smoother remote locomotion, and occupancy-aware bed slots are patched into the online baseline.
 - Phase 05 UAT retest partial: localhost confirms partner-away recovery, but shared-pet adoption visibility, remote motion smoothness, and bed pose separation still need a second gap-closure pass.
 - Phase 06 planned: Together Days progression, retro desk-PC app variety, Cozy Rest, and shell surfacing are split into three executable plans.
+- Phase 06 completed: Together Days, the retro desk-PC suite, Cozy Rest, and the matching shell updates are now part of the online baseline.
+- Phase 06.1 inserted after Phase 06: Codebase modularization and oversized-file decomposition (URGENT).
+- Phase 06.1 completed: shared progression, shared room runtime, and App shell orchestration now live behind focused modules with passing regression coverage.
 - Phase 09 added: MAJOR IMPROVEMENTS.
 
 ### Pending Todos
 
-- [ ] [RT-01] [Implement Rooftop and Ceiling Support](file:///z:/FAHHHH/.planning/todos/room-architecture/implement-rooftop-surface.md)
-- [ ] [RT-02] [Create Ceiling Furniture Set](file:///z:/FAHHHH/.planning/todos/furniture-system/ceiling-furniture-set.md)
+- [x] [RT-01] [Implement Rooftop and Ceiling Support](file:///z:/FAHHHH/.planning/todos/room-architecture/implement-rooftop-surface.md)
+- [x] [RT-02] [Create Ceiling Furniture Set](file:///z:/FAHHHH/.planning/todos/furniture-system/ceiling-furniture-set.md)
 - [ ] [SC-01] [Implement Global Surface Customization](file:///z:/FAHHHH/.planning/todos/surface-customization/global-surface-customization.md)
 - [ ] [RA-01] [Implement Unrestricted Vertical Placement](file:///z:/FAHHHH/.planning/todos/room-architecture/vertical-placement-freedom.md)
 - [ ] [RA-02] [Balcony / Garden Exterior Surface](file:///z:/FAHHHH/.planning/todos/room-architecture/balcony-garden-exterior-surface.md)
+- [x] [RA-03] [Maintain Shadows for Occluded Walls and Roofs](file:///z:/FAHHHH/.planning/todos/room-architecture/maintain-shadows-for-occluded-surfaces.md)
 - [ ] [NV-01] [Implement Player and Pet Pathfinding](file:///z:/FAHHHH/.planning/todos/navigation/player-and-pet-pathfinding.md)
 - [ ] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
 - [ ] [PS-02] [Enhanced Cat Animations (Sit, Lick, Sleep)](file:///z:/FAHHHH/.planning/todos/pet-system/cat-animations-depth.md)
@@ -146,14 +155,17 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
+- Phase 06.1 closed the urgent oversized-file debt by modularizing `src/App.tsx`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/lib/sharedProgression.ts`, and the shared-room runtime regression coverage under the CODE-01 guardrail.
 - Hosted mode now depends on valid `VITE_SHARED_BACKEND=firebase` and Firebase env values in deployment; when those are missing, the runtime surfaces hosted-unavailable instead of silently entering the local/dev path.
-- Phase 6 must extend the new hosted runtime without regressing the player/developer shell split or the canonical versus ephemeral state boundary.
+- Phase 7 now depends on Phase 06.1 completing without regressing the player/developer shell split or the canonical versus ephemeral state boundary.
 - v1.0 still carries missing `VERIFICATION.md` artifacts for Phases `2`, `3.1`, and `4`, but Phase 5 now establishes the mandatory verification baseline for v1.1.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; shared-room runtime bypasses that gap today, but the validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:55:53.4074934+08:00
-Stopped at: Phase 6 planned and ready for execution
+Last session: 2026-03-27T18:22:35+08:00
+Stopped at: Phase 06.1 execution completed; Phase 09 is the next planned phase directory
 Resume file: .planning/ROADMAP.md
+
+
 

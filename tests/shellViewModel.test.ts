@@ -30,16 +30,18 @@ function createPresenceStatus(
 
 function createRitualStatus(
   ritualComplete: boolean,
-  streakCount = 3
+  streakCount = 3,
+  overrides: Partial<SharedRitualStatusView> = {}
 ): SharedRitualStatusView {
   return {
-    title: ritualComplete ? "Streak protected" : "Streak 3",
+    title: ritualComplete ? "Together Days 3" : "Together Days 3",
     body: "ritual body",
     tone: ritualComplete ? "success" : "attention",
     streakCount,
     ritualComplete,
     selfCompleted: ritualComplete,
-    partnerCompleted: ritualComplete
+    partnerCompleted: ritualComplete,
+    ...overrides
   };
 }
 
@@ -66,66 +68,119 @@ describe("shellViewModel", () => {
     expect(getDeveloperWorkspaceTabState("world").find((tab) => tab.isActive)?.label).toBe("World");
   });
 
-  it("returns player companion card copy", () => {
+  it("returns player companion card copy with Together Days and activity statuses", () => {
     const waitingState = getPlayerCompanionCardState({
+      cozyRestPaidToday: false,
+      cozyRestReadyNow: false,
+      deskActivityPaidToday: false,
+      deskActivityReadyNow: true,
       inviteCode: "ABCD12",
       memberCount: 1,
       presenceStatus: createPresenceStatus("Waiting for partner"),
       ritualStatus: createRitualStatus(false),
       runtimeEntryMode: "legacy",
       showInviteCode: true,
-      statusMessage: null
+      statusMessage: null,
+      togetherDaysCount: 3,
+      visitCompletedToday: true
     });
     const togetherState = getPlayerCompanionCardState({
+      cozyRestPaidToday: false,
+      cozyRestReadyNow: true,
+      deskActivityPaidToday: true,
+      deskActivityReadyNow: false,
       inviteCode: "ABCD12",
       memberCount: 2,
       presenceStatus: createPresenceStatus("Together now"),
       ritualStatus: createRitualStatus(true),
       runtimeEntryMode: "hosted",
       showInviteCode: false,
-      statusMessage: null
+      statusMessage: null,
+      togetherDaysCount: 8,
+      visitCompletedToday: true
     });
     const reconnectingState = getPlayerCompanionCardState({
+      cozyRestPaidToday: false,
+      cozyRestReadyNow: false,
+      deskActivityPaidToday: false,
+      deskActivityReadyNow: true,
       inviteCode: "ABCD12",
       memberCount: 2,
       presenceStatus: createPresenceStatus("Partner reconnecting"),
-      ritualStatus: createRitualStatus(false),
+      ritualStatus: createRitualStatus(false, 3, {
+        selfCompleted: true,
+        partnerCompleted: false
+      }),
       runtimeEntryMode: "dev_fallback",
       showInviteCode: false,
-      statusMessage: "Reloading latest room..."
+      statusMessage: "Reloading latest room...",
+      togetherDaysCount: 3,
+      visitCompletedToday: true
     });
     const awayState = getPlayerCompanionCardState({
+      cozyRestPaidToday: false,
+      cozyRestReadyNow: false,
+      deskActivityPaidToday: false,
+      deskActivityReadyNow: true,
       inviteCode: "ABCD12",
       memberCount: 2,
       presenceStatus: createPresenceStatus("Partner away"),
-      ritualStatus: createRitualStatus(false),
+      ritualStatus: createRitualStatus(false, 3, {
+        selfCompleted: false,
+        partnerCompleted: true
+      }),
       runtimeEntryMode: "hosted",
       showInviteCode: false,
-      statusMessage: null
+      statusMessage: null,
+      togetherDaysCount: 3,
+      visitCompletedToday: false
     });
 
     expect(waitingState.partnerTitle).toBe("Waiting for partner");
-    expect(waitingState.ritualTitle).toBe("Daily ritual pending");
+    expect(waitingState.ritualTitle).toBe("Room-day visit open");
     expect(waitingState.roomModeLabel).toBe("Local room");
+    expect(waitingState.togetherDaysLabel).toBe("Together Days 3");
+    expect(waitingState.visitStatusLabel).toBe("Visited today");
+    expect(waitingState.deskActivityStatus).toBe("Ready now");
+    expect(waitingState.cozyRestStatus).toBe("Lie down together");
+
     expect(togetherState.partnerTitle).toBe("Together now");
-    expect(togetherState.ritualTitle).toBe("Daily ritual complete");
+    expect(togetherState.ritualTitle).toBe("Room-day visit complete");
     expect(togetherState.roomModeLabel).toBe("Hosted couple room");
+    expect(togetherState.deskActivityStatus).toBe("Paid today");
+    expect(togetherState.cozyRestStatus).toBe("Ready now");
+
     expect(reconnectingState.partnerTitle).toBe("Partner reconnecting");
     expect(reconnectingState.roomModeLabel).toBe("Local dev room");
+    expect(reconnectingState.ritualTitle).toBe("Visit saved");
+
     expect(awayState.partnerTitle).toBe("Partner away");
+    expect(awayState.ritualTitle).toBe("Partner visited");
   });
 
   it("keeps room details actions secondary and player-safe", () => {
     const detailsState = getPlayerRoomDetailsState({
+      activityRows: [
+        { label: "Snake", value: "Paid today" },
+        { label: "Cozy Rest", value: "Ready now" }
+      ],
       gridSnapEnabled: true,
       inviteCode: "ABCD12",
       memberCount: 1,
       roomId: "room-1",
-      sharedRoomActive: true
+      sharedRoomActive: true,
+      togetherDaysCount: 6,
+      visitCompletedToday: true
     });
 
     expect(detailsState.secondaryActions.map((action) => action.label)).toContain("Refresh room state");
     expect(detailsState.secondaryActions.map((action) => action.label)).toContain("Copy invite code");
+    expect(detailsState.togetherDaysLabel).toBe("Together Days 6");
+    expect(detailsState.visitStatusLabel).toBe("Visited today");
+    expect(detailsState.activityRows).toEqual([
+      { label: "Snake", value: "Paid today" },
+      { label: "Cozy Rest", value: "Ready now" }
+    ]);
   });
 
   it("does not expose developer actions in the player dock", () => {
@@ -142,6 +197,26 @@ describe("shellViewModel", () => {
     expect(dockState.actions.map((action) => action.label)).not.toContain("Refresh room state");
     expect(dockState.actions.map((action) => action.label)).not.toContain("Preview Studio");
     expect(dockState.actions.map((action) => action.label)).not.toContain("Dev Panel");
+  });
+
+  it("adds Cozy Rest to the player dock only when it is ready now", () => {
+    const readyDock = getPlayerActionDockState({
+      buildModeEnabled: false,
+      catalogOpen: false,
+      cozyRestReadyNow: true,
+      playerInteractionStatus: null
+    });
+    const paidDock = getPlayerActionDockState({
+      buildModeEnabled: false,
+      catalogOpen: false,
+      cozyRestPaidToday: true,
+      playerInteractionStatus: null
+    });
+
+    expect(readyDock.actions.map((action) => action.label)).toContain("Cozy Rest");
+    expect(readyDock.statusLabel).toBe("Cozy Rest ready now");
+    expect(paidDock.actions.map((action) => action.label)).not.toContain("Cozy Rest");
+    expect(paidDock.statusLabel).toBe("Cozy Rest paid today");
   });
 
   it("keeps developer quick actions out of the player dock", () => {

@@ -17,11 +17,11 @@
 
 ### Rituals
 
-- [ ] **RITL-02**: Couple can rotate through multiple daily ritual variants instead of only the desk PC flow.
+- [x] **RITL-02**: Couple can rotate through multiple daily ritual variants instead of only the desk PC flow.
 
 ### Activities
 
-- [ ] **ACTV-01**: Couple can access another repeatable earn loop beyond the desk PC path.
+- [x] **ACTV-01**: Couple can access another repeatable earn loop beyond the desk PC path.
 
 ### Personalization
 
@@ -31,6 +31,10 @@
 ### Content
 
 - [ ] **CONT-01**: Room themes, decor sets, and cosmetic variants expand after the first shared loop is stable.
+
+### Delivery
+
+- [x] **CODE-01**: Active runtime and regression files targeted by this milestone stay below 1000 lines through modular extraction without regressing room-builder, shared-room, or authoring boundaries.
 
 ## v2 Requirements
 
@@ -60,17 +64,19 @@
 | PAIR-03 | Phase 5 | Complete |
 | ROOM-04 | Phase 5 | Complete |
 | ROOM-05 | Phase 5 | Complete |
-| RITL-02 | Phase 6 | Pending |
-| ACTV-01 | Phase 6 | Pending |
+| RITL-02 | Phase 6 | Complete |
+| ACTV-01 | Phase 6 | Complete |
 | MEMR-02 | Phase 7 | Pending |
 | PETS-02 | Phase 7 | Pending |
 | CONT-01 | Phase 8 | Pending |
+| CODE-01 | Phase 06.1 | Complete |
 
 **Coverage:**
-- v1 requirements: 9 total
-- Mapped to phases: 9
+- v1 requirements: 10 total
+- Mapped to phases: 10
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after completing Phase 5*
+*Last updated: 2026-03-27 after completing Phase 06.1 codebase modularization*
+

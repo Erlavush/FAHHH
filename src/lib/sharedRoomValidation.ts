@@ -38,7 +38,8 @@ export const VALID_SHARED_ROOM_SURFACES: FurniturePlacementSurface[] = [
   "wall_left",
   "wall_front",
   "wall_right",
-  "surface"
+  "surface",
+  "ceiling"
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

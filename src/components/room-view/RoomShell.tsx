@@ -1,4 +1,5 @@
 import { type ThreeEvent } from "@react-three/fiber";
+import { DoubleSide } from "three";
 import { useMemo } from "react";
 import { getFurnitureDefinition } from "../../lib/furnitureRegistry";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
@@ -8,8 +9,12 @@ import {
   BASEBOARD_COORD,
   BASEBOARD_SPAN,
   BACK_WALL_SURFACE_Z,
+  CEILING_CENTER_Y,
+  CEILING_SURFACE_Y,
+  CEILING_THICKNESS,
   LEFT_WALL_SURFACE_X,
   FRONT_WALL_SURFACE_Z,
+  GRID_SIZE,
   RIGHT_WALL_SURFACE_X,
   TRIM_COORD,
   WALL_AXIS_MAX,
@@ -25,6 +30,23 @@ import {
   WALL_TOP_TRIM_Y,
   WALL_TOP_Y
 } from "./constants";
+
+export type RoomShellRenderMode = "visible" | "shadow_only";
+
+export function getRoomShellRenderMode(isVisible: boolean): RoomShellRenderMode {
+  return isVisible ? "visible" : "shadow_only";
+}
+
+export function getRoomShellMaterialProps(renderMode: RoomShellRenderMode) {
+  if (renderMode === "shadow_only") {
+    return {
+      colorWrite: false,
+      depthWrite: false
+    } as const;
+  }
+
+  return {} as const;
+}
 
 function WallInteractionPlane({
   surface,
@@ -66,7 +88,8 @@ function WallBand({
   span,
   height,
   color,
-  shadowsEnabled
+  shadowsEnabled,
+  renderMode
 }: {
   surface: "wall_back" | "wall_left" | "wall_front" | "wall_right";
   center: number;
@@ -75,6 +98,7 @@ function WallBand({
   height: number;
   color: string;
   shadowsEnabled: boolean;
+  renderMode: RoomShellRenderMode;
 }) {
   if (span <= 0.0001 || height <= 0.0001) {
     return null;
@@ -105,7 +129,11 @@ function WallBand({
       raycast={() => null}
     >
       <boxGeometry args={isLateral ? [WALL_THICKNESS, height, span] : [span, height, WALL_THICKNESS]} />
-      <meshStandardMaterial color={color} roughness={0.95} />
+      <meshStandardMaterial
+        color={color}
+        roughness={0.95}
+        {...getRoomShellMaterialProps(renderMode)}
+      />
     </mesh>
   );
 }
@@ -181,20 +209,19 @@ function SingleWall({
   onWallPointerUp: () => void;
   isVisible: boolean;
 }) {
-  if (!isVisible) {
-    return null;
-  }
-
   const isLateral = surface === "wall_left" || surface === "wall_right";
+  const renderMode = getRoomShellRenderMode(isVisible);
 
   return (
     <group>
-      <WallInteractionPlane
-        surface={surface}
-        onWallClick={onWallClick}
-        onWallPointerMove={onWallPointerMove}
-        onWallPointerUp={onWallPointerUp}
-      />
+      {isVisible ? (
+        <WallInteractionPlane
+          surface={surface}
+          onWallClick={onWallClick}
+          onWallPointerMove={onWallPointerMove}
+          onWallPointerUp={onWallPointerUp}
+        />
+      ) : null}
 
       {/* Wall Bands */}
       <WallBand
@@ -205,6 +232,7 @@ function SingleWall({
         height={layout.lowerBandHeight}
         color={wallColor}
         shadowsEnabled={shadowsEnabled}
+        renderMode={renderMode}
       />
       {layout.middleSegments.map((segment: any) => (
         <WallBand
@@ -216,6 +244,7 @@ function SingleWall({
           height={layout.openingBandHeight}
           color={wallColor}
           shadowsEnabled={shadowsEnabled}
+          renderMode={renderMode}
         />
       ))}
       <WallBand
@@ -226,54 +255,59 @@ function SingleWall({
         height={layout.upperBandHeight}
         color={wallColor}
         shadowsEnabled={shadowsEnabled}
+        renderMode={renderMode}
       />
 
       {/* Decorative Trim & Baseboard */}
-      <mesh
-        position={
-          surface === "wall_left"
-            ? [BASEBOARD_COORD, 0.12, 0]
-            : surface === "wall_right"
-            ? [-BASEBOARD_COORD, 0.12, 0]
-            : surface === "wall_back"
-            ? [0, 0.12, BASEBOARD_COORD]
-            : [0, 0.12, -BASEBOARD_COORD]
-        }
-        receiveShadow={shadowsEnabled}
-        raycast={() => null}
-      >
-        <boxGeometry args={isLateral ? [0.12, 0.24, BASEBOARD_SPAN] : [BASEBOARD_SPAN, 0.24, 0.12]} />
-        <meshStandardMaterial color={baseboardColor} roughness={0.86} />
-      </mesh>
+      {isVisible ? (
+        <>
+          <mesh
+            position={
+              surface === "wall_left"
+                ? [BASEBOARD_COORD, 0.12, 0]
+                : surface === "wall_right"
+                ? [-BASEBOARD_COORD, 0.12, 0]
+                : surface === "wall_back"
+                ? [0, 0.12, BASEBOARD_COORD]
+                : [0, 0.12, -BASEBOARD_COORD]
+            }
+            receiveShadow={shadowsEnabled}
+            raycast={() => null}
+          >
+            <boxGeometry args={isLateral ? [0.12, 0.24, BASEBOARD_SPAN] : [BASEBOARD_SPAN, 0.24, 0.12]} />
+            <meshStandardMaterial color={baseboardColor} roughness={0.86} />
+          </mesh>
 
-      <mesh
-        position={
-          surface === "wall_left"
-            ? [TRIM_COORD, WALL_TOP_TRIM_Y, 0]
-            : surface === "wall_right"
-            ? [-TRIM_COORD, WALL_TOP_TRIM_Y, 0]
-            : surface === "wall_back"
-            ? [0, WALL_TOP_TRIM_Y, TRIM_COORD]
-            : [0, WALL_TOP_TRIM_Y, -TRIM_COORD]
-        }
-        receiveShadow={shadowsEnabled}
-        raycast={() => null}
-      >
-        <boxGeometry args={isLateral ? [0.08, 0.18, BASEBOARD_SPAN] : [BASEBOARD_SPAN, 0.18, 0.08]} />
-        <meshStandardMaterial color={trimColor} roughness={0.88} />
-      </mesh>
+          <mesh
+            position={
+              surface === "wall_left"
+                ? [TRIM_COORD, WALL_TOP_TRIM_Y, 0]
+                : surface === "wall_right"
+                ? [-TRIM_COORD, WALL_TOP_TRIM_Y, 0]
+                : surface === "wall_back"
+                ? [0, WALL_TOP_TRIM_Y, TRIM_COORD]
+                : [0, WALL_TOP_TRIM_Y, -TRIM_COORD]
+            }
+            receiveShadow={shadowsEnabled}
+            raycast={() => null}
+          >
+            <boxGeometry args={isLateral ? [0.08, 0.18, BASEBOARD_SPAN] : [BASEBOARD_SPAN, 0.18, 0.08]} />
+            <meshStandardMaterial color={trimColor} roughness={0.88} />
+          </mesh>
 
-      {/* Rails */}
-      {layout.railSegments.map((segment: any) => (
-        <WallRail
-          key={`${surface}-rail-${segment.center}-${segment.span}`}
-          surface={surface}
-          center={segment.center}
-          span={segment.span}
-          color={wallRailColor}
-          shadowsEnabled={shadowsEnabled}
-        />
-      ))}
+          {/* Rails */}
+          {layout.railSegments.map((segment: any) => (
+            <WallRail
+              key={`${surface}-rail-${segment.center}-${segment.span}`}
+              surface={surface}
+              center={segment.center}
+              span={segment.span}
+              color={wallRailColor}
+              shadowsEnabled={shadowsEnabled}
+            />
+          ))}
+        </>
+      ) : null}
     </group>
   );
 }
@@ -285,7 +319,10 @@ export function RoomShell({
   shadowsEnabled,
   onWallClick,
   onWallPointerMove,
-  onWallPointerUp
+  onWallPointerUp,
+  onCeilingClick,
+  onCeilingPointerMove,
+  onCeilingPointerUp
 }: {
   surfaceLightAmount: number;
   furniture: RoomFurniturePlacement[];
@@ -294,12 +331,17 @@ export function RoomShell({
   onWallClick: (event: ThreeEvent<MouseEvent>) => void;
   onWallPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onWallPointerUp: () => void;
+  onCeilingClick: (event: ThreeEvent<MouseEvent>) => void;
+  onCeilingPointerMove: (event: ThreeEvent<PointerEvent>) => void;
+  onCeilingPointerUp: () => void;
 }) {
   const wallColor = mixColor("#28201c", "#eee6db", surfaceLightAmount);
   const baseboardColor = mixColor("#775b46", "#8b6345", surfaceLightAmount);
   const trimColor = mixColor("#725a48", "#f5eee3", surfaceLightAmount);
   const wallRailColor = mixColor("#856652", "#a17856", surfaceLightAmount);
   const cornerTrimColor = mixColor("#6d5443", "#e8dfd2", surfaceLightAmount);
+  const ceilingColor = mixColor("#43342c", "#f4efe8", surfaceLightAmount);
+  const ceilingTrimColor = mixColor("#5d493d", "#d9ccb9", surfaceLightAmount);
 
   const walls: ("wall_back" | "wall_left" | "wall_front" | "wall_right")[] = [
     "wall_back",
@@ -353,6 +395,45 @@ export function RoomShell({
           isVisible={wallVisibility[surface] ?? true}
         />
       ))}
+
+      <group>
+        <mesh
+          position={[0, CEILING_CENTER_Y, 0]}
+          receiveShadow={shadowsEnabled}
+          castShadow={shadowsEnabled}
+          raycast={() => null}
+        >
+          <boxGeometry args={[GRID_SIZE + 0.18, CEILING_THICKNESS, GRID_SIZE + 0.18]} />
+          <meshStandardMaterial
+            color={ceilingColor}
+            roughness={0.92}
+            {...getRoomShellMaterialProps(getRoomShellRenderMode(wallVisibility.ceiling ?? false))}
+          />
+        </mesh>
+        {(wallVisibility.ceiling ?? false) ? (
+          <>
+            <mesh position={[0, CEILING_SURFACE_Y + 0.02, 0]} raycast={() => null}>
+              <boxGeometry args={[GRID_SIZE - 0.2, 0.04, GRID_SIZE - 0.2]} />
+              <meshStandardMaterial color={ceilingTrimColor} roughness={0.84} />
+            </mesh>
+            <mesh
+              position={[0, CEILING_SURFACE_Y + 0.001, 0]}
+              rotation={[Math.PI / 2, 0, 0]}
+              onClick={onCeilingClick}
+              onPointerMove={onCeilingPointerMove}
+              onPointerUp={onCeilingPointerUp}
+            >
+              <planeGeometry args={[GRID_SIZE, GRID_SIZE]} />
+              <meshBasicMaterial
+                transparent
+                opacity={0}
+                depthWrite={false}
+                side={DoubleSide}
+              />
+            </mesh>
+          </>
+        ) : null}
+      </group>
 
       {/* Corner Trims */}
       {(wallVisibility.wall_back && wallVisibility.wall_left) && (

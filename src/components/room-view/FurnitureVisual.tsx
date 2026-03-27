@@ -1,4 +1,9 @@
 import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
+import {
+  CeilingFanModel,
+  CeilingLightModel,
+  HangingPlantModel
+} from "../CeilingFurnitureModels";
 import { ChairModel } from "../ChairModel";
 import { FloorLampModel } from "../FloorLampModel";
 import { FridgeModel } from "../FridgeModel";
@@ -87,6 +92,12 @@ export function FurnitureVisual({
       return <RugModel {...commonProps} />;
     case "floor_lamp":
       return <FloorLampModel {...commonProps} nightFactor={nightFactor} />;
+    case "ceiling_light":
+      return <CeilingLightModel {...commonProps} nightFactor={nightFactor} />;
+    case "ceiling_fan":
+      return <CeilingFanModel {...commonProps} />;
+    case "hanging_plant":
+      return <HangingPlantModel {...commonProps} />;
     default:
       return null;
   }

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getFurnitureCollisionReason } from "../src/lib/furnitureCollision";
-import { spawnCandidateOffsets } from "../src/components/room-view/constants";
+import {
+  CEILING_SURFACE_Y,
+  spawnCandidateOffsets
+} from "../src/components/room-view/constants";
 import {
   resolveSpawnPosition
 } from "../src/components/room-view/placementResolvers";
@@ -168,5 +171,19 @@ describe("findSpawnPlacement", () => {
 
       expect(wallPlacement?.surface).toBe(expectedSurface);
     });
+  });
+
+  it("spawns ceiling furniture onto the ceiling surface", () => {
+    const result = findSpawnPlacement({
+      furniture: [],
+      gridSnapEnabled: true,
+      playerWorldPosition: [0, 0, 0],
+      spawnRequest: createSpawnRequest("ceiling_light"),
+      targetPosition: [1.2, 0, -0.9]
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.surface).toBe("ceiling");
+    expect(result?.position[1]).toBe(CEILING_SURFACE_Y);
   });
 });

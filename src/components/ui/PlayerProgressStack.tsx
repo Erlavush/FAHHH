@@ -3,7 +3,7 @@ type PlayerProgressStackProps = {
   playerLevel: number;
   playerXp: number;
   playerXpNextLevel: number;
-  streakCount: number;
+  togetherDaysCount: number;
   walletLabel: string;
 };
 
@@ -12,7 +12,7 @@ export function PlayerProgressStack({
   playerLevel,
   playerXp,
   playerXpNextLevel,
-  streakCount,
+  togetherDaysCount,
   walletLabel
 }: PlayerProgressStackProps) {
   return (
@@ -29,8 +29,8 @@ export function PlayerProgressStack({
         </span>
       </div>
       <div className="player-progress-stack__card">
-        <span className="player-progress-stack__label">Streak</span>
-        <strong className="player-progress-stack__value">{streakCount} days</strong>
+        <span className="player-progress-stack__label">Together Days</span>
+        <strong className="player-progress-stack__value">{togetherDaysCount} days</strong>
       </div>
     </section>
   );

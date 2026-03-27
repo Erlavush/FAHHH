@@ -1,29 +1,34 @@
 import { useState } from "react";
 import type { SharedPresenceStatus } from "../hooks/useSharedRoomPresence";
-import type { SharedRitualStatusView } from "../../lib/sharedProgression";
 
 type SharedRoomStatusStripProps = {
+  cozyRestStatus: string;
+  deskActivityStatus: string;
   inviteCode: string;
   memberCount: number;
   onReloadLatest: () => void;
   presenceStatus: SharedPresenceStatus | null;
-  ritualStatus: SharedRitualStatusView;
   roomId: string;
   showInviteCard?: boolean;
   showRoomIdentity?: boolean;
   statusMessage: string | null;
+  togetherDaysLabel: string;
+  visitStatusLabel: string;
 };
 
 export function SharedRoomStatusStrip({
+  cozyRestStatus,
+  deskActivityStatus,
   inviteCode,
   memberCount,
   onReloadLatest,
   presenceStatus,
-  ritualStatus,
   roomId,
   showInviteCard = true,
   showRoomIdentity = true,
-  statusMessage
+  statusMessage,
+  togetherDaysLabel,
+  visitStatusLabel
 }: SharedRoomStatusStripProps) {
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
@@ -75,8 +80,8 @@ export function SharedRoomStatusStrip({
         </div>
       ) : (
         <div className="shared-room-status__identity shared-room-status__identity--compact">
-          <span className="shared-room-status__label">Daily ritual</span>
-          <strong className="shared-room-status__room-id">{ritualStatus.title}</strong>
+          <span className="shared-room-status__label">Together Days</span>
+          <strong className="shared-room-status__room-id">{togetherDaysLabel}</strong>
         </div>
       )}
       <div className="shared-room-status__content">
@@ -85,10 +90,10 @@ export function SharedRoomStatusStrip({
         </strong>
         <span>{activeStatus.body}</span>
         <div className="shared-room-status__ritual">
-          <span className={`shared-room-status__ritual-chip shared-room-status__ritual-chip--${ritualStatus.tone}`}>
-            {ritualStatus.title}
-          </span>
-          <span>{ritualStatus.body}</span>
+          <span className="shared-room-status__ritual-chip">{togetherDaysLabel}</span>
+          <span>{visitStatusLabel}</span>
+          <span>Desk PC: {deskActivityStatus}</span>
+          <span>Cozy Rest: {cozyRestStatus}</span>
         </div>
       </div>
       <div className="shared-room-status__actions">

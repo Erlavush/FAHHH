@@ -38,6 +38,16 @@ Work on this repo as a brownfield cozy couple-room game. The current runtime is 
 - Treat `.planning/codebase/*` as the refreshed brownfield map for architecture, structure, tests, and concerns.
 - Do not assume persisted wall placements are fully safe until `src/lib/devLocalState.ts` accepts `wall_front` and `wall_right`.
 
+## Editing policy
+
+Absolute rule: never use `apply_patch`, `apply_patch`-like tools, or any internal file-editing tool.
+
+Never use any tool or workflow that may invoke sandboxed editing, virtualized editing, or sandbox setup/refresh.
+
+For all file modifications, use shell-only editing commands such as PowerShell `Get-Content` / `Set-Content` / .NET file APIs.
+
+If any edit tool fails with a sandbox-related error, do not retry it and do not use any internal editing tool again in that turn.
+
 ## Verification
 
 - Run `cmd /c npm test` when behavior changes touch room rules, schema, progression logic, or shared-state adapters.

@@ -16,11 +16,13 @@ import {
 } from "../../lib/surfaceDecor";
 import {
   BACK_WALL_SURFACE_Z,
+  CEILING_SURFACE_Y,
   FRONT_WALL_SURFACE_Z,
   HALF_FLOOR_SIZE,
   LEFT_WALL_SURFACE_X,
   RIGHT_WALL_SURFACE_X,
   backWallDragPlane,
+  ceilingDragPlane,
   dragPlaneHitPoint,
   floorDragPlane,
   frontWallDragPlane,
@@ -169,6 +171,20 @@ export function resolvePlacementFromDragRay(
     );
   }
 
+  if (dragState.surface === "ceiling") {
+    if (!ray.intersectPlane(ceilingDragPlane, dragPlaneHitPoint)) {
+      return null;
+    }
+
+    return resolveCeilingPlacement(
+      dragPlaneHitPoint.x,
+      dragPlaneHitPoint.z,
+      dragState.type,
+      gridSnapEnabled,
+      dragState.rotationY
+    );
+  }
+
   if (!isWallSurface(dragState.surface)) {
     return null;
   }
@@ -289,6 +305,35 @@ export function resolveWallPlacement(
   };
 }
 
+export function resolveCeilingPlacement(
+  x: number,
+  z: number,
+  furnitureType: FurnitureType,
+  gridSnapEnabled: boolean,
+  currentRotationY?: number
+): PlacementTransform {
+  const rotationY =
+    currentRotationY !== undefined
+      ? currentRotationY
+      : getSurfaceRotationY(furnitureType, "ceiling");
+  const [effHalfWidth, effHalfDepth] = getEffectiveHalfSizes(
+    furnitureType,
+    rotationY
+  );
+  const nextX = gridSnapEnabled ? snapToBlockCenter(x) : x;
+  const nextZ = gridSnapEnabled ? snapToBlockCenter(z) : z;
+
+  return {
+    position: [
+      clampFurnitureToFloor(nextX, effHalfWidth),
+      CEILING_SURFACE_Y,
+      clampFurnitureToFloor(nextZ, effHalfDepth)
+    ],
+    rotationY,
+    surface: "ceiling"
+  };
+}
+
 export function resolveSpawnPosition(
   furnitureType: FurnitureType,
   surface: FurniturePlacementSurface,
@@ -319,6 +364,15 @@ export function resolveSpawnPosition(
 
   if (surface === "floor") {
     return resolveFloorPlacement(
+      targetPosition[0] + offsetA,
+      targetPosition[2] + offsetB,
+      furnitureType,
+      gridSnapEnabled
+    );
+  }
+
+  if (surface === "ceiling") {
+    return resolveCeilingPlacement(
       targetPosition[0] + offsetA,
       targetPosition[2] + offsetB,
       furnitureType,
@@ -360,7 +414,11 @@ export function applyPlacementToItem(
   item: RoomFurniturePlacement,
   nextPlacement: PlacementTransform
 ): RoomFurniturePlacement {
-  if (nextPlacement.surface === "floor" || nextPlacement.surface === "surface") {
+  if (
+    nextPlacement.surface === "floor" ||
+    nextPlacement.surface === "surface" ||
+    nextPlacement.surface === "ceiling"
+  ) {
     return {
       ...item,
       ...nextPlacement,

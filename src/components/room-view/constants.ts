@@ -12,10 +12,14 @@ export const WALL_CENTER_COORD = -HALF_FLOOR_SIZE - 0.06;
 export const FRONT_WALL_CENTER_COORD = HALF_FLOOR_SIZE + 0.06;
 export const RIGHT_WALL_CENTER_COORD = HALF_FLOOR_SIZE + 0.06;
 export const OCCLUSION_ANGLE_THRESHOLD = 0.45; // Radians, approx 25 degrees
+export const CEILING_OCCLUSION_VERTICAL_RATIO = 0.55;
 export const WALL_THICKNESS = 0.22;
 export const WALL_HEIGHT = 4.4;
 export const WALL_BOTTOM_Y = 0;
 export const WALL_TOP_Y = WALL_HEIGHT;
+export const CEILING_THICKNESS = 0.18;
+export const CEILING_CENTER_Y = WALL_TOP_Y - CEILING_THICKNESS / 2;
+export const CEILING_SURFACE_Y = WALL_TOP_Y - CEILING_THICKNESS;
 export const BASEBOARD_COORD = -HALF_FLOOR_SIZE + 0.07;
 export const TRIM_COORD = -HALF_FLOOR_SIZE + 0.08;
 export const WALL_SPAN = GRID_SIZE + 0.2;
@@ -44,6 +48,10 @@ export const GIZMO_LINE_WIDTH = 4;
 export const FREE_MOVE_NUDGE_STEP = 0.1;
 export const DISABLED_MOUSE_BUTTON = -1 as MOUSE;
 export const floorDragPlane = new Plane(new Vector3(0, 1, 0), 0);
+export const ceilingDragPlane = new Plane().setFromNormalAndCoplanarPoint(
+  new Vector3(0, -1, 0),
+  new Vector3(0, CEILING_SURFACE_Y, 0)
+);
 export const backWallDragPlane = new Plane().setFromNormalAndCoplanarPoint(
   new Vector3(0, 0, 1),
   new Vector3(0, 0, BACK_WALL_SURFACE_Z)

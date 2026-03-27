@@ -54,7 +54,15 @@ function isValidPlayerCoins(value: unknown): value is number {
 }
 
 function isValidPlacementSurface(value: unknown): value is FurniturePlacementSurface {
-  return value === "floor" || value === "wall_back" || value === "wall_left" || value === "surface";
+  return (
+    value === "floor" ||
+    value === "wall_back" ||
+    value === "wall_left" ||
+    value === "wall_front" ||
+    value === "wall_right" ||
+    value === "surface" ||
+    value === "ceiling"
+  );
 }
 
 function isValidFurniturePlacement(value: unknown): value is PersistedFurniturePlacement {

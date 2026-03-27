@@ -14,6 +14,7 @@ import type { RoomFurniturePlacement } from "../../lib/roomState";
 import { findFurniturePlacement } from "../../lib/roomState";
 import {
   applyPlacementToItem,
+  resolveCeilingPlacement,
   resolveFloorPlacement,
   resolveFurnitureRotation,
   resolvePlacementFromDragRay,
@@ -445,6 +446,27 @@ export function useRoomViewBuilderGestures({
         if (!nextPlacement) {
           return;
         }
+
+        updateFurnitureItem(selectedFurnitureId, (item) => ({
+          ...item,
+          ...nextPlacement,
+          rotationY: nextRotation
+        }));
+        return;
+      }
+
+      if (selectedFurniture.surface === "ceiling") {
+        const nextRotation = resolveFurnitureRotation(
+          transformDragEuler.y,
+          gridSnapEnabled
+        );
+        const nextPlacement = resolveCeilingPlacement(
+          transformDragPosition.x,
+          transformDragPosition.z,
+          selectedFurniture.type,
+          gridSnapEnabled,
+          nextRotation
+        );
 
         updateFurnitureItem(selectedFurnitureId, (item) => ({
           ...item,
