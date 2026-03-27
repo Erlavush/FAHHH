@@ -1,51 +1,146 @@
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  PC_MINIGAME_COOLDOWN_MS,
-  applyPcMinigameResult,
-  createDefaultPcMinigameProgress,
-  formatPcMinigameCooldown,
-  getPcMinigameCooldownRemaining,
-  getPcMinigameRewardCoins
+  createDefaultPcDeskProgress,
+  getPcDeskAppDefinitions,
+  getPcDeskRewardCoins,
+  type PcDeskRunResult
 } from "../src/lib/pcMinigame";
+import { PcMinigameOverlay } from "../src/components/PcMinigameOverlay";
 
-describe("pcMinigame", () => {
-  it("creates a clean default progress state", () => {
-    expect(createDefaultPcMinigameProgress()).toEqual({
-      bestScore: 0,
-      lastScore: 0,
-      gamesPlayed: 0,
-      totalCoinsEarned: 0,
-      lastRewardCoins: 0,
-      lastCompletedAt: null
-    });
+let container: HTMLDivElement | null = null;
+let root: Root | null = null;
+
+function queryButton(label: string): HTMLButtonElement | null {
+  return Array.from(container?.querySelectorAll("button") ?? []).find(
+    (button) => button.textContent?.includes(label)
+  ) as HTMLButtonElement | null;
+}
+
+describe("pc desk minigame", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
   });
 
-  it("scales rewards from score and caps the payout", () => {
-    expect(getPcMinigameRewardCoins(0)).toBe(0);
-    expect(getPcMinigameRewardCoins(9)).toBe(6);
-    expect(getPcMinigameRewardCoins(999)).toBe(24);
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    container?.remove();
+    container = null;
+    root = null;
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
-  it("tracks best score, total coins, and cooldown timing from a completed run", () => {
-    const baseProgress = createDefaultPcMinigameProgress();
-    const completedAt = 1_700_000_000_000;
-    const resultProgress = applyPcMinigameResult(baseProgress, {
-      score: 17,
-      rewardCoins: 11,
-      completedAt
-    });
-
-    expect(resultProgress).toEqual({
-      bestScore: 17,
-      lastScore: 17,
-      gamesPlayed: 1,
-      totalCoinsEarned: 11,
-      lastRewardCoins: 11,
-      lastCompletedAt: completedAt
-    });
-    expect(getPcMinigameCooldownRemaining(completedAt, completedAt + 15_000)).toBe(
-      PC_MINIGAME_COOLDOWN_MS - 15_000
+  it("returns the three retro desk app ids", () => {
+    expect(getPcDeskAppDefinitions().map((definition) => definition.id)).toEqual([
+      "pc_snake",
+      "pc_block_stacker",
+      "pc_runner"
+    ]);
+    expect(getPcDeskRewardCoins("pc_snake", 12)).toBeGreaterThan(0);
+    expect(getPcDeskRewardCoins("pc_block_stacker", 12)).toBeGreaterThan(
+      getPcDeskRewardCoins("pc_snake", 12)
     );
-    expect(formatPcMinigameCooldown(15_000)).toBe("00:15");
+    expect(getPcDeskRewardCoins("pc_runner", 12)).toBeGreaterThan(0);
+  });
+
+  it("launches Snake, Block Stacker, and Runner from the retro desktop shell", async () => {
+    const onComplete = vi.fn<(result: PcDeskRunResult) => void>();
+
+    await act(async () => {
+      root?.render(
+        createElement(PcMinigameOverlay, {
+          currentCoins: 12,
+          onComplete,
+          onExit: vi.fn(),
+          progress: createDefaultPcDeskProgress()
+        })
+      );
+    });
+
+    expect(queryButton("Snake")).not.toBeNull();
+    expect(queryButton("Block Stacker")).not.toBeNull();
+    expect(queryButton("Runner")).not.toBeNull();
+
+    await act(async () => {
+      queryButton("Snake")?.click();
+    });
+    expect(container?.textContent).toContain("SNAKE.EXE");
+
+    await act(async () => {
+      queryButton("Back to desktop")?.click();
+      queryButton("Block Stacker")?.click();
+    });
+    expect(container?.textContent).toContain("STACKER.EXE");
+
+    await act(async () => {
+      queryButton("Back to desktop")?.click();
+      queryButton("Runner")?.click();
+    });
+    expect(container?.textContent).toContain("RUNNER.EXE");
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("shows paid and practice-only result states without blocking replay", async () => {
+    const onComplete = vi.fn<(result: PcDeskRunResult) => void>();
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+
+    await act(async () => {
+      root?.render(
+        createElement(PcMinigameOverlay, {
+          currentCoins: 18,
+          onComplete,
+          onExit: vi.fn(),
+          progress: createDefaultPcDeskProgress(),
+          paidTodayByActivityId: {
+            pc_snake: false
+          }
+        })
+      );
+    });
+
+    await act(async () => {
+      queryButton("Snake")?.click();
+      queryButton("Run app")?.click();
+      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS);
+    });
+
+    expect(container?.textContent).toContain("Paid today");
+    expect(queryButton("Play again")).not.toBeNull();
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activityId: "pc_snake"
+      })
+    );
+
+    await act(async () => {
+      root?.render(
+        createElement(PcMinigameOverlay, {
+          currentCoins: 18,
+          onComplete,
+          onExit: vi.fn(),
+          progress: createDefaultPcDeskProgress(),
+          paidTodayByActivityId: {
+            pc_snake: true
+          }
+        })
+      );
+    });
+
+    await act(async () => {
+      queryButton("Snake")?.click();
+      queryButton("Run app")?.click();
+      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS);
+    });
+
+    expect(container?.textContent).toContain("Practice run only");
+    expect(queryButton("Play again")).not.toBeNull();
   });
 });
+
