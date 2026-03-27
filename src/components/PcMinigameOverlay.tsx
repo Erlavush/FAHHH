@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PC_MINIGAME_SESSION_MS,
-  formatPcMinigameCooldown,
-  getPcMinigameCooldownRemaining,
-  getPcMinigameRewardCoins,
-  type PcMinigameProgress,
-  type PcMinigameResult
+  getPcDeskAppDefinitions,
+  getPcDeskRewardCoins,
+  type PcDeskActivityId,
+  type PcDeskAppDefinition,
+  type PcDeskRunResult,
+  type PcMinigameProgress
 } from "../lib/pcMinigame";
 
 type TargetTone = "good" | "bonus" | "bad";
@@ -21,35 +22,46 @@ type PcTarget = TargetVariant & {
   id: number;
   xPercent: number;
   yPercent: number;
-  scale: number;
   expiresAt: number;
 };
 
-const GOOD_TARGETS: TargetVariant[] = [
-  { label: "Gig", value: 2, lifetimeMs: 1450, tone: "good" },
-  { label: "Tip", value: 1, lifetimeMs: 1350, tone: "good" },
-  { label: "Bonus", value: 3, lifetimeMs: 1200, tone: "bonus" }
-];
+const DESKTOP_SHORTCUT_LABELS: Record<PcDeskActivityId, "Snake" | "Block Stacker" | "Runner"> = {
+  pc_snake: "Snake",
+  pc_block_stacker: "Block Stacker",
+  pc_runner: "Runner"
+};
 
-const BAD_TARGETS: TargetVariant[] = [
-  { label: "Spam", value: -2, lifetimeMs: 1500, tone: "bad" },
-  { label: "Virus", value: -3, lifetimeMs: 1250, tone: "bad" }
-];
+const APP_TARGET_VARIANTS: Record<PcDeskActivityId, readonly TargetVariant[]> = {
+  pc_snake: [
+    { label: "Fruit", value: 2, lifetimeMs: 1450, tone: "good" },
+    { label: "Byte", value: 1, lifetimeMs: 1300, tone: "good" },
+    { label: "Crash", value: -2, lifetimeMs: 1350, tone: "bad" }
+  ],
+  pc_block_stacker: [
+    { label: "Line", value: 3, lifetimeMs: 1200, tone: "bonus" },
+    { label: "Stack", value: 2, lifetimeMs: 1350, tone: "good" },
+    { label: "Jam", value: -2, lifetimeMs: 1400, tone: "bad" }
+  ],
+  pc_runner: [
+    { label: "Stride", value: 2, lifetimeMs: 1150, tone: "good" },
+    { label: "Boost", value: 3, lifetimeMs: 1050, tone: "bonus" },
+    { label: "Cactus", value: -3, lifetimeMs: 1300, tone: "bad" }
+  ]
+};
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-function createTarget(id: number, now: number): PcTarget {
-  const sourcePool = Math.random() < 0.74 ? GOOD_TARGETS : BAD_TARGETS;
-  const variant = sourcePool[Math.floor(Math.random() * sourcePool.length)];
+function createTarget(activityId: PcDeskActivityId, id: number, now: number): PcTarget {
+  const variants = APP_TARGET_VARIANTS[activityId];
+  const variant = variants[Math.floor(Math.random() * variants.length)];
 
   return {
     ...variant,
     id,
-    xPercent: randomBetween(12, 84),
-    yPercent: randomBetween(18, 82),
-    scale: randomBetween(0.92, 1.12),
+    xPercent: randomBetween(14, 84),
+    yPercent: randomBetween(18, 80),
     expiresAt: now + variant.lifetimeMs
   };
 }
@@ -59,8 +71,9 @@ export interface PcMinigameOverlayProps {
   dailyRitualBonusCoins?: number;
   dailyRitualBonusXp?: number;
   dailyRitualStatus?: string | null;
+  paidTodayByActivityId?: Partial<Record<PcDeskActivityId, boolean>>;
   progress: PcMinigameProgress;
-  onComplete: (result: PcMinigameResult) => void;
+  onComplete: (result: PcDeskRunResult) => void;
   onExit: () => void;
   streakCount?: number;
 }
@@ -70,30 +83,30 @@ export function PcMinigameOverlay({
   dailyRitualBonusCoins = 0,
   dailyRitualBonusXp = 0,
   dailyRitualStatus = null,
+  paidTodayByActivityId = {},
   progress,
   onComplete,
   onExit,
   streakCount = 0
 }: PcMinigameOverlayProps) {
-  const [status, setStatus] = useState<"idle" | "running" | "results">("idle");
+  const appDefinitions = useMemo(() => getPcDeskAppDefinitions(), []);
+  const [activeAppId, setActiveAppId] = useState<PcDeskActivityId | null>(null);
+  const [status, setStatus] = useState<"desktop" | "ready" | "running" | "results">("desktop");
   const [targets, setTargets] = useState<PcTarget[]>([]);
   const [sessionEndsAt, setSessionEndsAt] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [hits, setHits] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const [lastRewardCoins, setLastRewardCoins] = useState(progress.lastRewardCoins);
-  const [lastRunScore, setLastRunScore] = useState(progress.lastScore);
+  const [lastRun, setLastRun] = useState<PcDeskRunResult | null>(null);
+  const [lastRunWasPaid, setLastRunWasPaid] = useState(false);
   const nextTargetIdRef = useRef(1);
 
-  const cooldownRemainingMs = getPcMinigameCooldownRemaining(progress.lastCompletedAt, nowMs);
-  const isCoolingDown = cooldownRemainingMs > 0;
+  const activeApp = appDefinitions.find((definition) => definition.id === activeAppId) ?? null;
+  const paidToday = activeAppId ? Boolean(paidTodayByActivityId[activeAppId]) : false;
   const remainingSessionMs =
     status === "running" && sessionEndsAt !== null ? Math.max(0, sessionEndsAt - nowMs) : 0;
-  const accuracy =
-    hits + mistakes > 0 ? Math.round((hits / (hits + mistakes)) * 100) : 100;
-  const beatBestScore =
-    status === "results" && lastRunScore > 0 && lastRunScore >= progress.bestScore;
+  const accuracy = hits + mistakes > 0 ? Math.round((hits / (hits + mistakes)) * 100) : 100;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -113,82 +126,84 @@ export function PcMinigameOverlay({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onExit]);
 
   useEffect(() => {
-    if (status !== "running" || sessionEndsAt === null) {
+    if (status !== "running" || sessionEndsAt === null || !activeAppId) {
       return;
     }
 
     const spawnIntervalId = window.setInterval(() => {
       const now = Date.now();
-
       setTargets((currentTargets) => {
         const aliveTargets = currentTargets.filter((target) => target.expiresAt > now);
-
         if (aliveTargets.length >= 4) {
           return aliveTargets;
         }
 
-        const nextTargets = [...aliveTargets, createTarget(nextTargetIdRef.current, now)];
+        const nextTargets = [...aliveTargets, createTarget(activeAppId, nextTargetIdRef.current, now)];
         nextTargetIdRef.current += 1;
-
-        if (aliveTargets.length <= 1 && Math.random() < 0.32) {
-          nextTargets.push(createTarget(nextTargetIdRef.current, now));
-          nextTargetIdRef.current += 1;
-        }
-
         return nextTargets;
       });
-    }, 430);
+    }, 420);
 
     const pruneIntervalId = window.setInterval(() => {
       const now = Date.now();
       setTargets((currentTargets) => currentTargets.filter((target) => target.expiresAt > now));
-    }, 140);
+    }, 120);
 
     return () => {
       window.clearInterval(spawnIntervalId);
       window.clearInterval(pruneIntervalId);
     };
-  }, [sessionEndsAt, status]);
+  }, [activeAppId, sessionEndsAt, status]);
 
   useEffect(() => {
-    if (status !== "running" || sessionEndsAt === null || remainingSessionMs > 0) {
+    if (status !== "running" || sessionEndsAt === null || remainingSessionMs > 0 || !activeAppId) {
       return;
     }
 
     const completedAt = Date.now();
-    const rewardCoins = getPcMinigameRewardCoins(score);
-
-    setStatus("results");
-    setTargets([]);
-    setLastRewardCoins(rewardCoins);
-    setLastRunScore(score);
-    onComplete({
+    const rewardCoins = getPcDeskRewardCoins(activeAppId, score);
+    const runResult: PcDeskRunResult = {
+      activityId: activeAppId,
       score,
       rewardCoins,
       completedAt
-    });
-  }, [onComplete, remainingSessionMs, score, sessionEndsAt, status]);
+    };
 
-  function handleStartRun() {
-    if (isCoolingDown) {
-      return;
-    }
+    setLastRun(runResult);
+    setLastRunWasPaid(!paidToday);
+    setStatus("results");
+    setTargets([]);
+    onComplete(runResult);
+  }, [activeAppId, onComplete, paidToday, remainingSessionMs, score, sessionEndsAt, status]);
 
-    setStatus("running");
+  function handleLaunchApp(activityId: PcDeskActivityId) {
+    setActiveAppId(activityId);
     setTargets([]);
     setScore(0);
     setHits(0);
     setMistakes(0);
-    setLastRewardCoins(0);
-    setLastRunScore(0);
-    setSessionEndsAt(Date.now() + PC_MINIGAME_SESSION_MS);
+    setLastRun(null);
+    setStatus("ready");
+  }
+
+  function handleStartRun() {
+    if (!activeAppId) {
+      return;
+    }
+
+    const now = Date.now();
+    setTargets([createTarget(activeAppId, nextTargetIdRef.current, now)]);
+    nextTargetIdRef.current += 1;
+    setScore(0);
+    setHits(0);
+    setMistakes(0);
+    setLastRun(null);
+    setStatus("running");
+    setSessionEndsAt(now + PC_MINIGAME_SESSION_MS);
   }
 
   function handleTargetClick(targetId: number) {
@@ -197,7 +212,6 @@ export function PcMinigameOverlay({
     }
 
     const clickedTarget = targets.find((target) => target.id === targetId);
-
     if (!clickedTarget) {
       return;
     }
@@ -213,7 +227,7 @@ export function PcMinigameOverlay({
     setTargets((currentTargets) => currentTargets.filter((target) => target.id !== targetId));
   }
 
-  function handleBoardMiss() {
+  function handleDesktopMiss() {
     if (status !== "running") {
       return;
     }
@@ -222,19 +236,43 @@ export function PcMinigameOverlay({
     setMistakes((currentMistakes) => currentMistakes + 1);
   }
 
+  function handleBackToDesktop() {
+    setActiveAppId(null);
+    setTargets([]);
+    setSessionEndsAt(null);
+    setStatus("desktop");
+  }
+
   return (
     <div className="pc-minigame">
-      <div className="pc-minigame__panel" role="dialog" aria-modal="true" aria-label="Desk PC minigame">
+      <div
+        className="pc-minigame__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Retro desk PC"
+        style={{
+          fontFamily: '"Courier New", "Lucida Console", monospace',
+          borderRadius: 10,
+          border: "3px solid #171717",
+          boxShadow: "0 0 0 3px #d6d1bf, 20px 20px 0 rgba(0, 0, 0, 0.35)",
+          background: "linear-gradient(180deg, #c8c4b8 0%, #b0ac9f 100%)",
+          color: "#111"
+        }}
+      >
         <div className="pc-minigame__header">
           <div>
-            <p className="pc-minigame__eyebrow">Desk PC</p>
-            <h2 className="pc-minigame__title">Pixel Gigs</h2>
-            <p className="pc-minigame__subtitle">
-              Click paying pings, dodge the bad popups, and cash out before the shift ends.
+            <p className="pc-minigame__eyebrow" style={{ color: "#1e3155", fontFamily: 'inherit' }}>
+              DESK PC
+            </p>
+            <h2 className="pc-minigame__title" style={{ color: "#111", fontFamily: 'inherit', fontSize: 28 }}>
+              Cozy Desktop 95
+            </h2>
+            <p className="pc-minigame__subtitle" style={{ color: "#27303c", fontFamily: 'inherit' }}>
+              Open an app, play a quick round, and keep the room feeling lived in.
             </p>
           </div>
-          <button className="pc-minigame__close" onClick={onExit} type="button">
-            Back to room
+          <button className="pc-minigame__close" onClick={onExit} type="button" style={{ fontFamily: 'inherit' }}>
+            Exit PC
           </button>
         </div>
 
@@ -244,7 +282,7 @@ export function PcMinigameOverlay({
             <strong>{currentCoins} coins</strong>
           </div>
           <div className="pc-minigame__stat">
-            <span className="pc-minigame__stat-label">Best</span>
+            <span className="pc-minigame__stat-label">Best run</span>
             <strong>{progress.bestScore}</strong>
           </div>
           <div className="pc-minigame__stat">
@@ -252,128 +290,135 @@ export function PcMinigameOverlay({
             <strong>{progress.gamesPlayed}</strong>
           </div>
           <div className="pc-minigame__stat">
-            <span className="pc-minigame__stat-label">Cooldown</span>
-            <strong>
-              {isCoolingDown ? formatPcMinigameCooldown(cooldownRemainingMs) : "Ready"}
-            </strong>
+            <span className="pc-minigame__stat-label">Today</span>
+            <strong>{activeAppId && paidToday ? "Practice" : "Reward live"}</strong>
           </div>
         </div>
 
-        <div className="pc-minigame__monitor">
-          <div className="pc-minigame__hud">
-            <span>Score {score}</span>
-            <span>
-              Time {status === "running" ? (remainingSessionMs / 1000).toFixed(1) : "25.0"}s
-            </span>
-            <span>Accuracy {accuracy}%</span>
-          </div>
-
-          <div
-            className={`pc-minigame__board pc-minigame__board--${status}`}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                handleBoardMiss();
-              }
-            }}
-          >
-            {targets.map((target) => (
-              <button
-                key={target.id}
-                className={`pc-minigame__target pc-minigame__target--${target.tone}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleTargetClick(target.id);
-                }}
-                style={{
-                  left: `${target.xPercent}%`,
-                  top: `${target.yPercent}%`,
-                  transform: `translate(-50%, -50%) scale(${target.scale})`
-                }}
-                type="button"
-              >
-                <span className="pc-minigame__target-label">{target.label}</span>
-                <span className="pc-minigame__target-value">
-                  {target.value > 0 ? `+${target.value}` : target.value}
-                </span>
-              </button>
-            ))}
-
-            {status === "idle" ? (
-              <div className="pc-minigame__card">
-                <h3>Clock in</h3>
-                <p>
-                  Each run lasts 25 seconds. Good pings add coins to your score. Spam and virus
-                  popups drag it down.
-                </p>
-                <ul className="pc-minigame__rules">
-                  <li>Good pings add 1 to 3 score.</li>
-                  <li>Bad popups subtract score if you click them.</li>
-                  <li>Miss-clicking the desktop costs 1 score.</li>
-                </ul>
-                <button
-                  className="pc-minigame__primary"
-                  disabled={isCoolingDown}
-                  onClick={handleStartRun}
-                  type="button"
-                >
-                  {isCoolingDown
-                    ? `Cooling down ${formatPcMinigameCooldown(cooldownRemainingMs)}`
-                    : "Start shift"}
-                </button>
+        <div className="pc-minigame__monitor" style={{ borderRadius: 10, border: "3px solid #171717" }}>
+          {status === "desktop" ? (
+            <div className="pc-minigame__board pc-minigame__board--desktop" style={{ padding: 24 }}>
+              <div className="pc-minigame__hud">
+                <span>Desktop ready</span>
+                <span>Pick one app</span>
+                <span>Replay anytime</span>
               </div>
-            ) : null}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+                {appDefinitions.map((definition) => (
+                  <button
+                    key={definition.id}
+                    className="pc-minigame__card"
+                    onClick={() => handleLaunchApp(definition.id)}
+                    type="button"
+                    style={{ position: "relative", inset: "auto", transform: "none", width: "100%", fontFamily: 'inherit' }}
+                  >
+                    <h3 style={{ fontFamily: 'inherit', fontSize: 20 }}>{DESKTOP_SHORTCUT_LABELS[definition.id]}</h3>
+                    <p>{definition.executableName}</p>
+                    <p>{definition.intro}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
-            {status === "results" ? (
-              <div className="pc-minigame__card">
-                <h3>Shift complete</h3>
-                <p>
-                  You scored <strong>{lastRunScore}</strong> and earned{" "}
-                  <strong>{lastRewardCoins}</strong> coins.
-                </p>
-                <div className="pc-minigame__result-row">
-                  <span>All-time best</span>
-                  <strong>{progress.bestScore}</strong>
-                </div>
-                <div className="pc-minigame__result-row">
-                  <span>Total PC coins earned</span>
-                  <strong>{progress.totalCoinsEarned}</strong>
-                </div>
-                <div className="pc-minigame__result-row">
-                  <span>Status</span>
-                  <strong>{beatBestScore ? "New best" : "Cooldown live"}</strong>
-                </div>
-                {dailyRitualStatus ? (
-                  <>
+          {activeApp && status !== "desktop" ? (
+            <div>
+              <div className="pc-minigame__hud">
+                <span>{activeApp.label}</span>
+                <span>{activeApp.executableName}</span>
+                <span>{status === "running" ? `Time ${(remainingSessionMs / 1000).toFixed(1)}s` : "Ready"}</span>
+                <span>Accuracy {accuracy}%</span>
+              </div>
+              <div
+                className={`pc-minigame__board pc-minigame__board--${status}`}
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) {
+                    handleDesktopMiss();
+                  }
+                }}
+              >
+                {targets.map((target) => (
+                  <button
+                    key={target.id}
+                    className={`pc-minigame__target pc-minigame__target--${target.tone}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleTargetClick(target.id);
+                    }}
+                    style={{ left: `${target.xPercent}%`, top: `${target.yPercent}%`, transform: "translate(-50%, -50%)" }}
+                    type="button"
+                  >
+                    <span className="pc-minigame__target-label">{target.label}</span>
+                    <span className="pc-minigame__target-value">{target.value > 0 ? `+${target.value}` : target.value}</span>
+                  </button>
+                ))}
+
+                {status === "ready" ? (
+                  <div className="pc-minigame__card">
+                    <h3 style={{ fontFamily: 'inherit' }}>{activeApp.label}</h3>
+                    <p>{activeApp.intro}</p>
                     <div className="pc-minigame__result-row">
-                      <span>Daily ritual</span>
-                      <strong>{dailyRitualStatus}</strong>
+                      <span>Payout</span>
+                      <strong>{paidToday ? "Practice only" : "Reward available"}</strong>
+                    </div>
+                    <button className="pc-minigame__primary" onClick={handleStartRun} type="button" style={{ fontFamily: 'inherit' }}>
+                      Run app
+                    </button>
+                    <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button" style={{ marginTop: 10, fontFamily: 'inherit' }}>
+                      Back to desktop
+                    </button>
+                  </div>
+                ) : null}
+
+                {status === "results" && lastRun ? (
+                  <div className="pc-minigame__card">
+                    <h3 style={{ fontFamily: 'inherit' }}>{activeApp.label} results</h3>
+                    <div className="pc-minigame__result-row">
+                      <span>Status</span>
+                      <strong>{lastRunWasPaid ? "Paid today" : "Practice run only"}</strong>
                     </div>
                     <div className="pc-minigame__result-row">
-                      <span>Daily bonus</span>
-                      <strong>
-                        {dailyRitualBonusCoins > 0 || dailyRitualBonusXp > 0
-                          ? `+${dailyRitualBonusCoins} coins / +${dailyRitualBonusXp} XP for both partners`
-                          : "Not earned yet"}
-                      </strong>
+                      <span>Score</span>
+                      <strong>{lastRun.score}</strong>
                     </div>
+                    <div className="pc-minigame__result-row">
+                      <span>Coins</span>
+                      <strong>{lastRunWasPaid ? lastRun.rewardCoins : 0}</strong>
+                    </div>
+                    {dailyRitualStatus ? (
+                      <div className="pc-minigame__result-row">
+                        <span>Legacy ritual</span>
+                        <strong>{dailyRitualStatus}</strong>
+                      </div>
+                    ) : null}
+                    {dailyRitualBonusCoins > 0 || dailyRitualBonusXp > 0 ? (
+                      <div className="pc-minigame__result-row">
+                        <span>Bonus</span>
+                        <strong>{`+${dailyRitualBonusCoins} / +${dailyRitualBonusXp}`}</strong>
+                      </div>
+                    ) : null}
                     <div className="pc-minigame__result-row">
                       <span>Streak</span>
                       <strong>{streakCount}</strong>
                     </div>
-                  </>
+                    <button className="pc-minigame__primary" onClick={handleStartRun} type="button" style={{ fontFamily: 'inherit' }}>
+                      Play again
+                    </button>
+                    <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button" style={{ marginTop: 10, fontFamily: 'inherit' }}>
+                      Back to desktop
+                    </button>
+                  </div>
                 ) : null}
-                <button className="pc-minigame__primary" onClick={onExit} type="button">
-                  Back to room
-                </button>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
 
-        <p className="pc-minigame__footer">
-          Press <kbd>Esc</kbd> or use Back to room to leave the desk.
+        <p className="pc-minigame__footer" style={{ color: "#27303c", fontFamily: 'inherit' }}>
+          Press <kbd>Esc</kbd> to close the computer. Rewards refresh by room day, but every app stays replayable.
         </p>
       </div>
     </div>
   );
 }
+

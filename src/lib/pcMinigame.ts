@@ -1,3 +1,5 @@
+export type PcDeskActivityId = "pc_snake" | "pc_block_stacker" | "pc_runner";
+
 export interface PcMinigameProgress {
   bestScore: number;
   lastScore: number;
@@ -7,16 +9,54 @@ export interface PcMinigameProgress {
   lastCompletedAt: number | null;
 }
 
-export interface PcMinigameResult {
+export interface PcDeskRunResult {
+  activityId: PcDeskActivityId;
   score: number;
   rewardCoins: number;
   completedAt: number;
 }
 
-export const PC_MINIGAME_SESSION_MS = 25_000;
-export const PC_MINIGAME_COOLDOWN_MS = 60_000;
+export type PcMinigameResult = PcDeskRunResult;
 
-export function createDefaultPcMinigameProgress(): PcMinigameProgress {
+export interface PcDeskAppDefinition {
+  id: PcDeskActivityId;
+  label: "Snake" | "Block Stacker" | "Runner";
+  executableName: string;
+  desktopIcon: string;
+  intro: string;
+  accentTone: "green" | "amber" | "cyan";
+}
+
+const PC_DESK_APP_DEFINITIONS: readonly PcDeskAppDefinition[] = [
+  {
+    id: "pc_snake",
+    label: "Snake",
+    executableName: "SNAKE.EXE",
+    desktopIcon: "~",
+    intro: "Guide the neon ribbon toward byte-fruit and keep the score climbing.",
+    accentTone: "green"
+  },
+  {
+    id: "pc_block_stacker",
+    label: "Block Stacker",
+    executableName: "STACKER.EXE",
+    desktopIcon: "#",
+    intro: "Catch clean lines, avoid jams, and keep the stack from getting messy.",
+    accentTone: "amber"
+  },
+  {
+    id: "pc_runner",
+    label: "Runner",
+    executableName: "RUNNER.EXE",
+    desktopIcon: ">",
+    intro: "Sprint through the dusk track, clear hazards, and keep the pace alive.",
+    accentTone: "cyan"
+  }
+] as const;
+
+export const PC_MINIGAME_SESSION_MS = 25_000;
+
+export function createDefaultPcDeskProgress(): PcMinigameProgress {
   return {
     bestScore: 0,
     lastScore: 0,
@@ -27,32 +67,30 @@ export function createDefaultPcMinigameProgress(): PcMinigameProgress {
   };
 }
 
-export function getPcMinigameRewardCoins(score: number): number {
+export function createDefaultPcMinigameProgress(): PcMinigameProgress {
+  return createDefaultPcDeskProgress();
+}
+
+export function getPcDeskAppDefinitions(): PcDeskAppDefinition[] {
+  return PC_DESK_APP_DEFINITIONS.map((definition) => ({ ...definition }));
+}
+
+export function getPcDeskRewardCoins(activityId: PcDeskActivityId, score: number): number {
   const normalizedScore = Math.max(0, Math.floor(score));
-  if (normalizedScore === 0) {
-    return 0;
-  }
 
-  return Math.min(24, 2 + Math.floor(normalizedScore / 2));
+  switch (activityId) {
+    case "pc_block_stacker":
+      return Math.min(24, 4 + Math.floor(normalizedScore / 4));
+    case "pc_runner":
+      return Math.min(20, 2 + Math.floor(normalizedScore / 6));
+    case "pc_snake":
+    default:
+      return Math.min(18, 2 + Math.floor(normalizedScore / 4));
+  }
 }
 
-export function getPcMinigameCooldownRemaining(
-  lastCompletedAt: number | null,
-  now = Date.now()
-): number {
-  if (lastCompletedAt === null || !Number.isFinite(lastCompletedAt)) {
-    return 0;
-  }
-
-  return Math.max(0, lastCompletedAt + PC_MINIGAME_COOLDOWN_MS - now);
-}
-
-export function formatPcMinigameCooldown(milliseconds: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+export function getPcMinigameRewardCoins(score: number): number {
+  return getPcDeskRewardCoins("pc_snake", score);
 }
 
 export function applyPcMinigameResult(
@@ -75,3 +113,4 @@ export function applyPcMinigameResult(
     lastCompletedAt: completedAt
   };
 }
+

@@ -2,6 +2,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  PC_MINIGAME_SESSION_MS,
   createDefaultPcDeskProgress,
   getPcDeskAppDefinitions,
   getPcDeskRewardCoins,
@@ -21,6 +22,7 @@ function queryButton(label: string): HTMLButtonElement | null {
 describe("pc desk minigame", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -94,6 +96,7 @@ describe("pc desk minigame", () => {
     await act(async () => {
       root?.render(
         createElement(PcMinigameOverlay, {
+          key: "paid-run",
           currentCoins: 18,
           onComplete,
           onExit: vi.fn(),
@@ -107,8 +110,11 @@ describe("pc desk minigame", () => {
 
     await act(async () => {
       queryButton("Snake")?.click();
+    });
+
+    await act(async () => {
       queryButton("Run app")?.click();
-      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS);
+      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS + 600);
     });
 
     expect(container?.textContent).toContain("Paid today");
@@ -120,8 +126,14 @@ describe("pc desk minigame", () => {
     );
 
     await act(async () => {
+      root?.unmount();
+    });
+    root = createRoot(container!);
+
+    await act(async () => {
       root?.render(
         createElement(PcMinigameOverlay, {
+          key: "paid-run",
           currentCoins: 18,
           onComplete,
           onExit: vi.fn(),
@@ -135,12 +147,24 @@ describe("pc desk minigame", () => {
 
     await act(async () => {
       queryButton("Snake")?.click();
+    });
+
+    await act(async () => {
       queryButton("Run app")?.click();
-      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS);
+      vi.advanceTimersByTime(PC_MINIGAME_SESSION_MS + 600);
     });
 
     expect(container?.textContent).toContain("Practice run only");
     expect(queryButton("Play again")).not.toBeNull();
   });
 });
+
+
+
+
+
+
+
+
+
 
