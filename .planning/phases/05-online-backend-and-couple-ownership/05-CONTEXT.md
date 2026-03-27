@@ -58,7 +58,7 @@ Replace the dev file-backed shared-room runtime with a real online backend and a
 - `.planning/PROJECT.md` - v1.1 milestone goal, active backend/auth requirement, and non-negotiable brownfield constraints.
 - `.planning/REQUIREMENTS.md` - Phase 5 contract for `PAIR-02`, `PAIR-03`, `ROOM-04`, and `ROOM-05`.
 - `.planning/ROADMAP.md` - Phase 5 goal, success criteria, and plan breakdown.
-- `.planning/STATE.md` - Current milestone state, known blocker that backend/auth provider is still unselected, and continuity notes from v1.0.
+- `.planning/STATE.md` - Current milestone state, continuity notes from v1.0, and the current Phase 05 handoff point.
 
 ### Prior Phase Decisions That Still Bind Phase 5
 - `.planning/phases/01-shared-room-backbone/01-CONTEXT.md` - Invite-code pairing, exclusive one-couple room contract, committed-edit sync, and the original decision that the dev store is disposable once the real backend lands.
