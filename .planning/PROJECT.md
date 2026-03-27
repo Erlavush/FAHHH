@@ -33,11 +33,11 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] Each partner keeps a persistent wallet, XP, and level while the couple shares a visible streak and one daily ritual loop.
 - [x] The shipped room runtime now separates a player-facing shell from a developer workspace and keeps Preview Studio and Mob Lab as explicit authoring tools.
 - [x] Couple can place one shared memory object, own one canonical shared cat, and trigger an explicit breakup-reset flow with confirmation.
+- [x] Couple can authenticate or reclaim their room identity through Google sign-in, exclusive couple linking, and automatic paired-room re-entry across browsers or devices.
+- [x] Shared-room documents, presence, progression, memories, and the shared cat now sync through hosted Firebase adapters instead of the dev-only shared-room store.
 
 ### Active
 
-- [ ] Couple can authenticate or reclaim their room identity through a real backend/auth flow instead of local-only dev session state.
-- [ ] Shared-room documents and related presence/progression state sync through a hosted backend that survives browser and device changes.
 - [ ] Couple can rotate through multiple daily ritual variants and access a second repeatable earn loop beyond the desk PC.
 - [ ] Couple can maintain a richer memory collection, interact with a deeper shared-pet loop, and unlock additional themed content.
 - [ ] Every v1.1 phase closes with explicit `VERIFICATION.md` coverage so the next milestone audit is evidence-complete.
@@ -55,8 +55,8 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - The repo currently contains 157 `.ts` / `.tsx` files and about 25,959 TypeScript lines across `src/` and `tests/`.
 - Refreshed brownfield implementation mapping in `.planning/codebase/*` remains the canonical navigation layer for architecture, structure, testing, and concerns.
 - Current runtime truth lives in README plus `docs/AI_HANDOFF.md`, `docs/CURRENT_SYSTEMS.md`, `docs/ARCHITECTURE.md`, `docs/CODEBASE_MAP.md`, and `docs/GAME_OVERVIEW.md`.
-- Current shared-room persistence is still the browser/dev-file-backed path around `devLocalState.ts`, `devWorldSettings.ts`, `mobLabState.ts`, and the dev shared-room store.
-- Firebase-shaped env vars and rules files remain in the repo, but the active runtime inside `src/` does not currently import a live production backend path.
+- The browser/dev-file-backed sandbox path still exists for local iteration and authoring state, but couple-owned room runtime now has a hosted Firebase-backed path inside `src/`.
+- Firebase Auth, Firestore, and Realtime Database are now active runtime integrations behind the shared-room store and presence seams rather than placeholder artifacts.
 - v1.0 was archived with accepted audit gaps because Phases `2`, `3.1`, and `4` are missing `VERIFICATION.md`, so v1.1 planning treats verification artifacts as a delivery guardrail rather than optional docs.
 - The existing room schema, furniture registry, placement math, and preview tooling are stable assets for the next milestone rather than rewrite targets.
 
@@ -65,8 +65,9 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - v1.0 Shared Room MVP shipped on 2026-03-27 and is archived under `.planning/milestones/`.
 - The live runtime now supports canonical room identity, committed shared edits, live partner presence, personal and couple progression, a room-first player shell, developer-only authoring workspace surfaces, shared memories, one canonical shared cat, and breakup-reset stakes.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
-- v1.1 is now scoped around online foundation work plus loop depth and content expansion.
-- The next step is Phase 5 discovery/planning, not more v1.0 archive work.
+- Phase 5 now adds Google-auth couple ownership, hosted room/bootstrap adapters, pair-link presence, and automatic paired-room re-entry without breaking the brownfield local dev sandbox fallback.
+- v1.1 is now scoped around ritual/activity depth, richer memories and pet behavior, and additional content expansion on top of the online foundation.
+- The next step is Phase 6 planning/execution, not more milestone bootstrap work.
 
 ## Constraints
 
@@ -95,6 +96,8 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Phase 2 partner status UX comes from presence freshness instead of room commits | Waiting/reconnect states must stay reliable even when canonical room state does not change | Good |
 | Phase 2 same-item conflicts use TTL soft locks plus canonical reload recovery | Reduces collisions without inventing fake client-side merge semantics | Good |
 | Insert urgent Phase `03.1` before personalization/stakes work | The mixed player/debug shell was hurting both shipped UX and daily iteration | Good |
+| Phase 5 uses Firebase Auth + Firestore + Realtime Database behind the existing shared-room seams | Keeps auth, canonical room data, and ephemeral presence separated without reviving the removed legacy backend path | Good |
+| Phase 5 hosted entry is auth-first while the dev sandbox remains an explicit fallback when Firebase is not configured | Preserves shipped player behavior without breaking the brownfield local iteration path | Good |
 | Phase 4 personalization lives beside `RoomState` inside the shared-room document | Memories and the shared pet need canonical persistence without perturbing furniture ownership or placement rules | Good |
 | Breakup reset rebuilds one fresh shared baseline through the normal mutation pipeline | Destructive state changes still need stale-revision replay safety and one authoritative reset contract | Good |
 | Archive v1.0 despite milestone audit gaps | HEAD is stable enough to treat the missing verification artifacts as process debt rather than reopen shipped scope | Revisit |
@@ -118,4 +121,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-27 after starting v1.1 milestone*
+*Last updated: 2026-03-27 after completing Phase 5*

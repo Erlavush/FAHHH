@@ -30,9 +30,9 @@ This milestone moves the shared-room MVP from a local/dev-only stack toward a du
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: Define backend/auth contract, couple ownership rules, and migration from dev sessions
-- [ ] 05-02: Implement hosted shared-room, presence, and progression adapters behind the existing store boundaries
-- [ ] 05-03: Swap create/join/reconnect flows to the hosted backend with recovery and enforcement coverage
+- [x] 05-01: Define backend/auth contract, couple ownership rules, and migration from dev sessions
+- [x] 05-02: Implement hosted shared-room, presence, and progression adapters behind the existing store boundaries
+- [x] 05-03: Swap create/join/reconnect flows to the hosted backend with recovery and enforcement coverage
 
 ### Phase 6: Ritual Variety and Earn Loop Expansion
 **Goal**: Deepen the return-play loop by adding multiple ritual variants and a second repeatable earn activity beyond the desk PC.
@@ -92,7 +92,7 @@ Phases execute in numeric order: 5 -> 6 -> 7 -> 8
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 5. Online Backend and Couple Ownership | v1.1 | 0/3 | Not started | - |
+| 5. Online Backend and Couple Ownership | v1.1 | 3/3 | Complete | 2026-03-27 |
 | 6. Ritual Variety and Earn Loop Expansion | v1.1 | 0/3 | Not started | - |
 | 7. Memory Collection and Shared Pet Depth | v1.1 | 0/3 | Not started | - |
 | 8. Themes and Content Expansion | v1.1 | 0/3 | Not started | - |

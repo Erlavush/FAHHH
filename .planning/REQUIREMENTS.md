@@ -7,13 +7,13 @@
 
 ### Pairing and Ownership
 
-- [ ] **PAIR-02**: Couple can authenticate or reclaim their shared room identity across browsers and devices using the selected backend/auth flow.
-- [ ] **PAIR-03**: Room membership and ownership enforcement prevent third users or stale clients from silently claiming or corrupting a couple's room.
+- [x] **PAIR-02**: Couple can authenticate or reclaim their shared room identity across browsers and devices using the selected backend/auth flow.
+- [x] **PAIR-03**: Room membership and ownership enforcement prevent third users or stale clients from silently claiming or corrupting a couple's room.
 
 ### Shared Room
 
-- [ ] **ROOM-04**: Shared-room documents, presence, progression, memories, and pet state sync through the hosted backend instead of the dev file-backed store.
-- [ ] **ROOM-05**: Both partners can leave and re-enter their room from different browsers or devices without losing room identity or committed shared state.
+- [x] **ROOM-04**: Shared-room documents, presence, progression, memories, and pet state sync through the hosted backend instead of the dev file-backed store.
+- [x] **ROOM-05**: Both partners can leave and re-enter their room from different browsers or devices without losing room identity or committed shared state.
 
 ### Rituals
 
@@ -56,10 +56,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PAIR-02 | Phase 5 | Pending |
-| PAIR-03 | Phase 5 | Pending |
-| ROOM-04 | Phase 5 | Pending |
-| ROOM-05 | Phase 5 | Pending |
+| PAIR-02 | Phase 5 | Complete |
+| PAIR-03 | Phase 5 | Complete |
+| ROOM-04 | Phase 5 | Complete |
+| ROOM-05 | Phase 5 | Complete |
 | RITL-02 | Phase 6 | Pending |
 | ACTV-01 | Phase 6 | Pending |
 | MEMR-02 | Phase 7 | Pending |
@@ -73,4 +73,4 @@
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after starting v1.1 milestone*
+*Last updated: 2026-03-27 after completing Phase 5*
