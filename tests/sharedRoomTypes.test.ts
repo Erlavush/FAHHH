@@ -6,6 +6,7 @@ import {
   type RoomState
 } from "../src/lib/roomState";
 import { createSharedRoomSeed } from "../src/lib/sharedRoomSeed";
+import type { SharedRoomBootstrapState } from "../src/lib/sharedRoomTypes";
 
 function createSeedSourceRoomState(): RoomState {
   const roomState = cloneRoomState(createDefaultRoomState());
@@ -86,5 +87,53 @@ describe("sharedRoomTypes", () => {
     expect(sharedRoomState.metadata.roomId).toBe("shared-room-1");
     expect(sourceRoomState.metadata.roomId).toBe("local-sandbox-room");
     expect(sourceRoomState.ownedFurniture.every((ownedFurniture) => ownedFurniture.ownerId === LOCAL_SANDBOX_OWNER_ID)).toBe(true);
+  });
+
+  it("supports hosted bootstrap states for linking, pending, and paired rooms", () => {
+    const bootstrapStates: SharedRoomBootstrapState[] = [
+      {
+        kind: "needs_linking",
+        playerId: "player-1",
+        selfPairCode: "ABCD12",
+        membership: null,
+        pendingLink: null
+      },
+      {
+        kind: "pending_link",
+        playerId: "player-1",
+        selfPairCode: "ABCD12",
+        membership: null,
+        pendingLink: {
+          pendingLinkId: "pending:player-1:player-2",
+          playerIds: ["player-1", "player-2"],
+          submittedByPlayerId: "player-1",
+          targetPairCode: "WXYZ34",
+          confirmationsByPlayerId: {
+            "player-1": true,
+            "player-2": false
+          },
+          expiresAt: "2026-03-27T01:00:00.000Z"
+        }
+      },
+      {
+        kind: "paired_room",
+        playerId: "player-1",
+        selfPairCode: "ABCD12",
+        membership: {
+          playerId: "player-1",
+          roomId: "room-1",
+          partnerPlayerId: "player-2",
+          pairCode: "ABCD12",
+          pairedAt: "2026-03-27T00:00:00.000Z"
+        },
+        pendingLink: null
+      }
+    ];
+
+    expect(bootstrapStates.map((state) => state.kind)).toEqual([
+      "needs_linking",
+      "pending_link",
+      "paired_room"
+    ]);
   });
 });
