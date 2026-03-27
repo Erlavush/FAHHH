@@ -7,10 +7,13 @@ import {
   applyDeskPcCompletionToProgression,
   applyPersonalWalletRefund,
   applyPersonalWalletSpend,
+  applySharedActivityCompletionToProgression,
   buildSharedRitualStatus,
   createInitialSharedRoomProgression,
   ensureSharedRoomProgressionMembers,
-  selectActivePlayerProgression
+  recordSharedRoomVisit,
+  selectActivePlayerProgression,
+  selectFeaturedActivityId
 } from "../src/lib/sharedProgression";
 import type { SharedRoomProgressionState } from "../src/lib/sharedProgressionTypes";
 
@@ -239,7 +242,42 @@ describe("sharedProgression", () => {
     });
   });
 
-  it.todo("increments Together Days once when both partners visit the same room day");
+  it("increments Together Days once when both partners visit the same room day", () => {
+    const firstVisit = recordSharedRoomVisit({
+      progression: createProgression(0),
+      actorPlayerId: "player-1",
+      memberIds: ["player-1", "player-2"],
+      nowIso: "2026-03-26T09:00:00.000Z"
+    });
+
+    expect(firstVisit.couple.togetherDaysCount).toBe(0);
+    expect(firstVisit.couple.visitDay.visitedByPlayerId["player-1"]).toBe(
+      "2026-03-26T09:00:00.000Z"
+    );
+    expect(firstVisit.couple.visitDay.countedAt).toBeNull();
+
+    const countedVisit = recordSharedRoomVisit({
+      progression: firstVisit,
+      actorPlayerId: "player-2",
+      memberIds: ["player-1", "player-2"],
+      nowIso: "2026-03-26T09:05:00.000Z"
+    });
+
+    expect(countedVisit.couple.togetherDaysCount).toBe(1);
+    expect(countedVisit.couple.bestTogetherDaysCount).toBe(1);
+    expect(countedVisit.couple.lastTogetherDayKey).toBe("2026-03-26");
+    expect(countedVisit.couple.visitDay.countedAt).toBe("2026-03-26T09:05:00.000Z");
+
+    const duplicateVisit = recordSharedRoomVisit({
+      progression: countedVisit,
+      actorPlayerId: "player-1",
+      memberIds: ["player-1", "player-2"],
+      nowIso: "2026-03-26T10:00:00.000Z"
+    });
+
+    expect(duplicateVisit.couple.togetherDaysCount).toBe(1);
+    expect(duplicateVisit.couple.visitDay.countedAt).toBe("2026-03-26T09:05:00.000Z");
+  });
 
   it("spends only the acting player's wallet and rejects overspend", () => {
     const baseProgression = createProgression(20);
@@ -366,17 +404,90 @@ describe("sharedProgression", () => {
     expect(reloadedProgression.couple.ritual.completedAt).toBeNull();
   });
 
-  it("resets the streak after an unfinished day is missed", () => {
+  it("blocks duplicate room-day claims while reporting payout status", () => {
+    const firstClaim = applySharedActivityCompletionToProgression({
+      progression: createProgression(0),
+      activityId: "pc_snake",
+      claimMode: "per_player",
+      actorPlayerId: "player-1",
+      memberIds: ["player-1", "player-2"],
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12,
+      nowIso: "2026-03-26T10:00:00.000Z"
+    });
+
+    expect(firstClaim.payoutGranted).toBe(true);
+    expect(firstClaim.progression.players["player-1"]?.coins).toBe(6);
+    expect(firstClaim.progression.players["player-1"]?.xp).toBe(4);
+    expect(
+      firstClaim.progression.couple.activityClaimsByDayKey["2026-03-26"]?.pc_snake
+        ?.perPlayerClaimsByPlayerId["player-1"]
+    ).toMatchObject({
+      claimedAt: "2026-03-26T10:00:00.000Z",
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12
+    });
+
+    const duplicateClaim = applySharedActivityCompletionToProgression({
+      progression: firstClaim.progression,
+      activityId: "pc_snake",
+      claimMode: "per_player",
+      actorPlayerId: "player-1",
+      memberIds: ["player-1", "player-2"],
+      rewardCoins: 9,
+      rewardXp: 7,
+      score: 18,
+      nowIso: "2026-03-26T10:30:00.000Z"
+    });
+
+    expect(duplicateClaim.payoutGranted).toBe(false);
+    expect(duplicateClaim.progression.players["player-1"]?.coins).toBe(6);
+    expect(duplicateClaim.progression.players["player-1"]?.xp).toBe(4);
+    expect(
+      duplicateClaim.progression.couple.activityClaimsByDayKey["2026-03-26"]?.pc_snake
+        ?.perPlayerClaimsByPlayerId["player-1"]
+    ).toMatchObject({
+      claimedAt: "2026-03-26T10:00:00.000Z",
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12
+    });
+  });
+
+  it("does not reset Together Days after a missed room day", () => {
     const baseProgression = createProgression(0);
 
-    baseProgression.couple.streakCount = 3;
-    baseProgression.couple.longestStreakCount = 5;
-    baseProgression.couple.ritual.dayKey = "2026-03-26";
-    baseProgression.couple.ritual.completionsByPlayerId["player-1"] = {
-      source: "desk_pc",
-      completedAt: "2026-03-26T13:00:00.000Z",
-      score: 11,
-      rewardCoins: 8
+    baseProgression.couple.togetherDaysCount = 3;
+    baseProgression.couple.bestTogetherDaysCount = 5;
+    baseProgression.couple.lastTogetherDayKey = "2026-03-24";
+    baseProgression.couple.visitDay = {
+      dayKey: "2026-03-26",
+      visitedByPlayerId: {
+        "player-1": "2026-03-26T13:00:00.000Z"
+      },
+      countedAt: null
+    };
+    baseProgression.couple.featuredActivity = {
+      dayKey: "2026-03-26",
+      activityId: "pc_snake",
+      selectedAt: "2026-03-26T08:00:00.000Z"
+    };
+    baseProgression.couple.activityClaimsByDayKey["2026-03-26"] = {
+      pc_snake: {
+        activityId: "pc_snake",
+        claimMode: "per_player",
+        perPlayerClaimsByPlayerId: {
+          "player-1": {
+            claimedAt: "2026-03-26T13:30:00.000Z",
+            rewardCoins: 6,
+            rewardXp: 4,
+            score: 12
+          }
+        },
+        coupleClaim: null
+      }
     };
 
     const nextDayProgression = advanceRitualDayIfNeeded(
@@ -386,10 +497,27 @@ describe("sharedProgression", () => {
       "2026-03-27T08:00:00.000Z"
     );
 
-    expect(nextDayProgression.couple.streakCount).toBe(0);
-    expect(nextDayProgression.couple.longestStreakCount).toBe(5);
+    expect(nextDayProgression.couple.togetherDaysCount).toBe(3);
+    expect(nextDayProgression.couple.bestTogetherDaysCount).toBe(5);
+    expect(nextDayProgression.couple.lastTogetherDayKey).toBe("2026-03-24");
+    expect(nextDayProgression.couple.visitDay).toEqual({
+      dayKey: "2026-03-27",
+      visitedByPlayerId: {},
+      countedAt: null
+    });
+    expect(nextDayProgression.couple.featuredActivity).toEqual({
+      dayKey: "2026-03-27",
+      activityId: selectFeaturedActivityId("2026-03-27"),
+      selectedAt: "2026-03-27T08:00:00.000Z"
+    });
+    expect(
+      nextDayProgression.couple.activityClaimsByDayKey["2026-03-26"]?.pc_snake
+        ?.perPlayerClaimsByPlayerId["player-1"]
+    ).toMatchObject({
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12
+    });
     expect(nextDayProgression.couple.ritual.dayKey).toBe("2026-03-27");
-    expect(nextDayProgression.couple.ritual.completionsByPlayerId).toEqual({});
   });
 });
-
