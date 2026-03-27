@@ -49,6 +49,22 @@ export interface SharedDeskPcCompletionProgressionResult {
   streakCount: number;
 }
 
+export interface SharedActivityClaimStatus {
+  dayKey: string;
+  activityId: SharedRoomActivityId;
+  claimMode: SharedActivityClaimMode;
+  payoutAvailable: boolean;
+  selfClaimed: boolean;
+  coupleClaimed: boolean;
+  claim: SharedRoomActivityClaim | null;
+}
+
+export interface SharedActivityCompletionProgressionResult {
+  progression: SharedRoomProgressionState;
+  payoutGranted: boolean;
+  claimStatus: SharedActivityClaimStatus;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -217,6 +233,18 @@ function cloneActivityRewardClaim(
 ): SharedRoomActivityRewardClaim {
   return {
     ...claim
+  };
+}
+
+function createEmptyActivityClaim(
+  activityId: SharedRoomActivityId,
+  claimMode: SharedActivityClaimMode
+): SharedRoomActivityClaim {
+  return {
+    activityId,
+    claimMode,
+    perPlayerClaimsByPlayerId: {},
+    coupleClaim: null
   };
 }
 
@@ -591,6 +619,65 @@ function getDayDifference(currentDayKey: string, previousDayKey: string): number
   return Math.floor((currentDayTime - previousDayTime) / 86_400_000);
 }
 
+function rollSharedRoomDayState(
+  progression: SharedRoomProgressionState,
+  currentDayKey: string,
+  nowIso: string
+) {
+  let changed = false;
+
+  if (progression.couple.visitDay.dayKey !== currentDayKey) {
+    progression.couple.visitDay = createEmptyVisitDay(currentDayKey);
+    changed = true;
+  }
+
+  if (
+    !progression.couple.featuredActivity ||
+    progression.couple.featuredActivity.dayKey !== currentDayKey
+  ) {
+    progression.couple.featuredActivity = createFeaturedActivityDay(currentDayKey, nowIso);
+    changed = true;
+  }
+
+  if (progression.couple.ritual.dayKey !== currentDayKey) {
+    progression.couple.ritual = createEmptyRitualDay(currentDayKey);
+    changed = true;
+  }
+
+  if (changed) {
+    progression.couple.updatedAt = nowIso;
+  }
+}
+
+function ensureActivityClaimDay(
+  progression: SharedRoomProgressionState,
+  dayKey: string
+): SharedRoomActivityClaimDay {
+  const existingDay = progression.couple.activityClaimsByDayKey[dayKey];
+  if (existingDay) {
+    return existingDay;
+  }
+
+  const nextDay: SharedRoomActivityClaimDay = {};
+  progression.couple.activityClaimsByDayKey[dayKey] = nextDay;
+  return nextDay;
+}
+
+function ensureActivityClaim(
+  claimDay: SharedRoomActivityClaimDay,
+  activityId: SharedRoomActivityId,
+  claimMode: SharedActivityClaimMode
+): SharedRoomActivityClaim {
+  const existingClaim = claimDay[activityId];
+  if (existingClaim) {
+    return existingClaim;
+  }
+
+  const nextClaim = createEmptyActivityClaim(activityId, claimMode);
+  claimDay[activityId] = nextClaim;
+  return nextClaim;
+}
+
 export function toRoomDayKey(nowIso: string): string {
   return normalizeNowIso(nowIso).slice(0, 10);
 }
@@ -687,6 +774,72 @@ export function selectPartnerPlayerProgression(
       (playerProgress) => playerProgress.playerId !== playerId
     ) ?? null
   );
+}
+
+export function getSharedActivityClaimStatus(input: {
+  progression: SharedRoomProgressionState;
+  activityId: SharedRoomActivityId;
+  claimMode: SharedActivityClaimMode;
+  actorPlayerId: string | null;
+  nowIso: string;
+}): SharedActivityClaimStatus {
+  const currentDayKey = toRoomDayKey(input.nowIso);
+  const claim = input.progression.couple.activityClaimsByDayKey[currentDayKey]?.[input.activityId] ?? null;
+  const claimMode = claim?.claimMode ?? input.claimMode;
+  const selfClaimed = input.actorPlayerId
+    ? Boolean(claim?.perPlayerClaimsByPlayerId[input.actorPlayerId])
+    : false;
+  const coupleClaimed = Boolean(claim?.coupleClaim);
+
+  return {
+    dayKey: currentDayKey,
+    activityId: input.activityId,
+    claimMode,
+    payoutAvailable: claimMode === "couple" ? !coupleClaimed : !selfClaimed,
+    selfClaimed,
+    coupleClaimed,
+    claim
+  };
+}
+
+export function recordSharedRoomVisit(input: {
+  progression: SharedRoomProgressionState;
+  actorPlayerId: string;
+  memberIds: readonly string[];
+  nowIso: string;
+}): SharedRoomProgressionState {
+  const normalizedNowIso = normalizeNowIso(input.nowIso);
+  const currentDayKey = toRoomDayKey(normalizedNowIso);
+  const normalizedMemberIds = [...new Set(input.memberIds.filter((memberId) => memberId.length > 0))];
+  const nextProgression = cloneProgression(input.progression);
+
+  rollSharedRoomDayState(nextProgression, currentDayKey, normalizedNowIso);
+
+  if (!(input.actorPlayerId in nextProgression.players)) {
+    throw new Error("Shared player progression not found.");
+  }
+
+  if (!nextProgression.couple.visitDay.visitedByPlayerId[input.actorPlayerId]) {
+    nextProgression.couple.visitDay.visitedByPlayerId[input.actorPlayerId] = normalizedNowIso;
+    nextProgression.couple.updatedAt = normalizedNowIso;
+  }
+
+  const allMembersVisited =
+    normalizedMemberIds.length >= 2 &&
+    normalizedMemberIds.every((memberId) => Boolean(nextProgression.couple.visitDay.visitedByPlayerId[memberId]));
+
+  if (allMembersVisited && !nextProgression.couple.visitDay.countedAt) {
+    nextProgression.couple.visitDay.countedAt = normalizedNowIso;
+    nextProgression.couple.togetherDaysCount += 1;
+    nextProgression.couple.bestTogetherDaysCount = Math.max(
+      nextProgression.couple.bestTogetherDaysCount,
+      nextProgression.couple.togetherDaysCount
+    );
+    nextProgression.couple.lastTogetherDayKey = currentDayKey;
+    nextProgression.couple.updatedAt = normalizedNowIso;
+  }
+
+  return nextProgression;
 }
 
 export function buildSharedRitualStatus(
@@ -791,6 +944,89 @@ export function applyPersonalWalletRefund(
   actorProgress.coins += normalizeInteger(amount);
   actorProgress.updatedAt = normalizedNowIso;
   return nextProgression;
+}
+
+export function applySharedActivityCompletionToProgression(input: {
+  progression: SharedRoomProgressionState;
+  activityId: SharedRoomActivityId;
+  claimMode: SharedActivityClaimMode;
+  actorPlayerId: string;
+  memberIds: readonly string[];
+  rewardCoins: number;
+  rewardXp: number;
+  score: number;
+  nowIso: string;
+}): SharedActivityCompletionProgressionResult {
+  const normalizedNowIso = normalizeNowIso(input.nowIso);
+  const currentDayKey = toRoomDayKey(normalizedNowIso);
+  const normalizedMemberIds = [...new Set(input.memberIds.filter((memberId) => memberId.length > 0))];
+  const nextProgression = cloneProgression(input.progression);
+
+  rollSharedRoomDayState(nextProgression, currentDayKey, normalizedNowIso);
+
+  const initialClaimStatus = getSharedActivityClaimStatus({
+    progression: nextProgression,
+    activityId: input.activityId,
+    claimMode: input.claimMode,
+    actorPlayerId: input.actorPlayerId,
+    nowIso: normalizedNowIso
+  });
+
+  if (!initialClaimStatus.payoutAvailable) {
+    return {
+      progression: nextProgression,
+      payoutGranted: false,
+      claimStatus: initialClaimStatus
+    };
+  }
+
+  const rewardCoins = normalizeInteger(input.rewardCoins);
+  const rewardXp = normalizeInteger(input.rewardXp);
+  const score = normalizeInteger(input.score);
+  const claimRecord: SharedRoomActivityRewardClaim = {
+    claimedAt: normalizedNowIso,
+    rewardCoins,
+    rewardXp,
+    score
+  };
+  const claimDay = ensureActivityClaimDay(nextProgression, currentDayKey);
+  const claim = ensureActivityClaim(claimDay, input.activityId, input.claimMode);
+
+  if (claim.claimMode === "couple") {
+    normalizedMemberIds.forEach((memberId) => {
+      const playerProgress = nextProgression.players[memberId];
+      if (!playerProgress) {
+        return;
+      }
+
+      playerProgress.coins += rewardCoins;
+      applyPlayerXp(playerProgress, rewardXp, normalizedNowIso);
+    });
+    claim.coupleClaim = claimRecord;
+  } else {
+    const actorProgress = nextProgression.players[input.actorPlayerId];
+    if (!actorProgress) {
+      throw new Error("Shared player progression not found.");
+    }
+
+    actorProgress.coins += rewardCoins;
+    applyPlayerXp(actorProgress, rewardXp, normalizedNowIso);
+    claim.perPlayerClaimsByPlayerId[input.actorPlayerId] = claimRecord;
+  }
+
+  nextProgression.couple.updatedAt = normalizedNowIso;
+
+  return {
+    progression: nextProgression,
+    payoutGranted: true,
+    claimStatus: getSharedActivityClaimStatus({
+      progression: nextProgression,
+      activityId: input.activityId,
+      claimMode: input.claimMode,
+      actorPlayerId: input.actorPlayerId,
+      nowIso: normalizedNowIso
+    })
+  };
 }
 
 export function applyDeskPcCompletionToProgression(input: {
@@ -916,23 +1152,26 @@ export function advanceRitualDayIfNeeded(
   );
   const ritualDayKey = nextProgression.couple.ritual.dayKey;
 
-  if (ritualDayKey === currentDayKey) {
-    return nextProgression;
+  if (ritualDayKey !== currentDayKey) {
+    const previousCompletedDayKey = nextProgression.couple.lastCompletedDayKey;
+    const previousDayWasCompleted = Boolean(nextProgression.couple.ritual.completedAt);
+    const missedCompletedDay =
+      previousCompletedDayKey !== null &&
+      getDayDifference(currentDayKey, previousCompletedDayKey) > 1;
+    const missedIncompleteDay =
+      !previousDayWasCompleted && getDayDifference(currentDayKey, ritualDayKey) >= 1;
+
+    if (missedCompletedDay || missedIncompleteDay) {
+      nextProgression.couple.streakCount = 0;
+    }
   }
 
-  const previousCompletedDayKey = nextProgression.couple.lastCompletedDayKey;
-  const previousDayWasCompleted = Boolean(nextProgression.couple.ritual.completedAt);
-  const missedCompletedDay =
-    previousCompletedDayKey !== null &&
-    getDayDifference(currentDayKey, previousCompletedDayKey) > 1;
-  const missedIncompleteDay =
-    !previousDayWasCompleted && getDayDifference(currentDayKey, ritualDayKey) >= 1;
-
-  if (missedCompletedDay || missedIncompleteDay) {
-    nextProgression.couple.streakCount = 0;
-  }
-
-  nextProgression.couple.ritual = createEmptyRitualDay(currentDayKey);
-  nextProgression.couple.updatedAt = normalizedNowIso;
+  rollSharedRoomDayState(nextProgression, currentDayKey, normalizedNowIso);
   return nextProgression;
 }
+
+
+
+
+
+
