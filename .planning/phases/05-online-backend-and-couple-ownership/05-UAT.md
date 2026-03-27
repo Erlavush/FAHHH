@@ -1,14 +1,14 @@
 ---
-status: partial
+status: ready_for_retest
 phase: 05-online-backend-and-couple-ownership
-source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md, 05-04-SUMMARY.md, 05-05-SUMMARY.md, 05-06-SUMMARY.md]
+source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md, 05-04-SUMMARY.md, 05-05-SUMMARY.md, 05-06-SUMMARY.md, 05-07-SUMMARY.md, 05-08-SUMMARY.md]
 started: 2026-03-27T06:02:07.0341121Z
-updated: 2026-03-27T15:12:43.3007994+08:00
+updated: 2026-03-27T15:38:00+08:00
 ---
 
 ## Current Test
 
-[testing paused - 5 items outstanding]
+[retest required - latest gap fixes shipped]
 
 ## Tests
 
@@ -86,6 +86,16 @@ blocked: 2
 - **Tests 1 and 5:** `src/lib/sharedBackendConfig.ts`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/app/hooks/useSharedRoomPresence.ts`, `src/app/components/SharedRoomEntryShell.tsx`, `src/app/shellViewModel.ts`, and `scripts/sharedRoomDevPlugin.mjs` now expose explicit hosted-unavailable and local-dev fallback states, prune stale dev presence, and degrade long reconnects into `Partner away`.
 - **Tests 7 and 8:** `src/lib/sharedPresenceTypes.ts`, `src/lib/firebasePresenceStore.ts`, `src/app/hooks/useSharedRoomPresence.ts`, `src/components/MinecraftPlayer.tsx`, `src/components/RoomView.tsx`, and `src/components/room-view/RoomPetActor.tsx` now publish richer ephemeral motion plus shared-pet live state so remote avatars and the cat no longer rely on separate local simulations.
 - **Test 9:** `src/lib/furnitureInteractions.ts` and `src/components/room-view/useRoomViewInteractions.ts` now assign bed slots by occupancy and preserve the chosen `slotId` through shared presence.
+- **Tests 7 and 8 follow-up:** `src/app/hooks/useSharedRoomRuntime.ts` now passively refreshes the canonical room until the first shared cat appears, and `src/lib/liveMotionPlayback.ts` now drives buffered replay for both `src/components/MinecraftPlayer.tsx` and `src/components/room-view/RoomPetActor.tsx` so partner and cat replicas stop chasing only the latest target.
+- **Tests 7 and 8 follow-up:** `src/app/hooks/useSharedRoomPresence.ts`, `src/lib/sharedPresenceTypes.ts`, `src/lib/sharedPresenceValidation.ts`, and `src/lib/sharedRoomPet.ts` now carry higher-frequency partner motion plus velocity-aware shared-pet live state.
+- **Test 9 follow-up:** `src/lib/furnitureRegistry.ts` now exposes mirrored left/right bed offsets instead of one side lane plus one center lane, and `tests/furnitureInteractions.test.ts` locks that geometry in place.
+
+## Pending Retest Focus
+
+- Recheck Test 7 on localhost with two browsers: browser B should now see the newly adopted cat without clicking adopt, and the cat should stay on one smoother shared playback path.
+- Recheck Test 8 on localhost with two browsers: partner walking should read as buffered motion instead of small snap steps.
+- Recheck Test 9 on localhost with two browsers: both avatars should now lie on visibly separate mattress sides.
+- Tests 1 and 2 still require hosted Firebase mode before they can move from blocked to passed.
 
 ## Retest Notes
 
