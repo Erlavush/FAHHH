@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Online Foundation
-status: ready_to_plan
-stopped_at: Phase 5 UAT retest partial; follow-up gap plans ready
-last_updated: "2026-03-27T07:12:43.3007994Z"
-last_activity: 2026-03-27
+status: executing
+stopped_at: Phase 6 planned and ready for execution
+last_updated: "2026-03-27T16:45:00+08:00"
+last_activity: 2026-03-27 -- Completed Phase 06 plan 01
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 1
-  total_plans: 12
-  completed_plans: 3
+  total_plans: 11
+  completed_plans: 9
   percent: 25
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 6 - Ritual Variety and Earn Loop Expansion
+**Current focus:** Phase 06 — ritual-variety-and-earn-loop-expansion
 
 ## Current Position
 
-Phase: 6 (Ritual Variety and Earn Loop Expansion) - READY
-Plan: 0 of 3
-Status: Ready to plan
-Last activity: 2026-03-27
+Phase: 06 (ritual-variety-and-earn-loop-expansion) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 06
+Last activity: 2026-03-27 -- Completed Phase 06 plan 01
 
-Progress: [##--------] 25%
+Progress: [###-------] 33%
 
 ## Performance Metrics
 
@@ -45,20 +45,21 @@ Progress: [##--------] 25%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 05 | 3/3 | 3 sessions | 1.0 session |
-| 06 | 0/3 | - | - |
+| 06 | 1/3 | 1 session | 1.0 session |
 | 07 | 0/3 | - | - |
 | 08 | 0/3 | - | - |
+| 09 | 0/0 | - | - |
 
 **Recent Trend:**
 
 - Latest completed phase: Phase 5 Online Backend and Couple Ownership
-- Trend: Online foundation established; Phase 6 is next
+- Trend: Phase 6 execution is underway; 06-02 is next
 
 ## Milestone Scope
 
 - Milestone: `v1.1 Online Foundation`
 - Goal: Move the shared-room MVP onto a real backend/auth foundation while deepening rituals, personalization, and content breadth.
-- Planned phases: `5`, `6`, `7`, `8`
+- Roadmap phases: `5`, `6`, `7`, `8`, `9`
 - Planning guardrail: every phase must produce `VERIFICATION.md`
 
 ## Quick Tasks Completed
@@ -67,6 +68,7 @@ Progress: [##--------] 25%
 |----|-------|--------|
 | QT-01 | Perfected Cat AI and Animation Overhaul | Unified user-verified GLB coefficients with energetic, long-distance species-specific AI and grounded idle logic. |
 | QT-02 | Fix synchronization loop and JSON corruption | Eliminated infinite commit loops, fixed FPS drops during placement, and added atomic singleton persistence. |
+| QT-03 | UI Refactor and Minecraft Clock | Moved player-facing UI to `src/components/ui/` and implemented a top-center Minecraft-style digital clock. |
 
 ## Milestone Archive
 
@@ -122,6 +124,8 @@ Recent decisions affecting current work:
 - Phase 05 completed: Google-auth couple ownership, hosted room and presence adapters, mutual link confirmation, and automatic paired-room re-entry are now the active baseline.
 - Phase 05 gap closure completed: hosted fallback truth, calmer partner-away status, shared cat live sync, smoother remote locomotion, and occupancy-aware bed slots are patched into the online baseline.
 - Phase 05 UAT retest partial: localhost confirms partner-away recovery, but shared-pet adoption visibility, remote motion smoothness, and bed pose separation still need a second gap-closure pass.
+- Phase 06 planned: Together Days progression, retro desk-PC app variety, Cozy Rest, and shell surfacing are split into three executable plans.
+- Phase 09 added: MAJOR IMPROVEMENTS.
 
 ### Pending Todos
 
@@ -150,5 +154,6 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-27T13:55:53.4074934+08:00
-Stopped at: Phase 5 completed and verified
+Stopped at: Phase 6 planned and ready for execution
 Resume file: .planning/ROADMAP.md
+
