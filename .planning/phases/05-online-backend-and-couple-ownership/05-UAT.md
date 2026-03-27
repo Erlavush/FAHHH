@@ -1,14 +1,14 @@
 ---
-status: diagnosed
+status: ready_for_retest
 phase: 05-online-backend-and-couple-ownership
-source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md]
+source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md, 05-04-SUMMARY.md, 05-05-SUMMARY.md, 05-06-SUMMARY.md]
 started: 2026-03-27T06:02:07.0341121Z
-updated: 2026-03-27T06:18:32.4406812Z
+updated: 2026-03-27T06:54:40.5053865Z
 ---
 
 ## Current Test
 
-[testing paused - 1 item outstanding]
+[manual retest pending - gap fixes implemented in `74e66f9`]
 
 ## Tests
 
@@ -68,6 +68,13 @@ issues: 5
 pending: 0
 skipped: 0
 blocked: 1
+
+## Fixes Implemented After UAT
+
+- **Tests 1 and 5:** `src/lib/sharedBackendConfig.ts`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/app/hooks/useSharedRoomPresence.ts`, `src/app/components/SharedRoomEntryShell.tsx`, `src/app/shellViewModel.ts`, and `scripts/sharedRoomDevPlugin.mjs` now expose explicit hosted-unavailable and local-dev fallback states, prune stale dev presence, and degrade long reconnects into `Partner away`.
+- **Tests 7 and 8:** `src/lib/sharedPresenceTypes.ts`, `src/lib/firebasePresenceStore.ts`, `src/app/hooks/useSharedRoomPresence.ts`, `src/components/MinecraftPlayer.tsx`, `src/components/RoomView.tsx`, and `src/components/room-view/RoomPetActor.tsx` now publish richer ephemeral motion plus shared-pet live state so remote avatars and the cat no longer rely on separate local simulations.
+- **Test 9:** `src/lib/furnitureInteractions.ts` and `src/components/room-view/useRoomViewInteractions.ts` now assign bed slots by occupancy and preserve the chosen `slotId` through shared presence.
+- **Remaining blocked item:** Test 2 still needs a fresh hosted two-account manual retest with Firebase mode active; the earlier block came from accidentally exercising the local dev fallback path.
 
 ## Gaps
 

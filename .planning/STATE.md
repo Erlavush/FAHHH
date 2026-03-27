@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Online Foundation
 status: ready_to_plan
-stopped_at: Phase 5 completed and verified
-last_updated: "2026-03-27T05:54:57.1154740Z"
+stopped_at: Phase 5 gap closure executed; manual retest pending
+last_updated: "2026-03-27T06:54:40.5053865Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 4
@@ -105,6 +105,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Hosted room ownership and canonical room data live in Firestore while live presence, edit locks, and pending-link presence live in Realtime Database.
 - [Phase 05]: First-time couple linking requires both authenticated partners on the linking screen plus explicit confirmation before the starter room is created.
 - [Phase 05]: Paired members re-enter their room automatically on later visits, and room entry remains available even if the partner is offline.
+- [Phase 05]: Hosted-unavailable and local-dev fallback are explicit player-shell states, so localhost verification cannot silently masquerade as Firebase auth success.
+- [Phase 05]: Stale reconnecting presence now degrades into partner-away after a bounded timeout, with stale dev presence pruned on read.
+- [Phase 05]: Shared cat motion, richer remote locomotion, and bed-slot identity travel through the ephemeral presence channel instead of canonical room revisions.
 
 ### Roadmap Evolution
 
@@ -114,6 +117,7 @@ Recent decisions affecting current work:
 - Milestone v1.0 archived: roadmap and requirements moved to `.planning/milestones/`.
 - Milestone v1.1 opened: phases `5`-`8` planned for online foundation, loop depth, personalization depth, and content expansion.
 - Phase 05 completed: Google-auth couple ownership, hosted room and presence adapters, mutual link confirmation, and automatic paired-room re-entry are now the active baseline.
+- Phase 05 gap closure completed: hosted fallback truth, calmer partner-away status, shared cat live sync, smoother remote locomotion, and occupancy-aware bed slots are patched into the online baseline.
 
 ### Pending Todos
 
@@ -134,7 +138,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Hosted mode now depends on valid `VITE_SHARED_BACKEND=firebase` and Firebase env values in deployment; when those are missing, the runtime intentionally falls back to the local/dev path.
+- Hosted mode now depends on valid `VITE_SHARED_BACKEND=firebase` and Firebase env values in deployment; when those are missing, the runtime surfaces hosted-unavailable instead of silently entering the local/dev path.
 - Phase 6 must extend the new hosted runtime without regressing the player/developer shell split or the canonical versus ephemeral state boundary.
 - v1.0 still carries missing `VERIFICATION.md` artifacts for Phases `2`, `3.1`, and `4`, but Phase 5 now establishes the mandatory verification baseline for v1.1.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; shared-room runtime bypasses that gap today, but the validator remains stale.
