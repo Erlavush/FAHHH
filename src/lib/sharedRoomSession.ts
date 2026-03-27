@@ -33,12 +33,16 @@ function isSharedRoomSession(value: unknown): value is SharedRoomSession {
   );
 }
 
-function createSharedPlayerProfile(displayName = DEFAULT_DISPLAY_NAME): SharedPlayerProfile {
+function createSharedPlayerProfile(
+  displayName = DEFAULT_DISPLAY_NAME,
+  canonicalPlayerId?: string | null
+): SharedPlayerProfile {
   const normalizedDisplayName = displayName.trim() || DEFAULT_DISPLAY_NAME;
   const timestamp = new Date().toISOString();
+  const normalizedCanonicalPlayerId = canonicalPlayerId?.trim() || null;
 
   return {
-    playerId: crypto.randomUUID(),
+    playerId: normalizedCanonicalPlayerId ?? crypto.randomUUID(),
     displayName: normalizedDisplayName,
     createdAt: timestamp,
     updatedAt: timestamp
@@ -71,21 +75,31 @@ function readLocalStorageRecord(key: string): unknown {
 }
 
 export function loadOrCreateSharedPlayerProfile(
-  displayName = DEFAULT_DISPLAY_NAME
+  displayName = DEFAULT_DISPLAY_NAME,
+  options: { canonicalPlayerId?: string | null } = {}
 ): SharedPlayerProfile {
   const storedProfile = readLocalStorageRecord(SHARED_ROOM_PROFILE_KEY);
+  const normalizedCanonicalPlayerId = options.canonicalPlayerId?.trim() || null;
 
   if (!isSharedPlayerProfile(storedProfile)) {
-    const nextProfile = createSharedPlayerProfile(displayName);
+    const nextProfile = createSharedPlayerProfile(
+      displayName,
+      normalizedCanonicalPlayerId
+    );
     writeLocalStorageRecord(SHARED_ROOM_PROFILE_KEY, nextProfile);
     return nextProfile;
   }
 
   const normalizedDisplayName = displayName.trim() || storedProfile.displayName;
+  const nextPlayerId = normalizedCanonicalPlayerId ?? storedProfile.playerId;
 
-  if (normalizedDisplayName !== storedProfile.displayName) {
+  if (
+    normalizedDisplayName !== storedProfile.displayName ||
+    nextPlayerId !== storedProfile.playerId
+  ) {
     const nextProfile = {
       ...storedProfile,
+      playerId: nextPlayerId,
       displayName: normalizedDisplayName,
       updatedAt: new Date().toISOString()
     };

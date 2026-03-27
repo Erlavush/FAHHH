@@ -65,6 +65,14 @@ function createProfile(
   };
 }
 
+function seedRuntimeProfile(
+  overrides: Partial<SharedPlayerProfile> = {}
+): SharedPlayerProfile {
+  const profile = createProfile(overrides);
+  saveSharedPlayerProfile(profile);
+  return profile;
+}
+
 function createSharedRoomDocument(
   playerId: string,
   overrides: Partial<SharedRoomDocument> = {}
@@ -145,7 +153,9 @@ describe("shared room runtime helpers", () => {
   });
 
   it("loads the canonical room from a persisted shared session", async () => {
-    const profile = createProfile();
+    const profile = seedRuntimeProfile({
+      playerId: "firebase-user-1"
+    });
     const roomDocument = createSharedRoomDocument(profile.playerId);
     const loadSharedRoom = vi.fn().mockResolvedValue(roomDocument);
     const sharedRoomStore: SharedRoomStore = {
@@ -156,7 +166,6 @@ describe("shared room runtime helpers", () => {
       commitSharedRoomState: vi.fn()
     };
 
-    saveSharedPlayerProfile(profile);
     saveSharedRoomSession({
       playerId: profile.playerId,
       partnerId: "player-2",
@@ -178,7 +187,9 @@ describe("shared room runtime helpers", () => {
     expect(loadSharedRoom).toHaveBeenCalledWith({ roomId: roomDocument.roomId });
     expect(latestHookValue?.runtimeSnapshot?.roomId).toBe(roomDocument.roomId);
     expect(latestHookValue?.runtimeSnapshot?.revision).toBe(roomDocument.revision);
-    expect(latestHookValue?.runtimeSnapshot?.progression.players["player-1"]?.coins).toBe(70);
+    expect(
+      latestHookValue?.runtimeSnapshot?.progression.players[profile.playerId]?.coins
+    ).toBe(70);
     expect(latestHookValue?.session?.lastKnownRevision).toBe(roomDocument.revision);
     expect(latestHookValue?.blockingState).toBeNull();
   });
@@ -239,7 +250,9 @@ describe("shared room runtime helpers", () => {
   });
 
   it("auto-enters the dev shared room", async () => {
-    const profile = createProfile();
+    const profile = seedRuntimeProfile({
+      playerId: "firebase-user-1"
+    });
     const roomDocument = createSharedRoomDocument(profile.playerId, {
       roomId: "dev-shared-room",
       inviteCode: "DEVROOM",
@@ -274,8 +287,6 @@ describe("shared room runtime helpers", () => {
       loadSharedRoom: vi.fn(),
       commitSharedRoomState: vi.fn()
     };
-
-    saveSharedPlayerProfile(profile);
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -490,19 +501,23 @@ describe("shared room runtime helpers", () => {
 
   it("hydrates the same partial ritual progress after reload", async () => {
     const profile = createProfile();
+    const nowIso = new Date().toISOString();
     const partialProgression = applyDeskPcCompletionToProgression({
-      progression: createSharedRoomDocument(profile.playerId).progression,
+      progression: createSharedRoomDocument(profile.playerId, {
+        updatedAt: nowIso
+      }).progression,
       actorPlayerId: profile.playerId,
       result: {
         score: 10,
         rewardCoins: 8,
-        completedAt: Date.parse("2026-03-26T04:00:00.000Z")
+        completedAt: Date.parse(nowIso)
       },
       memberIds: ["player-1", "player-2"],
-      nowIso: "2026-03-26T04:00:00.000Z"
+      nowIso
     }).progression;
     const roomDocument = createSharedRoomDocument(profile.playerId, {
-      progression: partialProgression
+      progression: partialProgression,
+      updatedAt: nowIso
     });
     const loadSharedRoom = vi
       .fn<SharedRoomStore["loadSharedRoom"]>()
