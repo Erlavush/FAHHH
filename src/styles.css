@@ -298,6 +298,62 @@ body {
   font: 500 14px/1.5 var(--shared-room-font-body);
 }
 
+.shared-room-entry__hosted-stack {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.shared-room-entry__note-card,
+.shared-room-entry__code-card,
+.shared-room-entry__participant-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid rgba(244, 234, 223, 0.12);
+  border-radius: 22px;
+  background: rgba(244, 234, 223, 0.08);
+}
+
+.shared-room-entry__note-card strong,
+.shared-room-entry__code-card strong,
+.shared-room-entry__participant-card strong,
+.shared-room-entry__waiting-copy {
+  color: var(--shared-room-text);
+  font: 700 18px/1.15 var(--shared-room-font-display);
+}
+
+.shared-room-entry__note-card p,
+.shared-room-entry__code-card p,
+.shared-room-entry__participant-meta,
+.shared-room-entry__helper {
+  margin: 0;
+  color: rgba(244, 234, 223, 0.82);
+  font: 500 13px/1.5 var(--shared-room-font-body);
+}
+
+.shared-room-entry__account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shared-room-entry__label {
+  color: var(--shared-room-muted);
+  font: 700 12px/1.2 var(--shared-room-font-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shared-room-entry__account-name {
+  display: block;
+  margin-top: 6px;
+  color: var(--shared-room-text);
+  font: 700 20px/1.1 var(--shared-room-font-display);
+}
+
 .shared-room-entry__stakes {
   display: grid;
   gap: 6px;
@@ -389,9 +445,15 @@ body {
 
 .shared-room-entry__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-start;
   gap: 12px;
   margin-top: 24px;
+}
+
+.shared-room-entry__button--secondary {
+  border-color: rgba(244, 234, 223, 0.14);
+  background: rgba(244, 234, 223, 0.04);
 }
 
 .shared-room-entry__acknowledgment {
@@ -419,6 +481,35 @@ body {
   margin: 16px 0 0;
   color: #ffd7db;
   font: 600 13px/1.4 var(--shared-room-font-body);
+}
+
+.shared-room-entry__participant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.shared-room-entry__participant-status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(244, 234, 223, 0.08);
+  color: var(--shared-room-muted);
+  font: 700 11px/1 var(--shared-room-font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shared-room-entry__participant-status--live {
+  background: rgba(111, 175, 131, 0.18);
+  color: #8fd3a8;
+}
+
+.shared-room-entry__waiting-copy {
+  margin: 0;
 }
 
 .room-memory-frame-proxy__hint {

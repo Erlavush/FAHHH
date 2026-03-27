@@ -356,7 +356,12 @@ function App() {
     : null;
   const sharedRoomPresence = useSharedRoomPresence({
     enabled: sharedRoomActive,
+    bootstrapKind: sharedRoomRuntime.bootstrapKind,
     localPresence: localPresenceSnapshot,
+    pendingLinkId:
+      sharedRoomRuntime.bootstrapKind === "pending_link"
+        ? sharedRoomRuntime.pendingLink?.pendingLinkId ?? null
+        : null,
     partnerId: sharedRoomRuntime.session?.partnerId ?? null,
     profile: sharedRoomRuntime.profile,
     roomId: sharedRoomRuntime.runtimeSnapshot?.roomId ?? null,
@@ -1412,7 +1417,12 @@ function App() {
     playerInteractionStatus.interactionType === "use_pc";
 
   const effectiveShellViewMode: AppShellViewMode = isDev ? shellViewMode : "player";
-  const developerSurfaceVisible = isDeveloperSurfaceVisible(effectiveShellViewMode, isDev);
+  const hostedEntryFlowActive =
+    sharedRoomRuntime.entryMode === "hosted" &&
+    sharedRoomRuntime.bootstrapKind !== "room_ready";
+  const developerSurfaceVisible =
+    isDeveloperSurfaceVisible(effectiveShellViewMode, isDev) &&
+    !hostedEntryFlowActive;
   const inviteCode = sharedRoomRuntime.roomDocument?.inviteCode ?? "";
   const memberCount = sharedRoomRuntime.roomDocument?.memberIds.length ?? 0;
   const roomId = sharedRoomRuntime.roomDocument?.roomId ?? null;
@@ -1448,38 +1458,75 @@ function App() {
     statusMessage: sharedRoomRuntime.statusMessage
   });
 
-  const sharedRoomOverlayNode = (
+  const sharedRoomEntryOverlayNode = (
     <>
       {!sharedRoomActive &&
       !sharedRoomRuntime.blockingState &&
       !sharedRoomRuntime.devBypassActive ? (
-        <SharedRoomEntryShell
-          displayName={sharedRoomRuntime.displayName}
-          errorMessage={sharedRoomRuntime.inlineError}
-          onCreateRoom={() => {
-            void sharedRoomRuntime.createRoom(roomStateRef.current, playerCoinsRef.current);
-          }}
-          onDisplayNameChange={sharedRoomRuntime.setDisplayName}
-          onJoinRoom={(code) => {
-            void sharedRoomRuntime.joinRoom(code);
-          }}
-        />
+        sharedRoomRuntime.entryMode === "hosted" ? (
+          sharedRoomRuntime.bootstrapKind === "signed_out" ||
+          sharedRoomRuntime.bootstrapKind === "needs_linking" ||
+          sharedRoomRuntime.bootstrapKind === "pending_link" ? (
+            <SharedRoomEntryShell
+              bootstrapKind={sharedRoomRuntime.bootstrapKind}
+              displayName={sharedRoomRuntime.displayName}
+              errorMessage={sharedRoomRuntime.inlineError}
+              mode="hosted"
+              onCancelPairLink={() => {
+                void sharedRoomRuntime.cancelPairLink();
+              }}
+              onConfirmPairLink={() => {
+                void sharedRoomRuntime.confirmPairLink();
+              }}
+              onSignInWithGoogle={() => {
+                void sharedRoomRuntime.signInWithGoogle();
+              }}
+              onSignOut={() => {
+                void sharedRoomRuntime.signOut();
+              }}
+              onSubmitPartnerCode={(code) => {
+                void sharedRoomRuntime.submitPartnerCode(code);
+              }}
+              pairLinkPresence={sharedRoomPresence.pairLinkPresence}
+              pendingLink={sharedRoomRuntime.pendingLink}
+              playerId={sharedRoomRuntime.profile.playerId}
+              selfPairCode={sharedRoomRuntime.selfPairCode}
+            />
+          ) : null
+        ) : (
+          <SharedRoomEntryShell
+            displayName={sharedRoomRuntime.displayName}
+            errorMessage={sharedRoomRuntime.inlineError}
+            mode="legacy"
+            onCreateRoom={() => {
+              void sharedRoomRuntime.createRoom(roomStateRef.current, playerCoinsRef.current);
+            }}
+            onDisplayNameChange={sharedRoomRuntime.setDisplayName}
+            onJoinRoom={(code) => {
+              void sharedRoomRuntime.joinRoom(code);
+            }}
+          />
+        )
       ) : null}
+    </>
+  );
 
-      {sharedRoomRuntime.blockingState ? (
-        <SharedRoomBlockingOverlay
-          body={sharedRoomRuntime.blockingState.body}
-          onRetry={
-            sharedRoomRuntime.blockingState.retryable
-              ? () => {
-                  handleRefreshRoomState();
-                }
-              : null
-          }
-          title={sharedRoomRuntime.blockingState.title}
-        />
-      ) : null}
+  const sharedRoomBlockingOverlayNode = sharedRoomRuntime.blockingState ? (
+    <SharedRoomBlockingOverlay
+      body={sharedRoomRuntime.blockingState.body}
+      onRetry={
+        sharedRoomRuntime.blockingState.retryable
+          ? () => {
+              handleRefreshRoomState();
+            }
+          : null
+      }
+      title={sharedRoomRuntime.blockingState.title}
+    />
+  ) : null;
 
+  const sharedRoomModalNode = (
+    <>
       <MemoryFrameDialog
         memory={selectedMemoryFrame}
         onClear={() => {
@@ -1715,7 +1762,12 @@ function App() {
                 onShowInteractionMarkersChange={setShowInteractionMarkers}
               />
             }
-            overlays={sharedRoomOverlayNode}
+            overlays={
+              <>
+                {sharedRoomActive ? sharedRoomBlockingOverlayNode : null}
+                {sharedRoomModalNode}
+              </>
+            }
             rail={
               <DeveloperWorkspaceRail
                 onSelectTab={handleSelectDeveloperWorkspaceTab}
@@ -1737,13 +1789,16 @@ function App() {
         ) : (
           <PlayerRoomShell
             bottomCenter={
+              hostedEntryFlowActive ? null : (
               <PlayerActionDock
                 actions={playerActionDockState.actions}
                 onAction={handlePlayerDockAction}
                 statusLabel={playerActionDockState.statusLabel}
               />
+              )
             }
             bottomLeft={
+              hostedEntryFlowActive ? null : (
               <PlayerProgressStack
                 coins={displayedPlayerCoins}
                 playerLevel={playerLevel}
@@ -1752,23 +1807,30 @@ function App() {
                 streakCount={ritualStatus.streakCount}
                 walletLabel={walletLabel}
               />
+              )
             }
-            drawer={catalogOpen ? inventoryPanelNode : null}
+            drawer={hostedEntryFlowActive ? null : catalogOpen ? inventoryPanelNode : null}
             overlays={
               <>
-                <PlayerRoomDetailsSheet
-                  onAction={handlePlayerRoomDetailsAction}
-                  onClose={() => setPlayerRoomDetailsOpen(false)}
-                  open={playerRoomDetailsOpen}
-                  state={playerRoomDetailsState}
-                />
-                <BreakupResetDialog
-                  onClose={() => setBreakupResetDialogOpen(false)}
-                  onConfirm={handleBreakupResetConfirm}
-                  open={breakupResetDialogOpen}
-                  saving={breakupResetSaving}
-                />
-                {pcMinigameActive ? (
+                {sharedRoomBlockingOverlayNode}
+                {sharedRoomEntryOverlayNode}
+                {!hostedEntryFlowActive ? (
+                  <PlayerRoomDetailsSheet
+                    onAction={handlePlayerRoomDetailsAction}
+                    onClose={() => setPlayerRoomDetailsOpen(false)}
+                    open={playerRoomDetailsOpen}
+                    state={playerRoomDetailsState}
+                  />
+                ) : null}
+                {!hostedEntryFlowActive ? (
+                  <BreakupResetDialog
+                    onClose={() => setBreakupResetDialogOpen(false)}
+                    onConfirm={handleBreakupResetConfirm}
+                    open={breakupResetDialogOpen}
+                    saving={breakupResetSaving}
+                  />
+                ) : null}
+                {!hostedEntryFlowActive && pcMinigameActive ? (
                   <PcMinigameOverlay
                     currentCoins={displayedPlayerCoins}
                     dailyRitualBonusCoins={sharedPcResult?.dailyRitualBonusCoins ?? 0}
@@ -1780,12 +1842,17 @@ function App() {
                     streakCount={sharedPcResult?.streakCount ?? ritualStatus.streakCount}
                   />
                 ) : null}
-                {sharedRoomOverlayNode}
+                {sharedRoomModalNode}
               </>
             }
             stage={roomStageNode}
-            topLeft={<PlayerClockChip label={worldTimeLabel} timeLocked={timeLocked} />}
+            topLeft={
+              hostedEntryFlowActive ? null : (
+                <PlayerClockChip label={worldTimeLabel} timeLocked={timeLocked} />
+              )
+            }
             topRight={
+              hostedEntryFlowActive ? null : (
               <div className="player-room-shell__top-right-stack">
                 <PlayerCompanionCard
                   expanded={playerCompanionCardExpanded}
@@ -1797,9 +1864,10 @@ function App() {
                 />
                 {skinError ? <div className="scene-note scene-note--inline">{skinError}</div> : null}
               </div>
+              )
             }
             viewSwitch={
-              isDev ? (
+              isDev && !hostedEntryFlowActive ? (
                 <ViewModeSwitch
                   onChange={setShellViewMode}
                   value={effectiveShellViewMode}

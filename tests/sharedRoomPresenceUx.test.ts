@@ -4,6 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSharedRoomPresence } from "../src/app/hooks/useSharedRoomPresence";
+import type { SharedRoomRuntimeBootstrapKind } from "../src/app/hooks/useSharedRoomRuntime";
 import type { LocalPlayerPresenceSnapshot } from "../src/app/types";
 import type { SharedPresenceStore } from "../src/lib/sharedPresenceStore";
 import type { SharedPlayerProfile } from "../src/lib/sharedRoomTypes";
@@ -15,7 +16,10 @@ declare global {
 type HookValue = ReturnType<typeof useSharedRoomPresence>;
 
 type HarnessProps = {
+  bootstrapKind?: SharedRoomRuntimeBootstrapKind;
+  enabled?: boolean;
   localPresence?: LocalPlayerPresenceSnapshot | null;
+  pendingLinkId?: string | null;
   profile?: SharedPlayerProfile;
   roomId?: string | null;
   sharedPresenceStore: SharedPresenceStore;
@@ -115,14 +119,19 @@ function createSharedPresenceStore(
 }
 
 function HookHarness({
+  bootstrapKind,
+  enabled = true,
   localPresence = createLocalPresence(),
+  pendingLinkId = null,
   profile = createProfile(),
   roomId = "shared-room-1",
   sharedPresenceStore
 }: HarnessProps) {
   latestHookValue = useSharedRoomPresence({
-    enabled: true,
+    enabled,
+    bootstrapKind,
     localPresence,
+    pendingLinkId,
     partnerId: "player-2",
     profile,
     roomId,
@@ -219,5 +228,51 @@ describe("sharedRoomPresence UX", () => {
     await flushHookEffects();
 
     expect(latestHookValue?.presenceStatus.title).toBe("Partner reconnecting");
+  });
+
+  it("does not start room presence before the room is ready", async () => {
+    const loadRoomPresence = vi.fn<SharedPresenceStore["loadRoomPresence"]>();
+    const upsertPresence = vi.fn<SharedPresenceStore["upsertPresence"]>();
+    const loadPairLinkPresence = vi
+      .fn<SharedPresenceStore["loadPairLinkPresence"]>()
+      .mockResolvedValue({
+        pendingLinkId: "pending:player-1:player-2",
+        updatedAt: new Date(Date.now()).toISOString(),
+        presences: []
+      });
+    const upsertPairLinkPresence = vi
+      .fn<SharedPresenceStore["upsertPairLinkPresence"]>()
+      .mockResolvedValue({
+        pendingLinkId: "pending:player-1:player-2",
+        updatedAt: new Date(Date.now()).toISOString(),
+        presences: []
+      });
+    const sharedPresenceStore: SharedPresenceStore = {
+      ...createSharedPresenceStore(loadRoomPresence),
+      upsertPresence,
+      loadPairLinkPresence,
+      upsertPairLinkPresence
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          bootstrapKind: "pending_link",
+          pendingLinkId: "pending:player-1:player-2",
+          roomId: "shared-room-1",
+          sharedPresenceStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(loadRoomPresence).not.toHaveBeenCalled();
+    expect(upsertPresence).not.toHaveBeenCalled();
+    expect(loadPairLinkPresence).toHaveBeenCalled();
+    expect(upsertPairLinkPresence).toHaveBeenCalled();
   });
 });

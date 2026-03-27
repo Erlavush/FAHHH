@@ -11,16 +11,24 @@ import {
   createSharedRoomRuntimeSnapshot,
   createSharedRoomSessionFromDocument,
   shouldCommitSharedRoomChange,
+  type SharedAuthAdapter,
   useSharedRoomRuntime
 } from "../src/app/hooks/useSharedRoomRuntime";
 import { SharedRoomClientError } from "../src/lib/sharedRoomClient";
+import {
+  createEmptyFirebaseHostedDatabase,
+  createFirebaseOwnershipStore
+} from "../src/lib/firebaseOwnershipStore";
+import { createFirebaseRoomStore } from "../src/lib/firebaseRoomStore";
 import { cloneRoomState, createDefaultRoomState } from "../src/lib/roomState";
 import {
+  loadSharedRoomSession,
   saveSharedPlayerProfile,
   saveSharedRoomSession
 } from "../src/lib/sharedRoomSession";
 import { createSharedRoomPetRecord } from "../src/lib/sharedRoomPet";
 import { createBreakupResetMutation } from "../src/lib/sharedRoomReset";
+import type { SharedRoomOwnershipStore } from "../src/lib/sharedRoomOwnershipStore";
 import type { SharedRoomStore } from "../src/lib/sharedRoomStore";
 import type {
   SharedPlayerProfile,
@@ -33,8 +41,21 @@ declare global {
 
 type HookValue = ReturnType<typeof useSharedRoomRuntime>;
 
+type MockAuthUser = {
+  displayName: string | null;
+  email?: string | null;
+  metadata: {
+    creationTime?: string | null;
+    lastSignInTime?: string | null;
+  };
+  uid: string;
+};
+
 type HarnessProps = {
   devBypassEnabled?: boolean;
+  hostedFlowEnabled?: boolean;
+  sharedAuthAdapter?: SharedAuthAdapter<MockAuthUser> | null;
+  sharedRoomOwnershipStore?: SharedRoomOwnershipStore | null;
   sharedRoomStore: SharedRoomStore;
 };
 
@@ -42,13 +63,22 @@ let latestHookValue: HookValue | null = null;
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function HookHarness({ devBypassEnabled = false, sharedRoomStore }: HarnessProps) {
+function HookHarness({
+  devBypassEnabled = false,
+  hostedFlowEnabled,
+  sharedAuthAdapter,
+  sharedRoomOwnershipStore,
+  sharedRoomStore
+}: HarnessProps) {
   const devBootstrapRoomState = useMemo(() => createDefaultRoomState(), []);
 
   latestHookValue = useSharedRoomRuntime({
     devBypassEnabled,
     devBootstrapRoomState,
     devBootstrapSharedCoins: 120,
+    hostedFlowEnabled,
+    sharedAuthAdapter,
+    sharedRoomOwnershipStore,
     sharedRoomStore
   });
   return null;
@@ -117,6 +147,65 @@ function createSharedRoomDocument(
     roomState: overrides.roomState ?? roomState,
     frameMemories: overrides.frameMemories ?? {},
     sharedPet: overrides.sharedPet ?? null
+  };
+}
+
+function createAuthUser(
+  overrides: Partial<MockAuthUser> = {}
+): MockAuthUser {
+  return {
+    uid: overrides.uid ?? "firebase-user-1",
+    displayName: overrides.displayName ?? "Ari",
+    email: overrides.email ?? "ari@example.com",
+    metadata: {
+      creationTime:
+        overrides.metadata?.creationTime ?? "2026-03-26T00:00:00.000Z",
+      lastSignInTime:
+        overrides.metadata?.lastSignInTime ?? "2026-03-27T00:00:00.000Z"
+    }
+  };
+}
+
+function createSharedAuthHarness(initialUser: MockAuthUser | null) {
+  let currentUser = initialUser;
+  const subscribers = new Set<(user: MockAuthUser | null) => void>();
+
+  const sharedAuthAdapter: SharedAuthAdapter<MockAuthUser> = {
+    signInWithGoogle: vi.fn(async () => currentUser),
+    signOut: vi.fn(async () => {
+      currentUser = null;
+
+      for (const callback of subscribers) {
+        callback(null);
+      }
+    }),
+    subscribe(callback) {
+      subscribers.add(callback);
+      callback(currentUser);
+
+      return () => {
+        subscribers.delete(callback);
+      };
+    },
+    toSharedPlayerProfile(user) {
+      return {
+        playerId: user.uid,
+        displayName: user.displayName ?? "Player",
+        createdAt: user.metadata.creationTime ?? "2026-03-26T00:00:00.000Z",
+        updatedAt: user.metadata.lastSignInTime ?? "2026-03-27T00:00:00.000Z"
+      };
+    }
+  };
+
+  return {
+    sharedAuthAdapter,
+    setUser(nextUser: MockAuthUser | null) {
+      currentUser = nextUser;
+
+      for (const callback of subscribers) {
+        callback(nextUser);
+      }
+    }
   };
 }
 
@@ -319,6 +408,249 @@ describe("shared room runtime helpers", () => {
     expect(latestHookValue?.runtimeSnapshot?.progression.players[profile.playerId]?.coins).toBe(
       120
     );
+  });
+
+  it("loads the paired room automatically for an authenticated member", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const roomStore = createFirebaseRoomStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const ari = createProfile({
+      playerId: "firebase-user-1",
+      displayName: "Ari"
+    });
+    const bea = createProfile({
+      playerId: "firebase-user-2",
+      displayName: "Bea"
+    });
+    const beaBootstrap = await ownershipStore.loadBootstrapState({ profile: bea });
+    const pendingBootstrap = await ownershipStore.submitPairCode({
+      profile: ari,
+      pairCode: beaBootstrap.selfPairCode
+    });
+
+    if (pendingBootstrap.kind !== "pending_link") {
+      throw new Error("Expected pending link bootstrap state.");
+    }
+
+    await ownershipStore.confirmPairLink({
+      profile: ari,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+    await ownershipStore.confirmPairLink({
+      profile: bea,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+
+    const authHarness = createSharedAuthHarness(
+      createAuthUser({
+        uid: ari.playerId,
+        displayName: ari.displayName
+      })
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          hostedFlowEnabled: true,
+          sharedAuthAdapter: authHarness.sharedAuthAdapter,
+          sharedRoomOwnershipStore: ownershipStore,
+          sharedRoomStore: roomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.entryMode).toBe("hosted");
+    expect(latestHookValue?.bootstrapKind).toBe("room_ready");
+    expect(latestHookValue?.runtimeSnapshot?.roomId).toBe(
+      database.roomMemberships[ari.playerId]?.roomId
+    );
+    expect(latestHookValue?.session?.playerId).toBe(ari.playerId);
+  });
+
+  it("lands authenticated unpaired players in needs_linking with a reusable pair code", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const roomStore = createFirebaseRoomStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const authHarness = createSharedAuthHarness(
+      createAuthUser({
+        uid: "firebase-user-1",
+        displayName: "Ari"
+      })
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          hostedFlowEnabled: true,
+          sharedAuthAdapter: authHarness.sharedAuthAdapter,
+          sharedRoomOwnershipStore: ownershipStore,
+          sharedRoomStore: roomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.bootstrapKind).toBe("needs_linking");
+    expect(latestHookValue?.selfPairCode).toMatch(/[A-Z0-9]{8}/);
+    expect(latestHookValue?.runtimeSnapshot).toBeNull();
+  });
+
+  it("signing out clears cached room convenience state and returns to signed_out", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const roomStore = createFirebaseRoomStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const ari = createProfile({
+      playerId: "firebase-user-1",
+      displayName: "Ari"
+    });
+    const bea = createProfile({
+      playerId: "firebase-user-2",
+      displayName: "Bea"
+    });
+    const beaBootstrap = await ownershipStore.loadBootstrapState({ profile: bea });
+    const pendingBootstrap = await ownershipStore.submitPairCode({
+      profile: ari,
+      pairCode: beaBootstrap.selfPairCode
+    });
+
+    if (pendingBootstrap.kind !== "pending_link") {
+      throw new Error("Expected pending link bootstrap state.");
+    }
+
+    await ownershipStore.confirmPairLink({
+      profile: ari,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+    await ownershipStore.confirmPairLink({
+      profile: bea,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+
+    const authHarness = createSharedAuthHarness(
+      createAuthUser({
+        uid: ari.playerId,
+        displayName: ari.displayName
+      })
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          hostedFlowEnabled: true,
+          sharedAuthAdapter: authHarness.sharedAuthAdapter,
+          sharedRoomOwnershipStore: ownershipStore,
+          sharedRoomStore: roomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    await act(async () => {
+      await latestHookValue?.signOut();
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.bootstrapKind).toBe("signed_out");
+    expect(latestHookValue?.runtimeSnapshot).toBeNull();
+    expect(loadSharedRoomSession()).toBeNull();
+  });
+
+  it("allows one partner to enter the paired room while the partner is offline", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const roomStore = createFirebaseRoomStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const ari = createProfile({
+      playerId: "firebase-user-1",
+      displayName: "Ari"
+    });
+    const bea = createProfile({
+      playerId: "firebase-user-2",
+      displayName: "Bea"
+    });
+    const beaBootstrap = await ownershipStore.loadBootstrapState({ profile: bea });
+    const pendingBootstrap = await ownershipStore.submitPairCode({
+      profile: ari,
+      pairCode: beaBootstrap.selfPairCode
+    });
+
+    if (pendingBootstrap.kind !== "pending_link") {
+      throw new Error("Expected pending link bootstrap state.");
+    }
+
+    await ownershipStore.confirmPairLink({
+      profile: ari,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+    await ownershipStore.confirmPairLink({
+      profile: bea,
+      pendingLinkId: pendingBootstrap.pendingLink.pendingLinkId
+    });
+
+    const authHarness = createSharedAuthHarness(
+      createAuthUser({
+        uid: bea.playerId,
+        displayName: bea.displayName
+      })
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          hostedFlowEnabled: true,
+          sharedAuthAdapter: authHarness.sharedAuthAdapter,
+          sharedRoomOwnershipStore: ownershipStore,
+          sharedRoomStore: roomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.bootstrapKind).toBe("room_ready");
+    expect(latestHookValue?.runtimeSnapshot?.memberIds).toEqual(
+      expect.arrayContaining([ari.playerId, bea.playerId])
+    );
+    expect(latestHookValue?.session?.partnerId).toBe(ari.playerId);
   });
 
   it("creates a session from the canonical room document", () => {

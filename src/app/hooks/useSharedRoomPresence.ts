@@ -3,11 +3,13 @@ import { sharedPresenceClient } from "../../lib/sharedPresenceClient";
 import type { SharedPresenceStore } from "../../lib/sharedPresenceStore";
 import type {
   SharedEditLockRoomSnapshot,
+  SharedPairLinkPresenceSnapshot,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot
 } from "../../lib/sharedPresenceTypes";
 import type { SharedPlayerProfile } from "../../lib/sharedRoomTypes";
 import type { LocalPlayerPresenceSnapshot } from "../types";
+import type { SharedRoomRuntimeBootstrapKind } from "./useSharedRoomRuntime";
 
 export type SharedPresenceFreshness = "offline" | "live" | "holding" | "reconnecting";
 export type SharedPresenceStatusTitle =
@@ -26,7 +28,9 @@ export interface SharedPresenceStatus {
 
 export interface UseSharedRoomPresenceOptions {
   enabled: boolean;
+  bootstrapKind?: SharedRoomRuntimeBootstrapKind;
   localPresence: LocalPlayerPresenceSnapshot | null;
+  pendingLinkId?: string | null;
   partnerId: string | null;
   profile: SharedPlayerProfile;
   roomId: string | null;
@@ -162,19 +166,27 @@ export function createSharedPresenceStatus(
 
 export function useSharedRoomPresence({
   enabled,
+  bootstrapKind,
   localPresence,
+  pendingLinkId = null,
   partnerId,
   profile,
   roomId,
   sharedPresenceStore = sharedPresenceClient,
   skinSrc
 }: UseSharedRoomPresenceOptions) {
+  const currentBootstrapKind = bootstrapKind ?? (enabled ? "room_ready" : "signed_out");
+  const roomPresenceEnabled = enabled && currentBootstrapKind === "room_ready";
+  const pairLinkPresenceEnabled =
+    currentBootstrapKind === "pending_link" && Boolean(pendingLinkId);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<SharedPresenceStatus>(
     createSharedPresenceStatus("Waiting for partner")
   );
   const [roomLocks, setRoomLocks] = useState<SharedEditLockRoomSnapshot | null>(null);
   const [roomPresence, setRoomPresence] = useState<SharedPresenceRoomSnapshot | null>(null);
+  const [pairLinkPresence, setPairLinkPresence] =
+    useState<SharedPairLinkPresenceSnapshot | null>(null);
   const hadLivePartnerRef = useRef(false);
   const latestPresenceRef = useRef<SharedPresenceSnapshot | null>(null);
   const previousFreshnessRef = useRef<SharedPresenceFreshness>("offline");
@@ -188,7 +200,7 @@ export function useSharedRoomPresence({
   }, []);
 
   useEffect(() => {
-    if (!enabled || !roomId || !localPresence) {
+    if (!roomPresenceEnabled || !roomId || !localPresence) {
       latestPresenceRef.current = null;
       return;
     }
@@ -199,10 +211,10 @@ export function useSharedRoomPresence({
       skinSrc,
       localPresence
     );
-  }, [enabled, localPresence, profile, roomId, skinSrc]);
+  }, [localPresence, profile, roomId, roomPresenceEnabled, skinSrc]);
 
   const loadRoomPresence = useCallback(async (): Promise<SharedPresenceRoomSnapshot | null> => {
-    if (!enabled || !roomId) {
+    if (!roomPresenceEnabled || !roomId) {
       setRoomPresence(null);
       return null;
     }
@@ -216,10 +228,10 @@ export function useSharedRoomPresence({
       setInlineError(getErrorMessage(error));
       return null;
     }
-  }, [enabled, roomId, sharedPresenceStore]);
+  }, [roomId, roomPresenceEnabled, sharedPresenceStore]);
 
   const loadRoomLocks = useCallback(async (): Promise<SharedEditLockRoomSnapshot | null> => {
-    if (!enabled || !roomId) {
+    if (!roomPresenceEnabled || !roomId) {
       setRoomLocks(null);
       return null;
     }
@@ -233,10 +245,10 @@ export function useSharedRoomPresence({
       setInlineError(getErrorMessage(error));
       return null;
     }
-  }, [enabled, roomId, sharedPresenceStore]);
+  }, [roomId, roomPresenceEnabled, sharedPresenceStore]);
 
   const publishPresence = useCallback(async (): Promise<void> => {
-    if (!enabled) {
+    if (!roomPresenceEnabled) {
       return;
     }
 
@@ -252,10 +264,56 @@ export function useSharedRoomPresence({
     } catch (error) {
       setInlineError(getErrorMessage(error));
     }
-  }, [enabled, sharedPresenceStore]);
+  }, [roomPresenceEnabled, sharedPresenceStore]);
+
+  const loadPairLinkPresence = useCallback(
+    async (): Promise<SharedPairLinkPresenceSnapshot | null> => {
+      if (!pairLinkPresenceEnabled || !pendingLinkId) {
+        setPairLinkPresence(null);
+        return null;
+      }
+
+      try {
+        const nextPairLinkPresence =
+          await sharedPresenceStore.loadPairLinkPresence({ pendingLinkId });
+        setInlineError(null);
+        setPairLinkPresence(nextPairLinkPresence);
+        return nextPairLinkPresence;
+      } catch (error) {
+        setInlineError(getErrorMessage(error));
+        return null;
+      }
+    },
+    [pairLinkPresenceEnabled, pendingLinkId, sharedPresenceStore]
+  );
+
+  const publishPairLinkPresence = useCallback(async (): Promise<void> => {
+    if (!pairLinkPresenceEnabled || !pendingLinkId) {
+      return;
+    }
+
+    try {
+      const nextPairLinkPresence =
+        await sharedPresenceStore.upsertPairLinkPresence({
+          pendingLinkId,
+          playerId: profile.playerId,
+          displayName: profile.displayName
+        });
+      setInlineError(null);
+      setPairLinkPresence(nextPairLinkPresence);
+    } catch (error) {
+      setInlineError(getErrorMessage(error));
+    }
+  }, [
+    pairLinkPresenceEnabled,
+    pendingLinkId,
+    profile.displayName,
+    profile.playerId,
+    sharedPresenceStore
+  ]);
 
   useEffect(() => {
-    if (!enabled || !roomId) {
+    if (!roomPresenceEnabled || !roomId) {
       setRoomLocks(null);
       setRoomPresence(null);
       return;
@@ -271,10 +329,10 @@ export function useSharedRoomPresence({
     return () => {
       window.clearInterval(pollId);
     };
-  }, [enabled, loadRoomLocks, loadRoomPresence, roomId]);
+  }, [loadRoomLocks, loadRoomPresence, roomId, roomPresenceEnabled]);
 
   useEffect(() => {
-    if (!enabled || !roomId || !localPresence) {
+    if (!roomPresenceEnabled || !roomId || !localPresence) {
       return;
     }
 
@@ -286,12 +344,43 @@ export function useSharedRoomPresence({
     return () => {
       window.clearInterval(publishId);
     };
-  }, [enabled, localPresence, publishPresence, roomId]);
+  }, [localPresence, publishPresence, roomId, roomPresenceEnabled]);
+
+  useEffect(() => {
+    if (!pairLinkPresenceEnabled || !pendingLinkId) {
+      setPairLinkPresence(null);
+      return;
+    }
+
+    void loadPairLinkPresence();
+    const pollId = window.setInterval(() => {
+      void loadPairLinkPresence();
+    }, PRESENCE_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(pollId);
+    };
+  }, [loadPairLinkPresence, pairLinkPresenceEnabled, pendingLinkId]);
+
+  useEffect(() => {
+    if (!pairLinkPresenceEnabled || !pendingLinkId) {
+      return;
+    }
+
+    void publishPairLinkPresence();
+    const publishId = window.setInterval(() => {
+      void publishPairLinkPresence();
+    }, PRESENCE_PUBLISH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(publishId);
+    };
+  }, [pairLinkPresenceEnabled, pendingLinkId, publishPairLinkPresence]);
 
   useEffect(() => clearStatusTimeout, [clearStatusTimeout]);
 
   useEffect(() => {
-    if (!enabled || !roomId) {
+    if (!roomPresenceEnabled || !roomId) {
       return;
     }
 
@@ -301,7 +390,25 @@ export function useSharedRoomPresence({
         playerId: profile.playerId
       });
     };
-  }, [enabled, profile.playerId, roomId, sharedPresenceStore]);
+  }, [profile.playerId, roomId, roomPresenceEnabled, sharedPresenceStore]);
+
+  useEffect(() => {
+    if (!pairLinkPresenceEnabled || !pendingLinkId) {
+      return;
+    }
+
+    return () => {
+      void sharedPresenceStore.leavePairLinkPresence({
+        pendingLinkId,
+        playerId: profile.playerId
+      });
+    };
+  }, [
+    pairLinkPresenceEnabled,
+    pendingLinkId,
+    profile.playerId,
+    sharedPresenceStore
+  ]);
 
   const remotePresence = useMemo(() => {
     const presences = roomPresence?.presences ?? [];
@@ -387,9 +494,9 @@ export function useSharedRoomPresence({
 
   const acquireEditLock = useCallback(
     async (furnitureId: string): Promise<boolean> => {
-      if (!enabled || !roomId) {
-        return true;
-      }
+    if (!roomPresenceEnabled || !roomId) {
+      return true;
+    }
 
       try {
         const nextRoomLocks = await sharedPresenceStore.acquireEditLock({
@@ -415,20 +522,20 @@ export function useSharedRoomPresence({
       }
     },
     [
-      enabled,
       loadRoomLocks,
       profile.displayName,
       profile.playerId,
       roomId,
+      roomPresenceEnabled,
       sharedPresenceStore
     ]
   );
 
   const renewEditLock = useCallback(
     async (furnitureId: string): Promise<boolean> => {
-      if (!enabled || !roomId) {
-        return true;
-      }
+    if (!roomPresenceEnabled || !roomId) {
+      return true;
+    }
 
       try {
         const nextRoomLocks = await sharedPresenceStore.renewEditLock({
@@ -454,20 +561,20 @@ export function useSharedRoomPresence({
       }
     },
     [
-      enabled,
       loadRoomLocks,
       profile.displayName,
       profile.playerId,
       roomId,
+      roomPresenceEnabled,
       sharedPresenceStore
     ]
   );
 
   const releaseEditLock = useCallback(
     async (furnitureId: string): Promise<void> => {
-      if (!enabled || !roomId) {
-        return;
-      }
+    if (!roomPresenceEnabled || !roomId) {
+      return;
+    }
 
       try {
         const nextRoomLocks = await sharedPresenceStore.releaseEditLock({
@@ -481,7 +588,7 @@ export function useSharedRoomPresence({
         setInlineError(getErrorMessage(error));
       }
     },
-    [enabled, profile.playerId, roomId, sharedPresenceStore]
+    [profile.playerId, roomId, roomPresenceEnabled, sharedPresenceStore]
   );
 
   return {
@@ -489,6 +596,7 @@ export function useSharedRoomPresence({
     clearInlineError: () => setInlineError(null),
     inlineError,
     localEditLockIds,
+    pairLinkPresence,
     presenceStatus,
     partnerEditLockIds,
     releaseEditLock,

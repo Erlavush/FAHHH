@@ -4,6 +4,10 @@ type SharedRoomBlockingOverlayProps = {
   title: string;
 };
 
+export const SHARED_ROOM_BLOCKING_LOADING_TITLE = "Loading your room...";
+export const SHARED_ROOM_BLOCKING_VERIFY_ERROR_TITLE =
+  "We couldn't verify your room right now.";
+
 export function SharedRoomBlockingOverlay({
   body,
   onRetry,
