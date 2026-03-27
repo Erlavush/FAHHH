@@ -17,6 +17,7 @@ const {
   createEmptySharedRoomDevDatabase,
   createSharedRoomInDatabase,
   loadRoomPresenceInDatabase,
+  SHARED_PRESENCE_TTL_MS,
   upsertSharedPresenceInDatabase
 } = sharedRoomDevPluginModule as any;
 
@@ -64,6 +65,7 @@ function createPresenceSnapshot(
     position: overrides.position ?? [1.25, 0, -2.5],
     facingY: overrides.facingY ?? Math.PI / 3,
     activity: (overrides.activity ?? "walking") as SharedPresenceActivity,
+    motion: overrides.motion ?? null,
     pose: overrides.pose ?? null,
     updatedAt: overrides.updatedAt ?? "2026-03-26T13:05:00.000Z"
   };
@@ -121,6 +123,7 @@ describe("sharedRoomPresence", () => {
     expect(roomPresence.presences[0]).toMatchObject({
       playerId: creatorProfile.playerId
     });
+    expect(roomPresence.sharedPetState).toBeNull();
   });
 
   it("presence updates do not mutate the room revision", () => {
@@ -160,6 +163,11 @@ describe("sharedRoomPresence", () => {
         displayName: partnerProfile.displayName,
         skinSrc: "/skins/partner.png",
         activity: "sit",
+        motion: {
+          velocity: [0.18, 0, 0.06],
+          walkAmount: 0.42,
+          stridePhase: 1.75
+        },
         pose: {
           type: "sit",
           position: [0.5, 0, -1.4],
@@ -173,6 +181,11 @@ describe("sharedRoomPresence", () => {
     expect(nextPresence.position).toEqual([1.25, 0, -2.5]);
     expect(nextPresence.facingY).toBe(Math.PI / 3);
     expect(nextPresence.activity).toBe("sit");
+    expect(nextPresence.motion).toMatchObject({
+      velocity: [0.18, 0, 0.06],
+      walkAmount: 0.42,
+      stridePhase: 1.75
+    });
     expect(roomPresence.presences).toHaveLength(1);
     expect(roomPresence.presences[0]).toMatchObject({
       playerId: partnerProfile.playerId,
@@ -180,6 +193,112 @@ describe("sharedRoomPresence", () => {
       facingY: Math.PI / 3,
       activity: "sit"
     });
+  });
+
+  it("stores shared pet live state beside presence without touching room revisions", () => {
+    const database = createEmptySharedRoomDevDatabase();
+    const creatorProfile = createProfile("player-1", "Ari");
+    const partnerProfile = createProfile("player-2", "Bea");
+    const roomDocument = createSharedRoomInDatabase(database, {
+      profile: creatorProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 50
+    });
+    const startingRevision = roomDocument.revision;
+
+    database.rooms[roomDocument.roomId] = {
+      ...roomDocument,
+      memberIds: [creatorProfile.playerId, partnerProfile.playerId],
+      members: [
+        {
+          playerId: creatorProfile.playerId,
+          displayName: creatorProfile.displayName,
+          role: "creator",
+          joinedAt: creatorProfile.createdAt
+        },
+        {
+          playerId: partnerProfile.playerId,
+          displayName: partnerProfile.displayName,
+          role: "partner",
+          joinedAt: partnerProfile.createdAt
+        }
+      ]
+    };
+
+    upsertSharedPresenceInDatabase(database, {
+      presence: createPresenceSnapshot({
+        roomId: roomDocument.roomId,
+        playerId: creatorProfile.playerId,
+        displayName: creatorProfile.displayName
+      }),
+      sharedPetState: {
+        ownerPlayerId: creatorProfile.playerId,
+        petId: "shared-pet-minecraft_cat",
+        position: [0.5, 0, 1.5],
+        rotationY: Math.PI / 3,
+        stridePhase: 2.2,
+        targetPosition: [1.2, 0, 0.8],
+        updatedAt: "2026-03-26T13:05:00.000Z",
+        walkAmount: 0.68
+      }
+    });
+
+    const roomPresence = loadRoomPresenceInDatabase(database, roomDocument.roomId);
+
+    expect(database.rooms[roomDocument.roomId].revision).toBe(startingRevision);
+    expect(roomPresence.sharedPetState).toMatchObject({
+      petId: "shared-pet-minecraft_cat",
+      position: [0.5, 0, 1.5],
+      targetPosition: [1.2, 0, 0.8]
+    });
+  });
+
+  it("prunes stale dev presence records after the reconnect window expires", () => {
+    const database = createEmptySharedRoomDevDatabase();
+    const creatorProfile = createProfile("player-1", "Ari");
+    const partnerProfile = createProfile("player-2", "Bea");
+    const roomDocument = createSharedRoomInDatabase(database, {
+      profile: creatorProfile,
+      sourceRoomState: createDefaultRoomState(),
+      sharedCoins: 50
+    });
+    const updatedAt = new Date(Date.now() - SHARED_PRESENCE_TTL_MS - 1000).toISOString();
+
+    database.rooms[roomDocument.roomId] = {
+      ...roomDocument,
+      memberIds: [creatorProfile.playerId, partnerProfile.playerId],
+      members: [
+        {
+          playerId: creatorProfile.playerId,
+          displayName: creatorProfile.displayName,
+          role: "creator",
+          joinedAt: creatorProfile.createdAt
+        },
+        {
+          playerId: partnerProfile.playerId,
+          displayName: partnerProfile.displayName,
+          role: "partner",
+          joinedAt: partnerProfile.createdAt
+        }
+      ]
+    };
+    database.presenceByRoom[roomDocument.roomId] = {
+      roomId: roomDocument.roomId,
+      updatedAt,
+      presences: [
+        createPresenceSnapshot({
+          roomId: roomDocument.roomId,
+          playerId: partnerProfile.playerId,
+          displayName: partnerProfile.displayName,
+          updatedAt
+        })
+      ]
+    };
+
+    const roomPresence = loadRoomPresenceInDatabase(database, roomDocument.roomId);
+
+    expect(roomPresence.presences).toHaveLength(0);
+    expect(database.presenceByRoom[roomDocument.roomId].presences).toHaveLength(0);
   });
 
   it("loads remote partner snapshots with position, facing, and activity", async () => {
@@ -192,6 +311,11 @@ describe("sharedRoomPresence", () => {
         type: "use_pc",
         position: [0.25, 0, -3.6],
         rotationY: Math.PI
+      },
+      motion: {
+        velocity: [0.28, 0, 0.12],
+        walkAmount: 0.74,
+        stridePhase: 3.5
       }
     });
     const fetchImpl = vi.fn().mockResolvedValue({
@@ -202,6 +326,7 @@ describe("sharedRoomPresence", () => {
           JSON.stringify({
             roomId: "shared-room-1",
             presences: [remotePresence],
+            sharedPetState: null,
             updatedAt: "2026-03-26T13:06:00.000Z"
           })
         )
@@ -219,6 +344,11 @@ describe("sharedRoomPresence", () => {
       position: [1.25, 0, -2.5],
       facingY: 1.75,
       activity: "use_pc"
+    });
+    expect(roomPresence.presences[0].motion).toMatchObject({
+      velocity: [0.28, 0, 0.12],
+      walkAmount: 0.74,
+      stridePhase: 3.5
     });
   });
 

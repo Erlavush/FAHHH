@@ -1,4 +1,5 @@
 import type { OwnedPet } from "./pets";
+import type { SharedPetLiveState } from "./sharedPresenceTypes";
 import type { Vector3Tuple } from "./roomState";
 import type { SharedRoomPetRecord } from "./sharedRoomTypes";
 
@@ -23,6 +24,36 @@ export function cloneSharedRoomPetRecord(
   return {
     ...sharedPet,
     spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple
+  };
+}
+
+export function createSharedPetLiveState(
+  sharedPet: SharedRoomPetRecord,
+  ownerPlayerId: string,
+  nowIso: string
+): SharedPetLiveState {
+  return {
+    ownerPlayerId,
+    petId: sharedPet.id,
+    position: [...sharedPet.spawnPosition] as Vector3Tuple,
+    rotationY: 0,
+    stridePhase: 0,
+    targetPosition: null,
+    updatedAt: nowIso,
+    walkAmount: 0
+  };
+}
+
+export function cloneSharedPetLiveState(
+  petState: SharedPetLiveState
+): SharedPetLiveState {
+  return {
+    ...petState,
+    position: [...petState.position] as Vector3Tuple,
+    targetPosition:
+      petState.targetPosition === null
+        ? null
+        : ([...petState.targetPosition] as Vector3Tuple)
   };
 }
 

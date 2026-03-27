@@ -5,7 +5,7 @@ import {
   subscribeToSharedAuth,
   toSharedPlayerProfile as mapFirebasePlayerProfile
 } from "../../lib/firebaseAuth";
-import { getSharedBackendMode } from "../../lib/sharedBackendConfig";
+import { getSharedBackendState } from "../../lib/sharedBackendConfig";
 import { isSharedRoomConflictError, sharedRoomClient } from "../../lib/sharedRoomClient";
 import { sharedRoomOwnershipClient } from "../../lib/sharedRoomOwnershipClient";
 import {
@@ -57,10 +57,17 @@ export interface SharedRoomBlockingState {
 export type SharedRoomRuntimeBootstrapKind =
   | "legacy"
   | "signed_out"
+  | "hosted_unavailable"
   | "needs_linking"
   | "pending_link"
   | "loading_room"
   | "room_ready";
+
+export type SharedRoomRuntimeEntryMode =
+  | "legacy"
+  | "hosted"
+  | "hosted_unavailable"
+  | "dev_fallback";
 
 export interface SharedAuthAdapter<User = unknown> {
   signInWithGoogle(): Promise<unknown>;
@@ -90,6 +97,7 @@ interface SharedRoomRuntimeOptions {
 
 const HOSTED_LOADING_TITLE = "Loading your room...";
 const HOSTED_VERIFY_ERROR_TITLE = "We couldn't verify your room right now.";
+const HOSTED_UNAVAILABLE_TITLE = "Hosted couple room setup is incomplete.";
 const PENDING_LINK_POLL_INTERVAL_MS = 1000;
 
 const defaultSharedAuthAdapter: SharedAuthAdapter<unknown> = {
@@ -127,6 +135,14 @@ function createBlockingState(
     body,
     retryable
   };
+}
+
+function createHostedUnavailableBody(missingKeys: readonly string[]): string {
+  if (missingKeys.length === 0) {
+    return "Google sign-in and hosted couple linking are unavailable until the hosted backend is configured.";
+  }
+
+  return `Missing Firebase setup: ${missingKeys.join(", ")}. Finish the hosted env config before testing Google sign-in and couple linking.`;
 }
 
 export function createSharedRoomSessionFromDocument(
@@ -183,8 +199,9 @@ export function useSharedRoomRuntime({
   sharedRoomOwnershipStore,
   sharedRoomStore = sharedRoomClient
 }: SharedRoomRuntimeOptions = {}) {
+  const backendState = useMemo(() => getSharedBackendState(), []);
   const wantsHostedFlow =
-    hostedFlowEnabled ?? getSharedBackendMode() === "firebase";
+    hostedFlowEnabled ?? backendState.firebaseRequested;
   const resolvedSharedAuthAdapter =
     sharedAuthAdapter === undefined
       ? wantsHostedFlow
@@ -201,7 +218,20 @@ export function useSharedRoomRuntime({
     wantsHostedFlow &&
     resolvedSharedAuthAdapter !== null &&
     resolvedSharedRoomOwnershipStore !== null;
-  const devBypassActive = !hostedFlowActive && devBypassEnabled;
+  const hostedFlowUnavailable = wantsHostedFlow && !hostedFlowActive;
+  const devBypassActive =
+    !hostedFlowActive && !hostedFlowUnavailable && devBypassEnabled;
+  const hostedUnavailableBody = useMemo(
+    () => createHostedUnavailableBody(backendState.firebaseMissingKeys),
+    [backendState.firebaseMissingKeys]
+  );
+  const entryMode: SharedRoomRuntimeEntryMode = hostedFlowActive
+    ? "hosted"
+    : hostedFlowUnavailable
+      ? "hosted_unavailable"
+      : devBypassActive
+        ? "dev_fallback"
+        : "legacy";
   const initialProfile = useMemo(() => loadOrCreateSharedPlayerProfile(), []);
   const [profile, setProfile] = useState<SharedPlayerProfile>(initialProfile);
   const [displayName, setDisplayName] = useState(initialProfile.displayName);
@@ -213,6 +243,10 @@ export function useSharedRoomRuntime({
   const [pendingLink, setPendingLink] = useState<SharedPendingPairLink | null>(null);
   const [bootstrapKind, setBootstrapKind] = useState<SharedRoomRuntimeBootstrapKind>(
     () => {
+      if (hostedFlowUnavailable) {
+        return "hosted_unavailable";
+      }
+
       if (hostedFlowActive || session || devBypassActive) {
         return "loading_room";
       }
@@ -222,6 +256,10 @@ export function useSharedRoomRuntime({
   );
   const [blockingState, setBlockingState] = useState<SharedRoomBlockingState | null>(
     () => {
+      if (hostedFlowUnavailable) {
+        return null;
+      }
+
       if (hostedFlowActive) {
         return createBlockingState(
           HOSTED_LOADING_TITLE,
@@ -547,6 +585,12 @@ export function useSharedRoomRuntime({
   ]);
 
   useEffect(() => {
+    if (hostedFlowUnavailable) {
+      setBlockingState(null);
+      setBootstrapKind("hosted_unavailable");
+      return;
+    }
+
     if (hostedFlowActive) {
       return;
     }
@@ -564,7 +608,13 @@ export function useSharedRoomRuntime({
     }
 
     void loadLegacyRoom(sessionRoomId, "Fetching the latest shared room state.");
-  }, [hostedFlowActive, loadLegacyRoom, roomDocument?.roomId, session?.roomId]);
+  }, [
+    hostedFlowActive,
+    hostedFlowUnavailable,
+    loadLegacyRoom,
+    roomDocument?.roomId,
+    session?.roomId
+  ]);
 
   const createRoom = useCallback(
     async (sourceRoomState: RoomState, sharedCoins: number) => {
@@ -681,6 +731,7 @@ export function useSharedRoomRuntime({
   useEffect(() => {
     if (
       hostedFlowActive ||
+      hostedFlowUnavailable ||
       !devBypassActive ||
       session ||
       roomDocument ||
@@ -693,7 +744,14 @@ export function useSharedRoomRuntime({
     void bootstrapDevRoom().finally(() => {
       devBootstrapRequestRef.current = false;
     });
-  }, [bootstrapDevRoom, devBypassActive, hostedFlowActive, roomDocument, session]);
+  }, [
+    bootstrapDevRoom,
+    devBypassActive,
+    hostedFlowActive,
+    hostedFlowUnavailable,
+    roomDocument,
+    session
+  ]);
 
   useEffect(() => {
     if (
@@ -774,6 +832,12 @@ export function useSharedRoomRuntime({
       return loadHostedRoom(session.roomId, profile, selfPairCode);
     }
 
+    if (hostedFlowUnavailable) {
+      setBootstrapKind("hosted_unavailable");
+      setBlockingState(null);
+      return null;
+    }
+
     if (!session && devBypassActive) {
       return bootstrapDevRoom();
     }
@@ -789,6 +853,7 @@ export function useSharedRoomRuntime({
     bootstrapDevRoom,
     devBypassActive,
     hostedFlowActive,
+    hostedFlowUnavailable,
     loadHostedRoom,
     loadLegacyRoom,
     profile,
@@ -919,6 +984,9 @@ export function useSharedRoomRuntime({
 
   const signInWithGoogle = useCallback(async () => {
     if (!hostedFlowActive || !resolvedSharedAuthAdapter) {
+      if (hostedFlowUnavailable) {
+        setInlineError(hostedUnavailableBody);
+      }
       return null;
     }
 
@@ -930,7 +998,12 @@ export function useSharedRoomRuntime({
       setInlineError(getSharedRoomErrorMessage(error));
       return null;
     }
-  }, [hostedFlowActive, resolvedSharedAuthAdapter]);
+  }, [
+    hostedFlowActive,
+    hostedFlowUnavailable,
+    hostedUnavailableBody,
+    resolvedSharedAuthAdapter
+  ]);
 
   const signOut = useCallback(async () => {
     if (!hostedFlowActive || !resolvedSharedAuthAdapter) {
@@ -1085,10 +1158,22 @@ export function useSharedRoomRuntime({
     setPendingLink(null);
     setBlockingState(null);
     setInlineError(null);
-    setBootstrapKind(hostedFlowActive ? "signed_out" : "legacy");
-  }, [clearActiveRoomState, clearStatusMessage, hostedFlowActive]);
+    setBootstrapKind(
+      hostedFlowActive
+        ? "signed_out"
+        : hostedFlowUnavailable
+          ? "hosted_unavailable"
+          : "legacy"
+    );
+  }, [
+    clearActiveRoomState,
+    clearStatusMessage,
+    hostedFlowActive,
+    hostedFlowUnavailable
+  ]);
 
   return {
+    backendState,
     blockingState,
     bootstrapKind,
     cancelPairLink,
@@ -1100,8 +1185,9 @@ export function useSharedRoomRuntime({
     createRoom,
     devBypassActive,
     displayName,
-    entryMode: hostedFlowActive ? "hosted" : "legacy",
+    entryMode,
     hasPartner: roomDocument?.memberIds.length === 2,
+    hostedUnavailableBody,
     inlineError,
     joinRoom,
     pendingLink,

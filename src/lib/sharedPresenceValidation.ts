@@ -10,6 +10,8 @@ import type {
   SharedPresenceActivity,
   SharedEditLock,
   SharedEditLockRoomSnapshot,
+  SharedPetLiveState,
+  SharedPresenceMotionState,
   SharedPresencePose,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot
@@ -52,9 +54,45 @@ export function isValidSharedPresencePose(value: unknown): value is SharedPresen
     isValidVector3Tuple(value.position) &&
     typeof value.rotationY === "number" &&
     Number.isFinite(value.rotationY) &&
+    (!("furnitureId" in value) ||
+      value.furnitureId === undefined ||
+      typeof value.furnitureId === "string") &&
+    (!("slotId" in value) ||
+      value.slotId === undefined ||
+      typeof value.slotId === "string") &&
     (!("poseOffset" in value) ||
       value.poseOffset === undefined ||
       isValidVector3Tuple(value.poseOffset))
+  );
+}
+
+export function isValidSharedPresenceMotionState(
+  value: unknown
+): value is SharedPresenceMotionState {
+  return (
+    isRecord(value) &&
+    isValidVector3Tuple(value.velocity) &&
+    typeof value.walkAmount === "number" &&
+    Number.isFinite(value.walkAmount) &&
+    typeof value.stridePhase === "number" &&
+    Number.isFinite(value.stridePhase)
+  );
+}
+
+export function isValidSharedPetLiveState(value: unknown): value is SharedPetLiveState {
+  return (
+    isRecord(value) &&
+    typeof value.petId === "string" &&
+    typeof value.ownerPlayerId === "string" &&
+    isValidVector3Tuple(value.position) &&
+    (value.targetPosition === null || isValidVector3Tuple(value.targetPosition)) &&
+    typeof value.rotationY === "number" &&
+    Number.isFinite(value.rotationY) &&
+    typeof value.walkAmount === "number" &&
+    Number.isFinite(value.walkAmount) &&
+    typeof value.stridePhase === "number" &&
+    Number.isFinite(value.stridePhase) &&
+    isIsoDateString(value.updatedAt)
   );
 }
 
@@ -71,7 +109,14 @@ export function isValidSharedPresenceSnapshot(
     typeof value.facingY === "number" &&
     Number.isFinite(value.facingY) &&
     isValidSharedPresenceActivity(value.activity) &&
-    (value.pose === null || isValidSharedPresencePose(value.pose)) &&
+    (!("motion" in value) ||
+      value.motion === undefined ||
+      value.motion === null ||
+      isValidSharedPresenceMotionState(value.motion)) &&
+    (!("pose" in value) ||
+      value.pose === undefined ||
+      value.pose === null ||
+      isValidSharedPresencePose(value.pose)) &&
     isIsoDateString(value.updatedAt)
   );
 }
@@ -84,6 +129,10 @@ export function isValidSharedPresenceRoomSnapshot(
     typeof value.roomId === "string" &&
     Array.isArray(value.presences) &&
     value.presences.every(isValidSharedPresenceSnapshot) &&
+    (!("sharedPetState" in value) ||
+      value.sharedPetState === undefined ||
+      value.sharedPetState === null ||
+      isValidSharedPetLiveState(value.sharedPetState)) &&
     isIsoDateString(value.updatedAt)
   );
 }
@@ -190,6 +239,12 @@ export function validateSharedPresenceSnapshot(
     ...snapshot,
     position: [...snapshot.position] as Vector3Tuple,
     facingY: snapshot.facingY,
+    motion: snapshot.motion
+      ? {
+          ...snapshot.motion,
+          velocity: [...snapshot.motion.velocity] as Vector3Tuple
+        }
+      : null,
     pose: snapshot.pose
       ? {
           ...snapshot.pose,
@@ -213,8 +268,30 @@ export function validateSharedPresenceRoomSnapshot(
 
   return {
     roomId: roomSnapshot.roomId,
+    sharedPetState:
+      roomSnapshot.sharedPetState === null ||
+      roomSnapshot.sharedPetState === undefined
+        ? null
+        : validateSharedPetLiveState(roomSnapshot.sharedPetState),
     updatedAt: roomSnapshot.updatedAt,
     presences: roomSnapshot.presences.map(validateSharedPresenceSnapshot)
+  };
+}
+
+export function validateSharedPetLiveState(value: unknown): SharedPetLiveState {
+  if (!isValidSharedPetLiveState(value)) {
+    throw new Error("Invalid shared pet live state");
+  }
+
+  const petState = value as SharedPetLiveState;
+
+  return {
+    ...petState,
+    position: [...petState.position] as Vector3Tuple,
+    targetPosition:
+      petState.targetPosition === null
+        ? null
+        : ([...petState.targetPosition] as Vector3Tuple)
   };
 }
 

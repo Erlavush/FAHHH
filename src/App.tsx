@@ -44,6 +44,8 @@ import {
 import { pickPetSpawnPosition } from "./lib/petPathing";
 import { upsertSharedRoomFrameMemory } from "./lib/sharedRoomMemories";
 import {
+  cloneSharedPetLiveState,
+  createSharedPetLiveState,
   createSharedRoomPetRecord,
   toRuntimeOwnedPet
 } from "./lib/sharedRoomPet";
@@ -105,6 +107,7 @@ import {
   vectorsMatch
 } from "./lib/roomPlacementEquality";
 import type { SharedPlayerDeskPcProgress } from "./lib/sharedProgressionTypes";
+import type { SharedPetLiveState } from "./lib/sharedPresenceTypes";
 import type { SharedRoomFrameMemory } from "./lib/sharedRoomTypes";
 
 const RoomView = lazy(async () => {
@@ -298,6 +301,8 @@ function App() {
       activity: "idle",
       interactionPose: null
     });
+  const [localSharedPetState, setLocalSharedPetState] =
+    useState<SharedPetLiveState | null>(null);
   const [pcMinigameProgress, setPcMinigameProgress] = useState(initialSandboxState.pcMinigame);
   const [sharedPcResult, setSharedPcResult] = useState<{
     dailyRitualStatus: string;
@@ -358,6 +363,7 @@ function App() {
     enabled: sharedRoomActive,
     bootstrapKind: sharedRoomRuntime.bootstrapKind,
     localPresence: localPresenceSnapshot,
+    localSharedPetState,
     pendingLinkId:
       sharedRoomRuntime.bootstrapKind === "pending_link"
         ? sharedRoomRuntime.pendingLink?.pendingLinkId ?? null
@@ -367,6 +373,57 @@ function App() {
     roomId: sharedRoomRuntime.runtimeSnapshot?.roomId ?? null,
     skinSrc
   });
+  const sharedPetAuthorityActive =
+    sharedRoomActive &&
+    Boolean(sharedRoomRuntime.runtimeSnapshot?.sharedPet) &&
+    (sharedRoomPresence.remotePresence === null ||
+      sharedRoomRuntime.profile.playerId.localeCompare(
+        sharedRoomRuntime.session?.partnerId ?? sharedRoomRuntime.profile.playerId
+      ) <= 0);
+  const effectiveSharedPetLiveState = sharedPetAuthorityActive
+    ? localSharedPetState ?? sharedRoomPresence.sharedPetState
+    : sharedRoomPresence.sharedPetState;
+  const sharedRuntimePetRecord = sharedRoomRuntime.runtimeSnapshot?.sharedPet ?? null;
+
+  useEffect(() => {
+    if (!sharedRoomActive || !sharedRuntimePetRecord) {
+      setLocalSharedPetState(null);
+      return;
+    }
+
+    if (!sharedPetAuthorityActive) {
+      setLocalSharedPetState(null);
+      return;
+    }
+
+    setLocalSharedPetState((currentState) => {
+      if (
+        currentState &&
+        currentState.petId === sharedRuntimePetRecord.id
+      ) {
+        return currentState;
+      }
+
+      if (
+        sharedRoomPresence.sharedPetState &&
+        sharedRoomPresence.sharedPetState.petId === sharedRuntimePetRecord.id
+      ) {
+        return cloneSharedPetLiveState(sharedRoomPresence.sharedPetState);
+      }
+
+      return createSharedPetLiveState(
+        sharedRuntimePetRecord,
+        sharedRoomRuntime.profile.playerId,
+        new Date().toISOString()
+      );
+    });
+  }, [
+    sharedPetAuthorityActive,
+    sharedRoomActive,
+    sharedRoomPresence.sharedPetState,
+    sharedRoomRuntime.profile.playerId,
+    sharedRuntimePetRecord
+  ]);
   const activePlayerProgression = useMemo(
     () =>
       sharedRoomRuntime.runtimeSnapshot
@@ -1418,7 +1475,8 @@ function App() {
 
   const effectiveShellViewMode: AppShellViewMode = isDev ? shellViewMode : "player";
   const hostedEntryFlowActive =
-    sharedRoomRuntime.entryMode === "hosted" &&
+    (sharedRoomRuntime.entryMode === "hosted" ||
+      sharedRoomRuntime.entryMode === "hosted_unavailable") &&
     sharedRoomRuntime.bootstrapKind !== "room_ready";
   const developerSurfaceVisible =
     isDeveloperSurfaceVisible(effectiveShellViewMode, isDev) &&
@@ -1434,6 +1492,7 @@ function App() {
     memberCount,
     presenceStatus: sharedRoomPresence.presenceStatus,
     ritualStatus,
+    runtimeEntryMode: sharedRoomRuntime.entryMode,
     showInviteCode: !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null,
     statusMessage: sharedRoomRuntime.statusMessage
   });
@@ -1493,6 +1552,12 @@ function App() {
               selfPairCode={sharedRoomRuntime.selfPairCode}
             />
           ) : null
+        ) : sharedRoomRuntime.entryMode === "hosted_unavailable" ? (
+          <SharedRoomEntryShell
+            detail={sharedRoomRuntime.hostedUnavailableBody}
+            errorMessage={sharedRoomRuntime.inlineError}
+            mode="hosted_unavailable"
+          />
         ) : (
           <SharedRoomEntryShell
             displayName={sharedRoomRuntime.displayName}
@@ -1574,6 +1639,7 @@ function App() {
         showInteractionMarkers={showInteractionMarkers}
         onCameraPositionChange={handleCameraPositionChange}
         onLocalPresenceChange={setLocalPresenceSnapshot}
+        onLocalSharedPetStateChange={setLocalSharedPetState}
         onPlayerPositionChange={handlePlayerPositionChange}
         onFurnitureSnapshotChange={handleFurnitureSnapshotChange}
         onCommittedFurnitureChange={handleCommittedFurnitureChange}
@@ -1584,6 +1650,8 @@ function App() {
         remotePresence={sharedRoomPresence.remotePresence}
         renewEditLock={sharedRoomPresence.renewEditLock}
         sceneJumpRequest={sceneJumpRequest}
+        sharedPetAuthorityActive={sharedPetAuthorityActive}
+        sharedPetLiveState={effectiveSharedPetLiveState}
       />
     </Suspense>
   );

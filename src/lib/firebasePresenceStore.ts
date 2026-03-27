@@ -24,6 +24,7 @@ import type {
   SharedEditLockRoomSnapshot,
   SharedPairLinkPresence,
   SharedPairLinkPresenceSnapshot,
+  SharedPetLiveState,
   SharedPresenceRoomSnapshot,
   SharedPresenceSnapshot,
   UpsertPairLinkPresenceInput,
@@ -34,6 +35,7 @@ import {
   validateSharedEditLockRoomSnapshot,
   validateSharedPairLinkPresence,
   validateSharedPairLinkPresenceSnapshot,
+  validateSharedPetLiveState,
   validateSharedPresenceRoomSnapshot,
   validateSharedPresenceSnapshot
 } from "./sharedPresenceValidation";
@@ -78,11 +80,13 @@ function createTimestamp(nowIso?: string | number | Date): string {
 function buildPresenceSnapshot(
   roomId: string,
   presenceMap: Record<string, SharedPresenceSnapshot>,
+  sharedPetState: SharedPetLiveState | null,
   updatedAt: string
 ): SharedPresenceRoomSnapshot {
   return validateSharedPresenceRoomSnapshot({
     roomId,
     presences: Object.values(presenceMap),
+    sharedPetState,
     updatedAt
   });
 }
@@ -112,7 +116,7 @@ function buildPairLinkPresenceSnapshot(
 }
 
 function createEmptyPresenceSnapshot(roomId: string, updatedAt: string) {
-  return buildPresenceSnapshot(roomId, {}, updatedAt);
+  return buildPresenceSnapshot(roomId, {}, null, updatedAt);
 }
 
 function createEmptyLockSnapshot(roomId: string, updatedAt: string) {
@@ -151,6 +155,61 @@ function pruneExpiredMemoryLocks(
   );
 }
 
+function normalizeRoomPresenceRecord(
+  rawValue: Record<string, unknown> | null | undefined
+): {
+  presences: Record<string, SharedPresenceSnapshot>;
+  sharedPetState: SharedPetLiveState | null;
+} {
+  if (!rawValue) {
+    return {
+      presences: {},
+      sharedPetState: null
+    };
+  }
+
+  if ("presences" in rawValue) {
+    const rawPresences = rawValue.presences;
+    const rawSharedPetState = "sharedPetState" in rawValue ? rawValue.sharedPetState : null;
+
+    return {
+      presences:
+        rawPresences && typeof rawPresences === "object"
+          ? Object.fromEntries(
+              Object.entries(rawPresences).map(([playerId, presence]) => [
+                playerId,
+                validateSharedPresenceSnapshot(presence)
+              ])
+            )
+          : {},
+      sharedPetState:
+        rawSharedPetState === null || rawSharedPetState === undefined
+          ? null
+          : validateSharedPetLiveState(rawSharedPetState)
+    };
+  }
+
+  return {
+    presences: Object.fromEntries(
+      Object.entries(rawValue).map(([playerId, presence]) => [
+        playerId,
+        validateSharedPresenceSnapshot(presence)
+      ])
+    ),
+    sharedPetState: null
+  };
+}
+
+function createRoomPresenceRecord(
+  presences: Record<string, SharedPresenceSnapshot>,
+  sharedPetState: SharedPetLiveState | null
+): Record<string, unknown> {
+  return {
+    presences,
+    sharedPetState
+  };
+}
+
 export function createFirebasePresenceStore(
   options: FirebasePresenceStoreOptions = {}
 ): SharedPresenceStore {
@@ -165,17 +224,30 @@ export function createFirebasePresenceStore(
         const updatedAt = now();
 
         ensureMemoryRoomMembership(database, presence.roomId, presence.playerId);
-        const roomPresence = (database.roomPresence[presence.roomId] ??
-          {}) as Record<string, SharedPresenceSnapshot>;
+        const roomPresence = normalizeRoomPresenceRecord(
+          database.roomPresence[presence.roomId] as Record<string, unknown> | undefined
+        );
         const nextPresence = validateSharedPresenceSnapshot({
           ...presence,
           updatedAt
         });
+        const sharedPetState =
+          input.sharedPetState === undefined
+            ? roomPresence.sharedPetState
+            : input.sharedPetState === null
+              ? null
+              : validateSharedPetLiveState({
+                  ...input.sharedPetState,
+                  updatedAt
+                });
 
-        database.roomPresence[presence.roomId] = {
-          ...roomPresence,
-          [presence.playerId]: nextPresence
-        };
+        database.roomPresence[presence.roomId] = createRoomPresenceRecord(
+          {
+            ...roomPresence.presences,
+            [presence.playerId]: nextPresence
+          },
+          sharedPetState
+        );
 
         return nextPresence;
       },
@@ -185,19 +257,36 @@ export function createFirebasePresenceStore(
           input.roomId,
           database.sharedRooms[input.roomId]?.memberIds[0] ?? ""
         );
-        const roomPresence = (database.roomPresence[input.roomId] ??
-          {}) as Record<string, SharedPresenceSnapshot>;
-        return buildPresenceSnapshot(input.roomId, roomPresence, now());
+        const roomPresence = normalizeRoomPresenceRecord(
+          database.roomPresence[input.roomId] as Record<string, unknown> | undefined
+        );
+        return buildPresenceSnapshot(
+          input.roomId,
+          roomPresence.presences,
+          roomPresence.sharedPetState,
+          now()
+        );
       },
       async leavePresence(input: LeaveSharedPresenceInput) {
-        const roomPresence = (database.roomPresence[input.roomId] ??
-          {}) as Record<string, SharedPresenceSnapshot>;
+        const roomPresence = normalizeRoomPresenceRecord(
+          database.roomPresence[input.roomId] as Record<string, unknown> | undefined
+        );
         const nextRoomPresence = Object.fromEntries(
-          Object.entries(roomPresence).filter(([playerId]) => playerId !== input.playerId)
+          Object.entries(roomPresence.presences).filter(
+            ([playerId]) => playerId !== input.playerId
+          )
         );
 
-        database.roomPresence[input.roomId] = nextRoomPresence;
-        return buildPresenceSnapshot(input.roomId, nextRoomPresence, now());
+        database.roomPresence[input.roomId] = createRoomPresenceRecord(
+          nextRoomPresence,
+          roomPresence.sharedPetState
+        );
+        return buildPresenceSnapshot(
+          input.roomId,
+          nextRoomPresence,
+          roomPresence.sharedPetState,
+          now()
+        );
       },
       async acquireEditLock(input: AcquireSharedEditLockInput) {
         ensureMemoryRoomMembership(database, input.roomId, input.playerId);
@@ -317,11 +406,18 @@ export function createFirebasePresenceStore(
   ): Promise<SharedPresenceRoomSnapshot> {
     const roomPresenceRef = ref(realtimeDatabase, `roomPresence/${roomId}`);
     const roomPresenceSnapshot = await get(roomPresenceRef);
-    const presenceMap = roomPresenceSnapshot.exists()
-      ? (roomPresenceSnapshot.val() as Record<string, SharedPresenceSnapshot>)
-      : {};
+    const roomPresenceRecord = normalizeRoomPresenceRecord(
+      roomPresenceSnapshot.exists()
+        ? (roomPresenceSnapshot.val() as Record<string, unknown>)
+        : undefined
+    );
 
-    return buildPresenceSnapshot(roomId, presenceMap, now());
+    return buildPresenceSnapshot(
+      roomId,
+      roomPresenceRecord.presences,
+      roomPresenceRecord.sharedPetState,
+      now()
+    );
   }
 
   async function loadLockSnapshot(roomId: string): Promise<SharedEditLockRoomSnapshot> {
@@ -359,17 +455,39 @@ export function createFirebasePresenceStore(
   return {
     async upsertPresence(input: UpsertSharedPresenceInput) {
       const presence = validateSharedPresenceSnapshot(input.presence);
-      const presenceRef = ref(
-        realtimeDatabase,
-        `roomPresence/${presence.roomId}/${presence.playerId}`
-      );
+      const presenceRef = ref(realtimeDatabase, `roomPresence/${presence.roomId}/presences`);
       const nextPresence = validateSharedPresenceSnapshot({
         ...presence,
         updatedAt: now()
       });
+      const sharedPetState =
+        input.sharedPetState === undefined
+          ? undefined
+          : input.sharedPetState === null
+            ? null
+            : validateSharedPetLiveState({
+                ...input.sharedPetState,
+                updatedAt: now()
+              });
 
-      await set(presenceRef, nextPresence);
-      void onDisconnect(presenceRef).remove();
+      await runTransaction(presenceRef, (currentValue) => {
+        const presenceMap =
+          currentValue && typeof currentValue === "object"
+            ? (currentValue as Record<string, SharedPresenceSnapshot>)
+            : {};
+        return {
+          ...presenceMap,
+          [presence.playerId]: nextPresence
+        };
+      });
+      void onDisconnect(ref(realtimeDatabase, `roomPresence/${presence.roomId}/presences/${presence.playerId}`)).remove();
+
+      if (sharedPetState !== undefined) {
+        await set(
+          ref(realtimeDatabase, `roomPresence/${presence.roomId}/sharedPetState`),
+          sharedPetState
+        );
+      }
 
       return nextPresence;
     },
@@ -378,7 +496,7 @@ export function createFirebasePresenceStore(
     },
     async leavePresence(input: LeaveSharedPresenceInput) {
       await remove(
-        ref(realtimeDatabase, `roomPresence/${input.roomId}/${input.playerId}`)
+        ref(realtimeDatabase, `roomPresence/${input.roomId}/presences/${input.playerId}`)
       );
       return loadRoomPresenceSnapshot(input.roomId);
     },

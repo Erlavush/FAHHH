@@ -19,7 +19,12 @@ function createPresenceStatus(
     title,
     body: `${title} body`,
     isBlocking: false,
-    tone: title === "Partner reconnecting" ? "attention" : "success"
+    tone:
+      title === "Partner reconnecting"
+        ? "attention"
+        : title === "Partner away" || title === "Waiting for partner"
+          ? "presence"
+          : "success"
   };
 }
 
@@ -67,6 +72,7 @@ describe("shellViewModel", () => {
       memberCount: 1,
       presenceStatus: createPresenceStatus("Waiting for partner"),
       ritualStatus: createRitualStatus(false),
+      runtimeEntryMode: "legacy",
       showInviteCode: true,
       statusMessage: null
     });
@@ -75,6 +81,7 @@ describe("shellViewModel", () => {
       memberCount: 2,
       presenceStatus: createPresenceStatus("Together now"),
       ritualStatus: createRitualStatus(true),
+      runtimeEntryMode: "hosted",
       showInviteCode: false,
       statusMessage: null
     });
@@ -83,15 +90,29 @@ describe("shellViewModel", () => {
       memberCount: 2,
       presenceStatus: createPresenceStatus("Partner reconnecting"),
       ritualStatus: createRitualStatus(false),
+      runtimeEntryMode: "dev_fallback",
       showInviteCode: false,
       statusMessage: "Reloading latest room..."
+    });
+    const awayState = getPlayerCompanionCardState({
+      inviteCode: "ABCD12",
+      memberCount: 2,
+      presenceStatus: createPresenceStatus("Partner away"),
+      ritualStatus: createRitualStatus(false),
+      runtimeEntryMode: "hosted",
+      showInviteCode: false,
+      statusMessage: null
     });
 
     expect(waitingState.partnerTitle).toBe("Waiting for partner");
     expect(waitingState.ritualTitle).toBe("Daily ritual pending");
+    expect(waitingState.roomModeLabel).toBe("Local room");
     expect(togetherState.partnerTitle).toBe("Together now");
     expect(togetherState.ritualTitle).toBe("Daily ritual complete");
-    expect(reconnectingState.partnerTitle).toBe("Reconnecting");
+    expect(togetherState.roomModeLabel).toBe("Hosted couple room");
+    expect(reconnectingState.partnerTitle).toBe("Partner reconnecting");
+    expect(reconnectingState.roomModeLabel).toBe("Local dev room");
+    expect(awayState.partnerTitle).toBe("Partner away");
   });
 
   it("keeps room details actions secondary and player-safe", () => {

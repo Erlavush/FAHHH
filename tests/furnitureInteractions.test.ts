@@ -63,6 +63,7 @@ describe("furniture interactions", () => {
     expect(target?.type).toBe("lie");
     expect(target?.position[0]).toBeCloseTo(1.38);
     expect(target?.position[2]).toBeCloseTo(-0.8);
+    expect(target?.slotId).toBe("primary");
     expect(target?.approachPosition?.[0]).toBeCloseTo(0.05);
     expect(target?.approachPosition?.[2]).toBeCloseTo(-0.8);
     expect(target?.poseOffset).toEqual([0, 0.84, 1]);
@@ -86,12 +87,66 @@ describe("furniture interactions", () => {
     expect(targets).toHaveLength(2);
     expect(targets[0]?.position[0]).toBeCloseTo(1.38);
     expect(targets[1]?.position[0]).toBeCloseTo(2);
+    expect(targets[0]?.slotId).toBe("primary");
+    expect(targets[1]?.slotId).toBe("secondary");
     expect(targets[0]?.position[2]).toBeCloseTo(-0.8);
     expect(targets[1]?.position[2]).toBeCloseTo(-0.5);
     expect(targets[0]?.approachPosition?.[0]).toBeLessThan(0.5);
     expect(targets[1]?.approachPosition?.[0]).toBeGreaterThan(3.4);
     expect(targets[0]?.poseOffset).toEqual([0, 0.84, 1]);
     expect(targets[1]?.poseOffset).toEqual([0, 0.84, 1]);
+  });
+
+  it("keeps the first bed user on the primary slot when no side is occupied", () => {
+    const bed: RoomFurniturePlacement = {
+      id: "bed-a",
+      type: "bed",
+      surface: "floor",
+      position: [2, 0, -1],
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("bed-a")
+    };
+
+    const target = getFurnitureInteractionTarget(bed, [bed], {
+      occupiedSlotIds: []
+    });
+
+    expect(target?.slotId).toBe("primary");
+  });
+
+  it("assigns the second bed user to the open slot when one side is occupied", () => {
+    const bed: RoomFurniturePlacement = {
+      id: "bed-a",
+      type: "bed",
+      surface: "floor",
+      position: [2, 0, -1],
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("bed-a")
+    };
+
+    const target = getFurnitureInteractionTarget(bed, [bed], {
+      occupiedSlotIds: ["primary"]
+    });
+
+    expect(target?.slotId).toBe("secondary");
+    expect(target?.position[0]).toBeCloseTo(2);
+  });
+
+  it("returns null when both bed sides are already occupied", () => {
+    const bed: RoomFurniturePlacement = {
+      id: "bed-a",
+      type: "bed",
+      surface: "floor",
+      position: [2, 0, -1],
+      rotationY: 0,
+      ownedFurnitureId: createOwnedFurnitureId("bed-a")
+    };
+
+    expect(
+      getFurnitureInteractionTarget(bed, [bed], {
+        occupiedSlotIds: ["primary", "secondary"]
+      })
+    ).toBeNull();
   });
 
   it("returns a pc-use target for a desk when a chair overlaps the front zone", () => {

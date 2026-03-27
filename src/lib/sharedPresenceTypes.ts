@@ -11,9 +11,28 @@ export type SharedPresencePoseType = "sit" | "lie" | "use_pc";
 
 export interface SharedPresencePose {
   type: SharedPresencePoseType;
+  furnitureId?: string;
   position: Vector3Tuple;
   rotationY: number;
   poseOffset?: Vector3Tuple;
+  slotId?: string;
+}
+
+export interface SharedPresenceMotionState {
+  stridePhase: number;
+  velocity: Vector3Tuple;
+  walkAmount: number;
+}
+
+export interface SharedPetLiveState {
+  ownerPlayerId: string;
+  petId: string;
+  position: Vector3Tuple;
+  rotationY: number;
+  stridePhase: number;
+  targetPosition: Vector3Tuple | null;
+  updatedAt: string;
+  walkAmount: number;
 }
 
 export interface SharedPresenceSnapshot {
@@ -24,6 +43,7 @@ export interface SharedPresenceSnapshot {
   position: Vector3Tuple;
   facingY: number;
   activity: SharedPresenceActivity;
+  motion: SharedPresenceMotionState | null;
   pose: SharedPresencePose | null;
   updatedAt: string;
 }
@@ -31,6 +51,7 @@ export interface SharedPresenceSnapshot {
 export interface SharedPresenceRoomSnapshot {
   roomId: string;
   presences: SharedPresenceSnapshot[];
+  sharedPetState: SharedPetLiveState | null;
   updatedAt: string;
 }
 
@@ -64,6 +85,7 @@ export interface SharedPairLinkPresenceSnapshot {
 
 export interface UpsertSharedPresenceInput {
   presence: SharedPresenceSnapshot;
+  sharedPetState?: SharedPetLiveState | null;
 }
 
 export interface LoadSharedRoomPresenceInput {

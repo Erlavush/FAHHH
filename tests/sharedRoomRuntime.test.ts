@@ -404,10 +404,45 @@ describe("shared room runtime helpers", () => {
       })
     });
     expect(latestHookValue?.devBypassActive).toBe(true);
+    expect(latestHookValue?.entryMode).toBe("dev_fallback");
     expect(latestHookValue?.runtimeSnapshot?.roomId).toBe("dev-shared-room");
     expect(latestHookValue?.runtimeSnapshot?.progression.players[profile.playerId]?.coins).toBe(
       120
     );
+  });
+
+  it("blocks in a hosted-unavailable state instead of silently entering the dev room", async () => {
+    const sharedRoomStore: SharedRoomStore = {
+      bootstrapDevSharedRoom: vi.fn(),
+      createSharedRoom: vi.fn(),
+      joinSharedRoom: vi.fn(),
+      loadSharedRoom: vi.fn(),
+      commitSharedRoomState: vi.fn()
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(HookHarness, {
+          devBypassEnabled: true,
+          hostedFlowEnabled: true,
+          sharedAuthAdapter: null,
+          sharedRoomOwnershipStore: null,
+          sharedRoomStore
+        })
+      );
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.entryMode).toBe("hosted_unavailable");
+    expect(latestHookValue?.bootstrapKind).toBe("hosted_unavailable");
+    expect(latestHookValue?.devBypassActive).toBe(false);
+    expect(latestHookValue?.runtimeSnapshot).toBeNull();
+    expect(latestHookValue?.hostedUnavailableBody).toContain("hosted");
+    expect(sharedRoomStore.bootstrapDevSharedRoom).not.toHaveBeenCalled();
   });
 
   it("loads the paired room automatically for an authenticated member", async () => {

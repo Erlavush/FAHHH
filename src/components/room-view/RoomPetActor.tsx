@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { ImportedMobPreset } from "../../lib/mobLab";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../lib/petPathing";
 import type { OwnedPet } from "../../lib/pets";
 import type { RoomFurniturePlacement, Vector3Tuple } from "../../lib/roomState";
+import type { SharedPetLiveState } from "../../lib/sharedPresenceTypes";
 import { ImportedMobActor } from "../mob-lab/ImportedMobActor";
 import type { MobExternalMotionState } from "../mob-lab/MobPreviewActor";
 
@@ -31,40 +32,83 @@ function lerpAngle(current: number, target: number, factor: number): number {
 }
 
 export function RoomPetActor({
+  authorityActive = false,
+  onSharedLiveStateChange = null,
   pet,
   preset,
   playerPosition,
   furniture,
-  shadowsEnabled
+  shadowsEnabled,
+  sharedLiveState = null
 }: {
+  authorityActive?: boolean;
+  onSharedLiveStateChange?: ((state: SharedPetLiveState) => void) | null;
   pet: OwnedPet;
   preset: ImportedMobPreset;
   playerPosition: Vector3Tuple;
   furniture: RoomFurniturePlacement[];
   shadowsEnabled: boolean;
+  sharedLiveState?: SharedPetLiveState | null;
 }) {
   const obstacles = useMemo(() => buildPetObstacles(furniture), [furniture]);
   const randomSourceRef = useRef(createSeededRandom(pet.id));
   const targetPositionRef = useRef<Vector3Tuple | null>(null);
   const idleTimerRef = useRef(0.8);
+  const lastBroadcastTimeRef = useRef(0);
   const motionStateRef = useRef<MobExternalMotionState>({
-    position: [...pet.spawnPosition] as Vector3Tuple,
-    rotationY: 0,
-    walkAmount: 0,
-    stridePhase: 0
+    position:
+      sharedLiveState?.position
+        ? ([...sharedLiveState.position] as Vector3Tuple)
+        : ([...pet.spawnPosition] as Vector3Tuple),
+    rotationY: sharedLiveState?.rotationY ?? 0,
+    walkAmount: sharedLiveState?.walkAmount ?? 0,
+    stridePhase: sharedLiveState?.stridePhase ?? 0
   });
+
+  useEffect(() => {
+    if (!sharedLiveState) {
+      return;
+    }
+
+    motionStateRef.current = {
+      position: [...sharedLiveState.position] as Vector3Tuple,
+      rotationY: sharedLiveState.rotationY,
+      walkAmount: sharedLiveState.walkAmount,
+      stridePhase: sharedLiveState.stridePhase
+    };
+    targetPositionRef.current = sharedLiveState.targetPosition
+      ? ([...sharedLiveState.targetPosition] as Vector3Tuple)
+      : null;
+  }, [sharedLiveState]);
 
   useFrame((_, delta) => {
     const motion = motionStateRef.current;
+    const isReplicatingSharedState = sharedLiveState !== null && !authorityActive;
+
+    if (isReplicatingSharedState) {
+      motion.position = [
+        motion.position[0] + (sharedLiveState.position[0] - motion.position[0]) * Math.min(1, delta * 8),
+        0,
+        motion.position[2] + (sharedLiveState.position[2] - motion.position[2]) * Math.min(1, delta * 8)
+      ];
+      motion.rotationY = lerpAngle(
+        motion.rotationY,
+        sharedLiveState.rotationY,
+        Math.min(1, delta * 10)
+      );
+      motion.walkAmount = sharedLiveState.walkAmount;
+      motion.stridePhase = sharedLiveState.stridePhase;
+      targetPositionRef.current = sharedLiveState.targetPosition
+        ? ([...sharedLiveState.targetPosition] as Vector3Tuple)
+        : null;
+      return;
+    }
+
     const nextRandom = randomSourceRef.current;
-
     const isCat = preset.id === "better_cat_glb";
-
-    // Species-specific behavior parameters
     const baseSpeed = isCat
-      ? Math.min(2.5, Math.max(1.0, preset.locomotion.speed * 0.85)) // Cat speed
-      : Math.min(0.5, Math.max(0.1, preset.locomotion.speed * 0.22)); // Other pets (raccoon) default
-
+      ? Math.min(2.5, Math.max(1.0, preset.locomotion.speed * 0.85))
+      : Math.min(0.5, Math.max(0.1, preset.locomotion.speed * 0.22));
     const minWanderRadius = isCat ? 4.0 : 0.8;
     const maxWanderRadius = isCat ? 8.5 : 2.5;
 
@@ -87,6 +131,15 @@ export function RoomPetActor({
       motion.walkAmount = 0;
 
       if (idleTimerRef.current > 0) {
+        maybeBroadcastSharedState(
+          authorityActive,
+          onSharedLiveStateChange,
+          sharedLiveState,
+          pet.id,
+          motion,
+          targetPositionRef.current,
+          lastBroadcastTimeRef
+        );
         return;
       }
     }
@@ -109,11 +162,19 @@ export function RoomPetActor({
 
     if (distanceToTarget < 0.12) {
       targetPositionRef.current = null;
-      // Species-specific idle range
       idleTimerRef.current = isCat
-        ? 2.0 + nextRandom() * 2.0 // Cat: 2s - 4s idle
-        : 1.0 + nextRandom() * 3.0; // Others: 1s - 4s idle
+        ? 2.0 + nextRandom() * 2.0
+        : 1.0 + nextRandom() * 3.0;
       motion.walkAmount = 0;
+      maybeBroadcastSharedState(
+        authorityActive,
+        onSharedLiveStateChange,
+        sharedLiveState,
+        pet.id,
+        motion,
+        null,
+        lastBroadcastTimeRef
+      );
       return;
     }
 
@@ -134,6 +195,15 @@ export function RoomPetActor({
       );
       idleTimerRef.current = 0.1;
       motion.walkAmount = 0;
+      maybeBroadcastSharedState(
+        authorityActive,
+        onSharedLiveStateChange,
+        sharedLiveState,
+        pet.id,
+        motion,
+        targetPositionRef.current,
+        lastBroadcastTimeRef
+      );
       return;
     }
 
@@ -144,6 +214,16 @@ export function RoomPetActor({
       motion.rotationY,
       Math.atan2(deltaX, deltaZ),
       Math.min(1, delta * (isCat ? 12 : 5))
+    );
+
+    maybeBroadcastSharedState(
+      authorityActive,
+      onSharedLiveStateChange,
+      sharedLiveState,
+      pet.id,
+      motion,
+      targetPositionRef.current,
+      lastBroadcastTimeRef
     );
   });
 
@@ -156,4 +236,36 @@ export function RoomPetActor({
       externalMotionStateRef={motionStateRef}
     />
   );
+}
+
+function maybeBroadcastSharedState(
+  authorityActive: boolean,
+  onSharedLiveStateChange: ((state: SharedPetLiveState) => void) | null,
+  sharedLiveState: SharedPetLiveState | null,
+  petId: string,
+  motion: MobExternalMotionState,
+  targetPosition: Vector3Tuple | null,
+  lastBroadcastTimeRef: MutableRefObject<number>
+) {
+  if (!authorityActive || !sharedLiveState || !onSharedLiveStateChange) {
+    return;
+  }
+
+  const nowMs = Date.now();
+
+  if (nowMs - lastBroadcastTimeRef.current < 200) {
+    return;
+  }
+
+  lastBroadcastTimeRef.current = nowMs;
+  onSharedLiveStateChange({
+    ownerPlayerId: sharedLiveState.ownerPlayerId,
+    petId,
+    position: [...motion.position] as Vector3Tuple,
+    rotationY: motion.rotationY,
+    stridePhase: motion.stridePhase,
+    targetPosition: targetPosition ? ([...targetPosition] as Vector3Tuple) : null,
+    updatedAt: new Date(nowMs).toISOString(),
+    walkAmount: motion.walkAmount
+  });
 }

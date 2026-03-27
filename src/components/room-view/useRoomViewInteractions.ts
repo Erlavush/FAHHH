@@ -16,7 +16,8 @@ import {
 } from "../../lib/furnitureCollision";
 import type {
   SharedPresenceActivity,
-  SharedPresencePose
+  SharedPresencePose,
+  SharedPresenceSnapshot
 } from "../../lib/sharedPresenceTypes";
 import {
   getFurnitureInteractionTarget,
@@ -64,6 +65,7 @@ type UseRoomViewInteractionsOptions = {
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   playerWorldPosition: Vector3Tuple;
+  remotePresence: SharedPresenceSnapshot | null;
   setPlayerWorldPosition: Dispatch<SetStateAction<Vector3Tuple>>;
   standRequestToken: number;
 };
@@ -78,6 +80,7 @@ export function useRoomViewInteractions({
   onInteractionStateChange,
   onPlayerPositionChange,
   playerWorldPosition,
+  remotePresence,
   setPlayerWorldPosition,
   standRequestToken
 }: UseRoomViewInteractionsOptions) {
@@ -127,11 +130,30 @@ export function useRoomViewInteractions({
 
     return {
       type: activeInteraction.type,
+      furnitureId: activeInteraction.furnitureId,
       position: activeInteraction.position,
       rotationY: activeInteraction.rotationY,
-      poseOffset: activeInteraction.poseOffset
+      poseOffset: activeInteraction.poseOffset,
+      slotId: activeInteraction.slotId
     };
   }, [activeInteraction]);
+
+  const getOccupiedLieSlots = useCallback(
+    (furnitureId: string): Set<string> => {
+      const occupiedSlotIds = new Set<string>();
+
+      if (
+        remotePresence?.pose?.type === "lie" &&
+        remotePresence.pose.furnitureId === furnitureId &&
+        remotePresence.pose.slotId
+      ) {
+        occupiedSlotIds.add(remotePresence.pose.slotId);
+      }
+
+      return occupiedSlotIds;
+    },
+    [remotePresence]
+  );
 
   const playerPresenceActivity = useMemo<SharedPresenceActivity>(() => {
     if (activeInteraction) {
@@ -474,7 +496,10 @@ export function useRoomViewInteractions({
 
       const interactionTarget = getFurnitureInteractionTarget(
         clickedFurniture,
-        furniture
+        furniture,
+        {
+          occupiedSlotIds: getOccupiedLieSlots(furnitureId)
+        }
       );
 
       if (!interactionTarget) {
@@ -533,6 +558,7 @@ export function useRoomViewInteractions({
       buildModeEnabled,
       clearPlayerInteraction,
       furniture,
+      getOccupiedLieSlots,
       isDraggingFurniture,
       isTransformingFurniture,
       resolveInteractionExitPosition,

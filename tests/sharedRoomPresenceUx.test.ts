@@ -49,7 +49,10 @@ function createLocalPresence(): LocalPlayerPresenceSnapshot {
   };
 }
 
-function createRoomPresenceSnapshot(updatedAt: string) {
+function createRoomPresenceSnapshot(
+  updatedAt: string,
+  pose: LocalPlayerPresenceSnapshot["interactionPose"] = null
+) {
   return {
     roomId: "shared-room-1",
     updatedAt,
@@ -62,10 +65,16 @@ function createRoomPresenceSnapshot(updatedAt: string) {
         position: [1, 0, -1] as [number, number, number],
         facingY: 1.2,
         activity: "walking" as const,
-        pose: null,
+        motion: {
+          velocity: [0.2, 0, 0.1] as [number, number, number],
+          walkAmount: 0.66,
+          stridePhase: 2.1
+        },
+        pose,
         updatedAt
       }
-    ]
+    ],
+    sharedPetState: null
   };
 }
 
@@ -228,6 +237,15 @@ describe("sharedRoomPresence UX", () => {
     await flushHookEffects();
 
     expect(latestHookValue?.presenceStatus.title).toBe("Partner reconnecting");
+
+    await act(async () => {
+      remoteUpdatedAt = new Date(Date.now() - 12000).toISOString();
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.presenceStatus.title).toBe("Partner away");
   });
 
   it("does not start room presence before the room is ready", async () => {
@@ -274,5 +292,32 @@ describe("sharedRoomPresence UX", () => {
     expect(upsertPresence).not.toHaveBeenCalled();
     expect(loadPairLinkPresence).toHaveBeenCalled();
     expect(upsertPairLinkPresence).toHaveBeenCalled();
+  });
+
+  it("preserves the partner's chosen bed slot for mirrored room rendering", async () => {
+    const sharedPresenceStore = createSharedPresenceStore(
+      vi.fn().mockResolvedValue(
+        createRoomPresenceSnapshot(new Date(Date.now()).toISOString(), {
+          type: "lie",
+          furnitureId: "bed-a",
+          position: [2, 0, -0.5],
+          rotationY: Math.PI,
+          slotId: "secondary",
+          poseOffset: [0, 0.84, 1]
+        })
+      )
+    );
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(createElement(HookHarness, { sharedPresenceStore }));
+    });
+    await flushHookEffects();
+
+    expect(latestHookValue?.remotePresence?.pose?.furnitureId).toBe("bed-a");
+    expect(latestHookValue?.remotePresence?.pose?.slotId).toBe("secondary");
   });
 });

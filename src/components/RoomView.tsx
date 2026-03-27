@@ -11,7 +11,10 @@ import type {
 import { placementListsMatch } from "../lib/roomPlacementEquality";
 import { getFurnitureDefinition } from "../lib/furnitureRegistry";
 import { DEFAULT_IMPORTED_MOB_PRESETS } from "../lib/mobLab";
-import type { SharedPresenceSnapshot } from "../lib/sharedPresenceTypes";
+import type {
+  SharedPetLiveState,
+  SharedPresenceSnapshot
+} from "../lib/sharedPresenceTypes";
 import type { SharedRoomFrameMemory } from "../lib/sharedRoomTypes";
 import type { OwnedPet } from "../lib/pets";
 import type {
@@ -77,6 +80,7 @@ interface RoomViewProps {
   showInteractionMarkers: boolean;
   onCameraPositionChange: (position: Vector3Tuple) => void;
   onLocalPresenceChange: (snapshot: LocalPlayerPresenceSnapshot) => void;
+  onLocalSharedPetStateChange: (state: SharedPetLiveState | null) => void;
   onPlayerPositionChange: (position: Vector3Tuple) => void;
   onFurnitureSnapshotChange: (placements: RoomFurniturePlacement[]) => void;
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
@@ -87,6 +91,8 @@ interface RoomViewProps {
   remotePresence: SharedPresenceSnapshot | null;
   renewEditLock: (furnitureId: string) => Promise<boolean>;
   sceneJumpRequest: SceneJumpRequest | null;
+  sharedPetAuthorityActive: boolean;
+  sharedPetLiveState: SharedPetLiveState | null;
 }
 
 export function RoomView({
@@ -119,6 +125,7 @@ export function RoomView({
   showInteractionMarkers,
   onCameraPositionChange,
   onLocalPresenceChange,
+  onLocalSharedPetStateChange,
   onPlayerPositionChange,
   onFurnitureSnapshotChange,
   onCommittedFurnitureChange,
@@ -128,7 +135,9 @@ export function RoomView({
   releaseEditLock,
   remotePresence,
   renewEditLock,
-  sceneJumpRequest
+  sceneJumpRequest,
+  sharedPetAuthorityActive,
+  sharedPetLiveState
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
   const initialSceneTarget = ROOM_CAMERA_TARGET;
@@ -247,6 +256,7 @@ export function RoomView({
     onInteractionStateChange,
     onPlayerPositionChange,
     playerWorldPosition,
+    remotePresence,
     setPlayerWorldPosition,
     standRequestToken
   });
@@ -506,6 +516,7 @@ export function RoomView({
             skinSrc={remotePresence.skinSrc}
             targetPosition={remotePresence.position}
             targetFacingY={remotePresence.facingY}
+            remoteMotion={remotePresence.motion}
             furniture={furniture}
             interaction={remotePresence.pose}
             shadowsEnabled={shadowsEnabled}
@@ -521,11 +532,16 @@ export function RoomView({
           return (
             <RoomPetActor
               key={pet.id}
+              authorityActive={sharedPetAuthorityActive}
               pet={pet}
               preset={preset}
               playerPosition={playerWorldPosition}
               furniture={furniture}
+              onSharedLiveStateChange={onLocalSharedPetStateChange}
               shadowsEnabled={shadowsEnabled}
+              sharedLiveState={
+                sharedPetLiveState?.petId === pet.id ? sharedPetLiveState : null
+              }
             />
           );
         })}

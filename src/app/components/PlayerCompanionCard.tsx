@@ -17,7 +17,11 @@ export function PlayerCompanionCard({
     <section className={`player-companion-card player-companion-card--${state.tone}`}>
       <div className="player-companion-card__header">
         <div>
-          <span className="player-companion-card__eyebrow">Companion</span>
+          <span className="player-companion-card__eyebrow">
+            {state.roomModeLabel
+              ? `Companion • ${state.roomModeLabel}`
+              : "Companion"}
+          </span>
           <h2 className="player-companion-card__title">{state.partnerTitle}</h2>
         </div>
         <div className="player-companion-card__header-actions">

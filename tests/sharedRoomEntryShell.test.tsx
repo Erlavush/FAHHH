@@ -119,6 +119,21 @@ describe("SharedRoomEntryShell", () => {
     expect(container?.textContent).not.toContain("Partner code");
   });
 
+  it("surfaces hosted setup errors instead of pretending sign-in is ready", async () => {
+    await renderShell(
+      createElement(SharedRoomEntryShell, {
+        mode: "hosted_unavailable",
+        detail:
+          "Missing Firebase setup: VITE_FIREBASE_API_KEY. Finish the hosted env config before testing Google sign-in and couple linking.",
+        errorMessage: null
+      })
+    );
+
+    expect(container?.textContent).toContain("Finish hosted setup before sign-in");
+    expect(container?.textContent).toContain("Missing Firebase setup");
+    expect(queryButton("Continue with Google")).toBeNull();
+  });
+
   it("renders the confirm-link state after code submission", async () => {
     const pendingLink = createPendingLink();
 
@@ -175,5 +190,22 @@ describe("SharedRoomEntryShell", () => {
     expect(container?.textContent).toContain("Waiting for your partner to confirm");
     expect(queryButton("Confirm couple room")).toBeNull();
     expect(queryButton("Cancel link")).not.toBeNull();
+  });
+
+  it("labels the legacy entry shell as the local fallback path", async () => {
+    await renderShell(
+      createElement(SharedRoomEntryShell, {
+        mode: "legacy",
+        displayName: "Ari",
+        errorMessage: null,
+        onCreateRoom: vi.fn(),
+        onDisplayNameChange: vi.fn(),
+        onJoinRoom: vi.fn()
+      })
+    );
+
+    expect(container?.textContent).toContain("Local Shared Room");
+    expect(container?.textContent).toContain("local fallback path");
+    expect(queryButton("Create Shared Room")).not.toBeNull();
   });
 });

@@ -15,6 +15,11 @@ export interface FurnitureInteractionTarget {
   rotationY: number;
   poseOffset?: Vector3Tuple;
   chairFurnitureId?: string;
+  slotId?: string;
+}
+
+export interface FurnitureInteractionSelectionOptions {
+  occupiedSlotIds?: Iterable<string> | null;
 }
 
 const DESK_USE_ZONE_HALF_SIZE = 0.5;
@@ -190,7 +195,8 @@ function getDirectInteractionApproachPosition(
 function createDirectInteractionTarget(
   placement: RoomFurniturePlacement,
   localOffset: Vector3Tuple,
-  poseOffset?: Vector3Tuple
+  poseOffset?: Vector3Tuple,
+  slotId?: string
 ): FurnitureInteractionTarget {
   const definition = getFurnitureDefinition(placement.type);
   const rotatedOffset = rotateLocalOffset(localOffset, placement.rotationY);
@@ -216,7 +222,8 @@ function createDirectInteractionTarget(
       definition.interactionType!
     ),
     rotationY: interactionRotationY,
-    poseOffset
+    poseOffset,
+    slotId
   };
 }
 
@@ -242,13 +249,15 @@ export function getFurnitureInteractionTargets(
   const primaryTarget = createDirectInteractionTarget(
     placement,
     definition.interactionOffset,
-    definition.interactionPoseOffset
+    definition.interactionPoseOffset,
+    definition.interactionType === "lie" ? "primary" : undefined
   );
   const secondaryTarget = definition.interactionSecondaryOffset
     ? createDirectInteractionTarget(
         placement,
         definition.interactionSecondaryOffset,
-        definition.interactionSecondaryPoseOffset ?? definition.interactionPoseOffset
+        definition.interactionSecondaryPoseOffset ?? definition.interactionPoseOffset,
+        definition.interactionType === "lie" ? "secondary" : undefined
       )
     : null;
 
@@ -257,7 +266,22 @@ export function getFurnitureInteractionTargets(
 
 export function getFurnitureInteractionTarget(
   placement: RoomFurniturePlacement,
-  furniturePlacements: RoomFurniturePlacement[] = [placement]
+  furniturePlacements: RoomFurniturePlacement[] = [placement],
+  options: FurnitureInteractionSelectionOptions = {}
 ): FurnitureInteractionTarget | null {
-  return getFurnitureInteractionTargets(placement, furniturePlacements)[0] ?? null;
+  const targets = getFurnitureInteractionTargets(placement, furniturePlacements);
+
+  if (targets.length === 0) {
+    return null;
+  }
+
+  if (
+    getFurnitureDefinition(placement.type).interactionType === "lie" &&
+    options.occupiedSlotIds
+  ) {
+    const occupiedSlotIds = new Set(options.occupiedSlotIds);
+    return targets.find((target) => !target.slotId || !occupiedSlotIds.has(target.slotId)) ?? null;
+  }
+
+  return targets[0] ?? null;
 }

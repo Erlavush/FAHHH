@@ -22,6 +22,7 @@ export const SHARED_ROOM_DEV_DB_FILENAME = "shared-room-dev-db.json";
 export const DEV_SHARED_ROOM_ID = "dev-shared-room";
 export const DEV_SHARED_ROOM_INVITE_CODE = "DEVROOM";
 export const SHARED_EDIT_LOCK_TTL_MS = 5000;
+export const SHARED_PRESENCE_TTL_MS = 10000;
 
 // Simple lock to prevent concurrent database writes from corrupting the file
 // Singleton in-memory database to prevent race conditions between requests
@@ -390,6 +391,7 @@ function createEmptySharedPresenceRoomSnapshot(roomId, updatedAt = createTimesta
   return validateSharedPresenceRoomSnapshot({
     roomId,
     presences: [],
+    sharedPetState: null,
     updatedAt
   });
 }
@@ -399,6 +401,24 @@ function createEmptySharedEditLockRoomSnapshot(roomId, updatedAt = createTimesta
     roomId,
     locks: [],
     updatedAt
+  });
+}
+
+function pruneExpiredRoomPresence(roomPresence, now = Date.now()) {
+  const nextPresences = roomPresence.presences.filter((presence) => {
+    const updatedAt = Date.parse(presence.updatedAt);
+    return Number.isFinite(updatedAt) && now - updatedAt <= SHARED_PRESENCE_TTL_MS;
+  });
+
+  if (nextPresences.length === roomPresence.presences.length) {
+    return roomPresence;
+  }
+
+  return validateSharedPresenceRoomSnapshot({
+    roomId: roomPresence.roomId,
+    presences: nextPresences,
+    sharedPetState: roomPresence.sharedPetState ?? null,
+    updatedAt: createTimestamp(now)
   });
 }
 
@@ -414,8 +434,9 @@ function loadSharedRoomPresenceSnapshotInDatabase(database, roomId) {
   }
 
   const validatedPresence = validateSharedPresenceRoomSnapshot(roomPresence);
-  database.presenceByRoom[roomId] = validatedPresence;
-  return validatedPresence;
+  const nextRoomPresence = pruneExpiredRoomPresence(validatedPresence);
+  database.presenceByRoom[roomId] = nextRoomPresence;
+  return nextRoomPresence;
 }
 
 function pruneExpiredRoomLocks(roomLocks, now = Date.now()) {
@@ -462,6 +483,12 @@ function requireLockField(value, fieldName) {
 
 export function upsertSharedPresenceInDatabase(database, input) {
   const presence = validateSharedPresenceSnapshot(input?.presence);
+  const sharedPetState =
+    input?.sharedPetState === undefined
+      ? undefined
+      : input.sharedPetState === null
+        ? null
+        : input.sharedPetState;
   const roomDocument = loadSharedRoomInDatabase(database, presence.roomId);
   const timestamp = createTimestamp();
 
@@ -477,6 +504,15 @@ export function upsertSharedPresenceInDatabase(database, input) {
         updatedAt: timestamp
       }
     ],
+    sharedPetState:
+      sharedPetState === undefined
+        ? roomPresence.sharedPetState ?? null
+        : sharedPetState === null
+          ? null
+          : {
+              ...sharedPetState,
+              updatedAt: timestamp
+            },
     updatedAt: timestamp
   });
 
@@ -510,6 +546,7 @@ export function leaveSharedPresenceInDatabase(database, input) {
   const nextRoomPresence = validateSharedPresenceRoomSnapshot({
     roomId,
     presences: roomPresence.presences.filter((entry) => entry.playerId !== playerId),
+    sharedPetState: roomPresence.sharedPetState ?? null,
     updatedAt: timestamp
   });
 

@@ -12,7 +12,10 @@ import {
 } from "three";
 import { resolvePlayerMovement } from "../lib/physics";
 import { RoomFurniturePlacement } from "../lib/roomState";
-import type { SharedPresencePose } from "../lib/sharedPresenceTypes";
+import type {
+  SharedPresenceMotionState,
+  SharedPresencePose
+} from "../lib/sharedPresenceTypes";
 
 type CubeFace = "right" | "left" | "top" | "bottom" | "front" | "back";
 
@@ -50,6 +53,7 @@ interface MinecraftPlayerProps {
   skinSrc: string | null;
   targetPosition: [number, number, number];
   targetFacingY?: number | null;
+  remoteMotion?: SharedPresenceMotionState | null;
   furniture: RoomFurniturePlacement[];
   interaction: SharedPresencePose | null;
   onTransformChange?: (
@@ -363,6 +367,7 @@ export function MinecraftPlayer({
   skinSrc,
   targetPosition,
   targetFacingY = null,
+  remoteMotion = null,
   furniture,
   interaction,
   onTransformChange,
@@ -484,6 +489,10 @@ export function MinecraftPlayer({
     const distance = Math.hypot(dx, dz);
     const isMoving = distance > 0.02;
     const desiredFacingY = targetFacingY ?? root.rotation.y;
+    const remoteWalkAmount = remoteMotion?.walkAmount ?? 0;
+    const remoteVelocity = remoteMotion?.velocity ?? [0, 0, 0];
+    const remoteSpeed = Math.hypot(remoteVelocity[0], remoteVelocity[2]);
+    const isRemoteMoving = isRemote && remoteWalkAmount > 0.05;
     const interactionDistance = interaction
       ? Math.hypot(
           interaction.position[0] - root.position.x,
@@ -520,13 +529,24 @@ export function MinecraftPlayer({
       root.position.z += (interaction.position[2] - root.position.z) * Math.min(1, delta * 16);
       root.rotation.y = lerpAngle(root.rotation.y, interaction.rotationY, Math.min(1, delta * 12));
       stepTimeRef.current += delta * 1.4;
-    } else if (isMoving) {
+    } else if (isMoving || isRemoteMoving) {
       if (isRemote) {
+        const predictedX = targetPosition[0] + remoteVelocity[0] * 0.25;
+        const predictedZ = targetPosition[2] + remoteVelocity[2] * 0.25;
+        const remoteDx = predictedX - root.position.x;
+        const remoteDz = predictedZ - root.position.z;
         const smoothing = Math.min(1, delta * 6);
-        root.position.x += dx * smoothing;
-        root.position.z += dz * smoothing;
-        root.rotation.y = lerpAngle(root.rotation.y, desiredFacingY, Math.min(1, delta * 8));
-        stepTimeRef.current += delta * 10;
+        root.position.x += remoteDx * smoothing;
+        root.position.z += remoteDz * smoothing;
+        root.rotation.y = lerpAngle(
+          root.rotation.y,
+          remoteSpeed > 0.05 ? Math.atan2(remoteVelocity[0], remoteVelocity[2]) : desiredFacingY,
+          Math.min(1, delta * 10)
+        );
+        if (remoteMotion) {
+          stepTimeRef.current = Math.max(stepTimeRef.current, remoteMotion.stridePhase);
+        }
+        stepTimeRef.current += delta * Math.max(4, remoteSpeed * 4);
       } else {
         const moveStep = Math.min(distance, moveSpeed * delta);
         const movementResult = resolvePlayerMovement(
@@ -559,9 +579,13 @@ export function MinecraftPlayer({
     }
 
     const walkSwing =
-      !interactionReady && isMoving ? Math.sin(stepTimeRef.current) : 0;
+      !interactionReady && (isMoving || (isRemote && remoteWalkAmount > 0.05))
+        ? Math.sin(stepTimeRef.current) * (isRemote ? Math.max(0.3, remoteWalkAmount) : 1)
+        : 0;
     const walkSwingOpposite =
-      !interactionReady && isMoving ? -Math.sin(stepTimeRef.current) : 0;
+      !interactionReady && (isMoving || (isRemote && remoteWalkAmount > 0.05))
+        ? -Math.sin(stepTimeRef.current) * (isRemote ? Math.max(0.3, remoteWalkAmount) : 1)
+        : 0;
     const idleFloat = Math.sin(state.clock.elapsedTime * 1.8) * 0.015;
     const idleSway = Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
 

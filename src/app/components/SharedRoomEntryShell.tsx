@@ -11,6 +11,12 @@ type SharedRoomLegacyEntryShellProps = {
   onJoinRoom: (code: string) => void;
 };
 
+type SharedRoomHostedUnavailableEntryShellProps = {
+  mode: "hosted_unavailable";
+  detail: string;
+  errorMessage: string | null;
+};
+
 type SharedRoomHostedEntryShellProps = {
   mode: "hosted";
   bootstrapKind: "signed_out" | "needs_linking" | "pending_link";
@@ -29,6 +35,7 @@ type SharedRoomHostedEntryShellProps = {
 
 type SharedRoomEntryShellProps =
   | SharedRoomLegacyEntryShellProps
+  | SharedRoomHostedUnavailableEntryShellProps
   | SharedRoomHostedEntryShellProps;
 
 type PendingParticipantState = {
@@ -72,12 +79,12 @@ function SharedRoomLegacyEntryShell({
 
   return (
     <div className="shared-room-entry">
-      <div className="shared-room-entry__shell">
-        <p className="shared-room-entry__eyebrow">Shared Room</p>
-        <h1 className="shared-room-entry__title">Start your room together</h1>
+        <div className="shared-room-entry__shell">
+        <p className="shared-room-entry__eyebrow">Local Shared Room</p>
+        <h1 className="shared-room-entry__title">Use the local dev room flow</h1>
         <p className="shared-room-entry__copy">
-          Create a shared room or enter an invite code to pair with your partner and
-          load the same room.
+          This browser is using the local fallback path, not Google sign-in. Create a
+          room or enter an invite code to pair inside the local dev runtime.
         </p>
 
         <div className="shared-room-entry__stakes">
@@ -163,6 +170,31 @@ function SharedRoomLegacyEntryShell({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SharedRoomHostedUnavailableEntryShell({
+  detail,
+  errorMessage
+}: SharedRoomHostedUnavailableEntryShellProps) {
+  return (
+    <div className="shared-room-entry">
+      <div className="shared-room-entry__shell">
+        <p className="shared-room-entry__eyebrow">Hosted Couple Room</p>
+        <h1 className="shared-room-entry__title">Finish hosted setup before sign-in</h1>
+        <p className="shared-room-entry__copy">
+          This run asked for the hosted Google flow, but the Firebase room backend is
+          not fully configured yet.
+        </p>
+        <div className="shared-room-entry__note-card">
+          <strong>Hosted sign-in is blocked until setup is complete.</strong>
+          <p>{detail}</p>
+        </div>
+        {errorMessage ? (
+          <p className="shared-room-entry__error">{errorMessage}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -378,6 +410,10 @@ function SharedRoomHostedEntryShell({
 }
 
 export function SharedRoomEntryShell(props: SharedRoomEntryShellProps) {
+  if (props.mode === "hosted_unavailable") {
+    return <SharedRoomHostedUnavailableEntryShell {...props} />;
+  }
+
   if (props.mode === "legacy") {
     return <SharedRoomLegacyEntryShell {...props} />;
   }

@@ -4,7 +4,9 @@ import type { SharedPresenceStore } from "../../lib/sharedPresenceStore";
 import type {
   SharedEditLockRoomSnapshot,
   SharedPairLinkPresenceSnapshot,
+  SharedPetLiveState,
   SharedPresenceRoomSnapshot,
+  SharedPresenceMotionState,
   SharedPresenceSnapshot
 } from "../../lib/sharedPresenceTypes";
 import type { SharedPlayerProfile } from "../../lib/sharedRoomTypes";
@@ -14,6 +16,7 @@ import type { SharedRoomRuntimeBootstrapKind } from "./useSharedRoomRuntime";
 export type SharedPresenceFreshness = "offline" | "live" | "holding" | "reconnecting";
 export type SharedPresenceStatusTitle =
   | "Waiting for partner"
+  | "Partner away"
   | "Partner joined"
   | "Partner reconnecting"
   | "Partner is back"
@@ -30,6 +33,7 @@ export interface UseSharedRoomPresenceOptions {
   enabled: boolean;
   bootstrapKind?: SharedRoomRuntimeBootstrapKind;
   localPresence: LocalPlayerPresenceSnapshot | null;
+  localSharedPetState?: SharedPetLiveState | null;
   pendingLinkId?: string | null;
   partnerId: string | null;
   profile: SharedPlayerProfile;
@@ -38,10 +42,11 @@ export interface UseSharedRoomPresenceOptions {
   skinSrc: string | null;
 }
 
-const PRESENCE_PUBLISH_INTERVAL_MS = 500;
-const PRESENCE_POLL_INTERVAL_MS = 1000;
+const PRESENCE_PUBLISH_INTERVAL_MS = 250;
+const PRESENCE_POLL_INTERVAL_MS = 250;
 const PRESENCE_LIVE_THRESHOLD_MS = 2500;
 const PRESENCE_HOLD_THRESHOLD_MS = 6000;
+const PRESENCE_RECONNECT_THRESHOLD_MS = 10000;
 const PRESENCE_STATUS_SETTLE_MS = 2200;
 
 function getErrorMessage(error: unknown): string {
@@ -69,8 +74,12 @@ export function buildSharedPresenceSnapshot(
   roomId: string,
   profile: SharedPlayerProfile,
   skinSrc: string | null,
-  localPresence: LocalPlayerPresenceSnapshot
+  localPresence: LocalPlayerPresenceSnapshot,
+  previousSnapshot: SharedPresenceSnapshot | null = null,
+  nowIso = new Date().toISOString()
 ): SharedPresenceSnapshot {
+  const nextMotion = buildSharedPresenceMotion(localPresence, previousSnapshot, nowIso);
+
   return {
     roomId,
     playerId: profile.playerId,
@@ -79,6 +88,7 @@ export function buildSharedPresenceSnapshot(
     position: [...localPresence.position] as SharedPresenceSnapshot["position"],
     facingY: localPresence.facingY,
     activity: localPresence.activity,
+    motion: nextMotion,
     pose: localPresence.interactionPose
       ? {
           ...localPresence.interactionPose,
@@ -87,10 +97,47 @@ export function buildSharedPresenceSnapshot(
           ] as SharedPresenceSnapshot["position"],
           poseOffset: localPresence.interactionPose.poseOffset
             ? ([...localPresence.interactionPose.poseOffset] as SharedPresenceSnapshot["position"])
-            : undefined
+            : undefined,
+          slotId: localPresence.interactionPose.slotId
         }
       : null,
-    updatedAt: new Date().toISOString()
+    updatedAt: nowIso
+  };
+}
+
+function buildSharedPresenceMotion(
+  localPresence: LocalPlayerPresenceSnapshot,
+  previousSnapshot: SharedPresenceSnapshot | null,
+  nowIso: string
+): SharedPresenceMotionState {
+  if (localPresence.activity !== "walking" || localPresence.interactionPose) {
+    return {
+      velocity: [0, 0, 0],
+      walkAmount: 0,
+      stridePhase: previousSnapshot?.motion?.stridePhase ?? 0
+    };
+  }
+
+  const previousUpdatedAt = previousSnapshot ? Date.parse(previousSnapshot.updatedAt) : Number.NaN;
+  const nextUpdatedAt = Date.parse(nowIso);
+  const elapsedSeconds =
+    Number.isFinite(previousUpdatedAt) && Number.isFinite(nextUpdatedAt)
+      ? Math.max(0.016, (nextUpdatedAt - previousUpdatedAt) / 1000)
+      : PRESENCE_PUBLISH_INTERVAL_MS / 1000;
+  const previousPosition = previousSnapshot?.position ?? localPresence.position;
+  const velocity: SharedPresenceSnapshot["position"] = [
+    (localPresence.position[0] - previousPosition[0]) / elapsedSeconds,
+    (localPresence.position[1] - previousPosition[1]) / elapsedSeconds,
+    (localPresence.position[2] - previousPosition[2]) / elapsedSeconds
+  ];
+  const horizontalSpeed = Math.hypot(velocity[0], velocity[2]);
+
+  return {
+    velocity,
+    walkAmount: Math.min(1, horizontalSpeed / 3),
+    stridePhase:
+      (previousSnapshot?.motion?.stridePhase ?? 0) +
+      horizontalSpeed * elapsedSeconds * 4
   };
 }
 
@@ -118,7 +165,11 @@ export function derivePresenceFreshness(
     return "holding";
   }
 
-  return "reconnecting";
+  if (age <= PRESENCE_RECONNECT_THRESHOLD_MS) {
+    return "reconnecting";
+  }
+
+  return "offline";
 }
 
 export function createSharedPresenceStatus(
@@ -129,6 +180,13 @@ export function createSharedPresenceStatus(
       return {
         title,
         body: "Your partner just entered the room.",
+        isBlocking: false,
+        tone: "presence"
+      };
+    case "Partner away":
+      return {
+        title,
+        body: "Your partner is offline right now. The room stays usable while they are away.",
         isBlocking: false,
         tone: "presence"
       };
@@ -168,6 +226,7 @@ export function useSharedRoomPresence({
   enabled,
   bootstrapKind,
   localPresence,
+  localSharedPetState = null,
   pendingLinkId = null,
   partnerId,
   profile,
@@ -185,10 +244,13 @@ export function useSharedRoomPresence({
   );
   const [roomLocks, setRoomLocks] = useState<SharedEditLockRoomSnapshot | null>(null);
   const [roomPresence, setRoomPresence] = useState<SharedPresenceRoomSnapshot | null>(null);
+  const [sharedPetState, setSharedPetState] = useState<SharedPetLiveState | null>(null);
   const [pairLinkPresence, setPairLinkPresence] =
     useState<SharedPairLinkPresenceSnapshot | null>(null);
   const hadLivePartnerRef = useRef(false);
-  const latestPresenceRef = useRef<SharedPresenceSnapshot | null>(null);
+  const latestLocalPresenceRef = useRef<LocalPlayerPresenceSnapshot | null>(null);
+  const latestSharedPetStateRef = useRef<SharedPetLiveState | null>(null);
+  const lastPublishedPresenceRef = useRef<SharedPresenceSnapshot | null>(null);
   const previousFreshnessRef = useRef<SharedPresenceFreshness>("offline");
   const statusTimeoutRef = useRef<number | null>(null);
 
@@ -201,17 +263,16 @@ export function useSharedRoomPresence({
 
   useEffect(() => {
     if (!roomPresenceEnabled || !roomId || !localPresence) {
-      latestPresenceRef.current = null;
+      latestLocalPresenceRef.current = null;
       return;
     }
 
-    latestPresenceRef.current = buildSharedPresenceSnapshot(
-      roomId,
-      profile,
-      skinSrc,
-      localPresence
-    );
-  }, [localPresence, profile, roomId, roomPresenceEnabled, skinSrc]);
+    latestLocalPresenceRef.current = localPresence;
+  }, [localPresence, roomId, roomPresenceEnabled]);
+
+  useEffect(() => {
+    latestSharedPetStateRef.current = localSharedPetState;
+  }, [localSharedPetState]);
 
   const loadRoomPresence = useCallback(async (): Promise<SharedPresenceRoomSnapshot | null> => {
     if (!roomPresenceEnabled || !roomId) {
@@ -223,6 +284,7 @@ export function useSharedRoomPresence({
       const nextRoomPresence = await sharedPresenceStore.loadRoomPresence({ roomId });
       setInlineError(null);
       setRoomPresence(nextRoomPresence);
+      setSharedPetState(nextRoomPresence.sharedPetState);
       return nextRoomPresence;
     } catch (error) {
       setInlineError(getErrorMessage(error));
@@ -248,23 +310,34 @@ export function useSharedRoomPresence({
   }, [roomId, roomPresenceEnabled, sharedPresenceStore]);
 
   const publishPresence = useCallback(async (): Promise<void> => {
-    if (!roomPresenceEnabled) {
+    if (!roomPresenceEnabled || !roomId) {
+      return;
+    }
+    const latestLocalPresence = latestLocalPresenceRef.current;
+
+    if (!latestLocalPresence) {
       return;
     }
 
-    const presence = latestPresenceRef.current;
-
-    if (!presence) {
-      return;
-    }
+    const nextPresence = buildSharedPresenceSnapshot(
+      roomId!,
+      profile,
+      skinSrc,
+      latestLocalPresence,
+      lastPublishedPresenceRef.current
+    );
 
     try {
-      await sharedPresenceStore.upsertPresence({ presence });
+      await sharedPresenceStore.upsertPresence({
+        presence: nextPresence,
+        sharedPetState: latestSharedPetStateRef.current ?? undefined
+      });
       setInlineError(null);
+      lastPublishedPresenceRef.current = nextPresence;
     } catch (error) {
       setInlineError(getErrorMessage(error));
     }
-  }, [roomPresenceEnabled, sharedPresenceStore]);
+  }, [profile, roomId, roomPresenceEnabled, sharedPresenceStore, skinSrc]);
 
   const loadPairLinkPresence = useCallback(
     async (): Promise<SharedPairLinkPresenceSnapshot | null> => {
@@ -316,6 +389,7 @@ export function useSharedRoomPresence({
     if (!roomPresenceEnabled || !roomId) {
       setRoomLocks(null);
       setRoomPresence(null);
+      setSharedPetState(null);
       return;
     }
 
@@ -455,8 +529,12 @@ export function useSharedRoomPresence({
     previousFreshnessRef.current = "offline";
     clearStatusTimeout();
     setRoomLocks(null);
-    setPresenceStatus(createSharedPresenceStatus("Waiting for partner"));
-  }, [clearStatusTimeout, roomId]);
+    setPresenceStatus(
+      createSharedPresenceStatus(partnerId ? "Partner away" : "Waiting for partner")
+    );
+    setSharedPetState(null);
+    lastPublishedPresenceRef.current = null;
+  }, [clearStatusTimeout, partnerId, roomId]);
 
   useEffect(() => {
     const previousFreshness = previousFreshnessRef.current;
@@ -486,11 +564,13 @@ export function useSharedRoomPresence({
     ) {
       setPresenceStatus(createSharedPresenceStatus("Partner reconnecting"));
     } else {
-      setPresenceStatus(createSharedPresenceStatus("Waiting for partner"));
+      setPresenceStatus(
+        createSharedPresenceStatus(partnerId ? "Partner away" : "Waiting for partner")
+      );
     }
 
     previousFreshnessRef.current = remotePresenceFreshness;
-  }, [clearStatusTimeout, remotePresenceFreshness]);
+  }, [clearStatusTimeout, partnerId, remotePresenceFreshness]);
 
   const acquireEditLock = useCallback(
     async (furnitureId: string): Promise<boolean> => {
@@ -603,6 +683,7 @@ export function useSharedRoomPresence({
     remotePresence,
     remotePresenceFreshness,
     renewEditLock,
+    sharedPetState,
     roomLocks,
     roomPresence
   };

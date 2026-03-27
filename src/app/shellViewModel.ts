@@ -1,4 +1,5 @@
 import type { SharedPresenceStatus } from "./hooks/useSharedRoomPresence";
+import type { SharedRoomRuntimeEntryMode } from "./hooks/useSharedRoomRuntime";
 import type {
   AppShellViewMode,
   DeveloperWorkspaceTab,
@@ -22,9 +23,14 @@ export type PlayerActionDockAction = {
 export type PlayerCompanionCardState = {
   inviteCode: string;
   partnerBody: string;
-  partnerTitle: "Waiting for partner" | "Together now" | "Reconnecting";
+  partnerTitle:
+    | "Waiting for partner"
+    | "Together now"
+    | "Partner reconnecting"
+    | "Partner away";
   ritualBody: string;
   ritualTitle: "Daily ritual pending" | "Daily ritual complete";
+  roomModeLabel: string | null;
   roomSyncStatus: string | null;
   showInviteCode: boolean;
   streakLabel: string;
@@ -116,9 +122,17 @@ function mapPresenceStatus(
 
   if (presenceStatus.title === "Partner reconnecting") {
     return {
-      partnerTitle: "Reconnecting",
+      partnerTitle: "Partner reconnecting",
       partnerBody: "Hold tight while the room catches up to your partner's latest presence.",
       tone: "attention"
+    };
+  }
+
+  if (presenceStatus.title === "Partner away") {
+    return {
+      partnerTitle: "Partner away",
+      partnerBody: "Your partner is offline right now, but the room is still ready for you.",
+      tone: "presence"
     };
   }
 
@@ -127,6 +141,22 @@ function mapPresenceStatus(
     partnerBody: "Both partners are in the room and the latest shared state is loaded.",
     tone: "success"
   };
+}
+
+function getRoomModeLabel(
+  runtimeEntryMode: SharedRoomRuntimeEntryMode
+): string | null {
+  switch (runtimeEntryMode) {
+    case "hosted":
+      return "Hosted couple room";
+    case "dev_fallback":
+      return "Local dev room";
+    case "hosted_unavailable":
+      return "Hosted setup required";
+    case "legacy":
+    default:
+      return "Local room";
+  }
 }
 
 function mapRitualStatus(ritualStatus: SharedRitualStatusView): Pick<PlayerCompanionCardState, "ritualBody" | "ritualTitle"> {
@@ -196,6 +226,7 @@ export function getPlayerCompanionCardState({
   memberCount,
   presenceStatus,
   ritualStatus,
+  runtimeEntryMode,
   showInviteCode,
   statusMessage
 }: {
@@ -203,11 +234,13 @@ export function getPlayerCompanionCardState({
   memberCount: number;
   presenceStatus: SharedPresenceStatus | null;
   ritualStatus: SharedRitualStatusView;
+  runtimeEntryMode: SharedRoomRuntimeEntryMode;
   showInviteCode: boolean;
   statusMessage: string | null;
 }): PlayerCompanionCardState {
   return {
     inviteCode,
+    roomModeLabel: getRoomModeLabel(runtimeEntryMode),
     roomSyncStatus: statusMessage,
     showInviteCode,
     streakLabel: `Streak ${ritualStatus.streakCount}`,
