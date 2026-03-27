@@ -21,9 +21,11 @@ import {
 import { cloneSharedRoomPetRecord } from "./sharedRoomPet";
 import type {
   SharedPlayerProfile,
+  SharedPendingPairLink,
   SharedRoomFrameMemory,
   SharedRoomDocument,
   SharedRoomInvite,
+  SharedRoomMembership,
   SharedRoomMember,
   SharedRoomPetRecord,
   SharedRoomSession
@@ -160,6 +162,45 @@ export function isValidSharedRoomInvite(value: unknown): value is SharedRoomInvi
     (value.status === "open" || value.status === "consumed") &&
     isIsoDateString(value.createdAt) &&
     (value.consumedAt === null || isIsoDateString(value.consumedAt))
+  );
+}
+
+export function isValidSharedRoomMembership(
+  value: unknown
+): value is SharedRoomMembership {
+  return (
+    isRecord(value) &&
+    typeof value.playerId === "string" &&
+    typeof value.roomId === "string" &&
+    typeof value.partnerPlayerId === "string" &&
+    typeof value.pairCode === "string" &&
+    isIsoDateString(value.pairedAt)
+  );
+}
+
+export function isValidSharedPendingPairLink(
+  value: unknown
+): value is SharedPendingPairLink {
+  return (
+    isRecord(value) &&
+    typeof value.pendingLinkId === "string" &&
+    Array.isArray(value.playerIds) &&
+    value.playerIds.length === 2 &&
+    value.playerIds.every((entry) => typeof entry === "string" && entry.length > 0) &&
+    new Set(value.playerIds).size === value.playerIds.length &&
+    typeof value.submittedByPlayerId === "string" &&
+    typeof value.targetPairCode === "string" &&
+    isRecord(value.confirmationsByPlayerId) &&
+    Object.values(value.confirmationsByPlayerId).every(
+      (entry) => typeof entry === "boolean"
+    ) &&
+    isIsoDateString(value.expiresAt) &&
+    (!("playerDisplayNamesById" in value) ||
+      value.playerDisplayNamesById === undefined ||
+      (isRecord(value.playerDisplayNamesById) &&
+        Object.values(value.playerDisplayNamesById).every(
+          (entry) => typeof entry === "string"
+        )))
   );
 }
 
@@ -352,5 +393,36 @@ export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
     roomState: normalizedRoomState,
     frameMemories: normalizedFrameMemories,
     sharedPet: normalizedSharedPet
+  };
+}
+
+export function validateSharedRoomMembership(
+  value: unknown
+): SharedRoomMembership {
+  if (!isValidSharedRoomMembership(value)) {
+    throw new Error("Invalid shared room membership");
+  }
+
+  return {
+    ...(value as SharedRoomMembership)
+  };
+}
+
+export function validateSharedPendingPairLink(
+  value: unknown
+): SharedPendingPairLink {
+  if (!isValidSharedPendingPairLink(value)) {
+    throw new Error("Invalid shared pending pair link");
+  }
+
+  const pendingLink = value as SharedPendingPairLink;
+
+  return {
+    ...pendingLink,
+    playerIds: [...pendingLink.playerIds],
+    confirmationsByPlayerId: { ...pendingLink.confirmationsByPlayerId },
+    playerDisplayNamesById: pendingLink.playerDisplayNamesById
+      ? { ...pendingLink.playerDisplayNamesById }
+      : undefined
   };
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+import {
+  createEmptyFirebaseHostedDatabase,
+  createFirebaseOwnershipStore
+} from "../src/lib/firebaseOwnershipStore";
+import { createFirebaseRoomStore } from "../src/lib/firebaseRoomStore";
 import { createDefaultRoomState } from "../src/lib/roomState";
 import { createSharedRoomPetRecord } from "../src/lib/sharedRoomPet";
+import type { SharedRoomBootstrapState } from "../src/lib/sharedRoomTypes";
 // @ts-ignore Vitest can import the dev-only .mjs plugin helpers directly.
 const sharedRoomDevPluginModule = await import("../scripts/sharedRoomDevPlugin.mjs");
 const {
@@ -22,7 +28,69 @@ function createProfile(playerId: string, displayName: string) {
   };
 }
 
+function requirePendingLinkState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "pending_link" }> {
+  expect(state.kind).toBe("pending_link");
+
+  if (state.kind !== "pending_link") {
+    throw new Error("Expected pending_link bootstrap state.");
+  }
+
+  return state;
+}
+
+function requirePairedRoomState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "paired_room" }> {
+  expect(state.kind).toBe("paired_room");
+
+  if (state.kind !== "paired_room") {
+    throw new Error("Expected paired_room bootstrap state.");
+  }
+
+  return state;
+}
+
 describe("sharedRoomStore", () => {
+  it("loads canonical room state from the hosted adapter", async () => {
+    const database = createEmptyFirebaseHostedDatabase();
+    const ownershipStore = createFirebaseOwnershipStore({
+      database,
+      now: () => "2026-03-27T00:00:00.000Z"
+    });
+    const roomStore = createFirebaseRoomStore({ database });
+    const firstProfile = createProfile("player-1", "Ari");
+    const secondProfile = createProfile("player-2", "Bea");
+    const secondBootstrap = await ownershipStore.loadBootstrapState({
+      profile: secondProfile
+    });
+    const pendingBootstrap = await ownershipStore.submitPairCode({
+      profile: firstProfile,
+      pairCode: secondBootstrap.selfPairCode
+    });
+    const pendingLinkState = requirePendingLinkState(pendingBootstrap);
+
+    await ownershipStore.confirmPairLink({
+      profile: firstProfile,
+      pendingLinkId: pendingLinkState.pendingLink.pendingLinkId
+    });
+    const pairedBootstrap = await ownershipStore.confirmPairLink({
+      profile: secondProfile,
+      pendingLinkId: pendingLinkState.pendingLink.pendingLinkId
+    });
+    const pairedRoomState = requirePairedRoomState(pairedBootstrap);
+
+    const roomDocument = await roomStore.loadSharedRoom({
+      roomId: pairedRoomState.membership.roomId
+    });
+
+    expect(roomDocument.memberIds).toEqual(["player-1", "player-2"]);
+    expect(roomDocument.sharedPet).toMatchObject({
+      type: "minecraft_cat"
+    });
+  });
+
   it("bootstraps a deterministic development shared room", () => {
     const database = createEmptySharedRoomDevDatabase();
     const firstProfile = createProfile("player-1", "Ari");

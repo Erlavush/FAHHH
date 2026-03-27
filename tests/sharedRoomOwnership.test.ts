@@ -8,6 +8,7 @@ import {
 } from "../src/lib/sharedRoomOwnership";
 import type {
   SharedPendingPairLink,
+  SharedRoomBootstrapState,
   SharedRoomMembership
 } from "../src/lib/sharedRoomTypes";
 
@@ -41,6 +42,30 @@ function createMembership(
     pairCode: overrides.pairCode ?? "ABCD12",
     pairedAt: overrides.pairedAt ?? "2026-03-27T00:00:00.000Z"
   };
+}
+
+function requirePendingLinkState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "pending_link" }> {
+  expect(state.kind).toBe("pending_link");
+
+  if (state.kind !== "pending_link") {
+    throw new Error("Expected pending_link bootstrap state.");
+  }
+
+  return state;
+}
+
+function requirePairedRoomState(
+  state: SharedRoomBootstrapState
+): Extract<SharedRoomBootstrapState, { kind: "paired_room" }> {
+  expect(state.kind).toBe("paired_room");
+
+  if (state.kind !== "paired_room") {
+    throw new Error("Expected paired_room bootstrap state.");
+  }
+
+  return state;
 }
 
 describe("sharedRoomOwnership", () => {
@@ -112,11 +137,13 @@ describe("sharedRoomOwnership", () => {
       selfPairCode: "ABCD12",
       membership: createMembership()
     });
+    const pendingLinkState = requirePendingLinkState(pendingLink);
+    const pairedRoomState = requirePairedRoomState(pairedRoom);
 
     expect(needsLinking.kind).toBe("needs_linking");
-    expect(pendingLink.kind).toBe("pending_link");
-    expect(pendingLink.pendingLink.playerDisplayNamesById?.["player-2"]).toBe("Bea");
-    expect(pairedRoom.kind).toBe("paired_room");
-    expect(pairedRoom.membership.roomId).toBe("room-1");
+    expect(pendingLinkState.pendingLink.playerDisplayNamesById?.["player-2"]).toBe(
+      "Bea"
+    );
+    expect(pairedRoomState.membership.roomId).toBe("room-1");
   });
 });
