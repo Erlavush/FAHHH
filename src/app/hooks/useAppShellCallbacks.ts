@@ -16,9 +16,11 @@ import { ROOM_CAMERA_TARGET } from "../../lib/sceneTargets";
 import { DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION } from "../constants";
 import type {
   AppShellViewMode,
+  BuildModeSource,
   DeveloperWorkspaceTab,
   FurnitureSpawnRequest,
   LocalPlayerPresenceSnapshot,
+  PlayerDrawerMode,
   PlayerInteractionStatus,
   PreviewStudioMode,
   SceneJumpRequest
@@ -34,6 +36,7 @@ type SharedPcResult = {
 
 interface UseAppShellCallbacksInput {
   cameraPositionRef: MutableRefObject<Vector3Tuple>;
+  catalogOpen: boolean;
   commitPlayerCoins: (nextCoins: number) => void;
   handleClaimCozyRest: () => void;
   handleSkinImport: () => void;
@@ -49,6 +52,7 @@ interface UseAppShellCallbacksInput {
   setBreakupResetDialogOpen: Dispatch<SetStateAction<boolean>>;
   setBreakupResetSaving: Dispatch<SetStateAction<boolean>>;
   setBuildModeEnabled: Dispatch<SetStateAction<boolean>>;
+  setBuildModeSource: Dispatch<SetStateAction<BuildModeSource>>;
   setCameraPosition: Dispatch<SetStateAction<Vector3Tuple>>;
   setCameraResetToken: Dispatch<SetStateAction<number>>;
   setCatalogOpen: Dispatch<SetStateAction<boolean>>;
@@ -61,6 +65,7 @@ interface UseAppShellCallbacksInput {
   setPcMinigameProgress: Dispatch<SetStateAction<PcMinigameProgress>>;
   setPendingSpawnOwnedFurnitureIds: Dispatch<SetStateAction<string[]>>;
   setPlayerInteractionStatus: Dispatch<SetStateAction<PlayerInteractionStatus>>;
+  setPlayerDrawerMode: Dispatch<SetStateAction<PlayerDrawerMode>>;
   setPlayerPosition: Dispatch<SetStateAction<Vector3Tuple>>;
   setPlayerRoomDetailsOpen: Dispatch<SetStateAction<boolean>>;
   setPreviewStudioMode: Dispatch<SetStateAction<PreviewStudioMode>>;
@@ -96,6 +101,7 @@ function setVectorAxis(position: Vector3Tuple, axis: 0 | 1 | 2, nextValue: numbe
 
 export function useAppShellCallbacks({
   cameraPositionRef,
+  catalogOpen,
   commitPlayerCoins,
   handleClaimCozyRest,
   handleSkinImport,
@@ -111,6 +117,7 @@ export function useAppShellCallbacks({
   setBreakupResetDialogOpen,
   setBreakupResetSaving,
   setBuildModeEnabled,
+  setBuildModeSource,
   setCameraPosition,
   setCameraResetToken,
   setCatalogOpen,
@@ -123,6 +130,7 @@ export function useAppShellCallbacks({
   setPcMinigameProgress,
   setPendingSpawnOwnedFurnitureIds,
   setPlayerInteractionStatus,
+  setPlayerDrawerMode,
   setPlayerPosition,
   setPlayerRoomDetailsOpen,
   setPreviewStudioMode,
@@ -190,23 +198,27 @@ export function useAppShellCallbacks({
       }
 
       const nextValue = !current;
-
-      if (!nextValue) {
-        setCatalogOpen(false);
-      }
-
+      setBuildModeSource(nextValue ? "manual" : null);
       return nextValue;
     });
-  }, [playerInteractionStatus, setBuildModeEnabled, setCatalogOpen]);
+  }, [playerInteractionStatus, setBuildModeEnabled, setBuildModeSource]);
 
   const handleToggleCatalog = useCallback(() => {
     if (playerInteractionStatus) {
       return;
     }
 
-    setBuildModeEnabled(true);
     setCatalogOpen((current) => !current);
-  }, [playerInteractionStatus, setBuildModeEnabled, setCatalogOpen]);
+  }, [playerInteractionStatus, setCatalogOpen]);
+
+  const openPlayerDrawerMode = useCallback((mode: PlayerDrawerMode) => {
+    if (playerInteractionStatus) {
+      return;
+    }
+
+    setPlayerDrawerMode(mode);
+    setCatalogOpen(true);
+  }, [playerInteractionStatus, setCatalogOpen, setPlayerDrawerMode]);
 
   const requestSceneJump = useCallback(
     (nextPlayerPosition: Vector3Tuple, nextCameraPosition: Vector3Tuple): void => {
@@ -537,7 +549,12 @@ export function useAppShellCallbacks({
           handleToggleBuildMode();
           return;
         case "inventory":
-          handleToggleCatalog();
+          if (catalogOpen) {
+            setCatalogOpen(false);
+            return;
+          }
+
+          openPlayerDrawerMode("inventory");
           return;
         case "interaction":
           setStandRequestToken((current) => current + 1);
@@ -549,7 +566,7 @@ export function useAppShellCallbacks({
           return;
       }
     },
-    [handleClaimCozyRest, handleToggleBuildMode, handleToggleCatalog, setStandRequestToken]
+    [catalogOpen, handleClaimCozyRest, handleToggleBuildMode, openPlayerDrawerMode, setCatalogOpen, setStandRequestToken]
   );
 
   const handleDeveloperQuickAction = useCallback(
@@ -594,6 +611,9 @@ export function useAppShellCallbacks({
     handleToggleCatalog,
     hasUncommittedRoomEdits,
     openMobPreviewStudio,
+    openPlayerDrawerMode,
     openPreviewStudio
   };
 }
+
+

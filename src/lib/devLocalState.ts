@@ -4,7 +4,16 @@ import {
   createDefaultPcMinigameProgress,
   type PcMinigameProgress
 } from "./pcMinigame";
-import { cloneOwnedPets, PET_REGISTRY, type OwnedPet } from "./pets";
+import {
+  cloneOwnedPets,
+  createOwnedPetCareState,
+  PET_REGISTRY,
+  type OwnedPet,
+  type OwnedPetCareState,
+  type OwnedPetStatus,
+  type PetBehaviorProfileId,
+  type PetType
+} from "./pets";
 import {
   cloneRoomState,
   createDefaultRoomState,
@@ -31,6 +40,7 @@ export interface PersistedSandboxState {
 }
 
 const DEV_WORLD_DATA_KEY = "cozy-room-dev-world-data-v1";
+const DEV_DEFAULT_ROOM_STATE_KEY = "cozy-room-dev-default-room-v1";
 const LEGACY_SANDBOX_STATE_KEY = "cozy-room-dev-sandbox-v6";
 const DEV_SKIN_KEY = "cozy-room-dev-skin";
 const DEV_CAMERA_KEY = "cozy-room-dev-camera";
@@ -51,6 +61,104 @@ function isValidVector3(value: unknown): value is PersistedVector3 {
 
 function isValidPlayerCoins(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function isValidOwnedPetStatus(value: unknown): value is OwnedPetStatus {
+  return value === "active_room" || value === "stored_roster";
+}
+
+function isValidPetBehaviorProfileId(value: unknown): value is PetBehaviorProfileId {
+  return (
+    value === "lazy" ||
+    value === "curious" ||
+    value === "clingy" ||
+    value === "zoomies"
+  );
+}
+
+function isValidIsoTimestamp(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function normalizePetCareValue(value: number): number {
+  return Math.max(0, Math.min(100, Math.floor(value)));
+}
+
+function isValidOwnedPetCareState(value: unknown): value is OwnedPetCareState {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "hunger" in value &&
+    typeof value.hunger === "number" &&
+    Number.isFinite(value.hunger) &&
+    "affection" in value &&
+    typeof value.affection === "number" &&
+    Number.isFinite(value.affection) &&
+    "energy" in value &&
+    typeof value.energy === "number" &&
+    Number.isFinite(value.energy) &&
+    "lastUpdatedAt" in value &&
+    isValidIsoTimestamp(value.lastUpdatedAt) &&
+    "lastCareActionAt" in value &&
+    (value.lastCareActionAt === null || isValidIsoTimestamp(value.lastCareActionAt))
+  );
+}
+
+function normalizeOwnedPet(value: unknown, nowIso: string): OwnedPet | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const rawPet = value as Record<string, unknown>;
+
+  if (
+    typeof rawPet.id !== "string" ||
+    typeof rawPet.type !== "string" ||
+    !(rawPet.type in PET_REGISTRY) ||
+    typeof rawPet.presetId !== "string" ||
+    rawPet.acquiredFrom !== "pet_shop" ||
+    !isValidVector3(rawPet.spawnPosition)
+  ) {
+    return null;
+  }
+
+  const petType = rawPet.type as PetType;
+  const rawSpawnPosition = rawPet.spawnPosition;
+  const rawCare = rawPet.care;
+  const care = isValidOwnedPetCareState(rawCare)
+    ? {
+        hunger: normalizePetCareValue(rawCare.hunger),
+        affection: normalizePetCareValue(rawCare.affection),
+        energy: normalizePetCareValue(rawCare.energy),
+        lastUpdatedAt: rawCare.lastUpdatedAt,
+        lastCareActionAt: rawCare.lastCareActionAt
+      }
+    : createOwnedPetCareState(nowIso, {
+        hunger: 75,
+        affection: 75,
+        energy: 75
+      });
+
+  return {
+    id: rawPet.id,
+    type: petType,
+    presetId: rawPet.presetId,
+    acquiredFrom: "pet_shop",
+    spawnPosition: [
+      clampCoordinate(rawSpawnPosition[0]),
+      clampCoordinate(rawSpawnPosition[1]),
+      clampCoordinate(rawSpawnPosition[2])
+    ] as PersistedVector3,
+    displayName:
+      typeof rawPet.displayName === "string" && rawPet.displayName.trim().length > 0
+        ? rawPet.displayName.trim()
+        : PET_REGISTRY[petType].label,
+    status: isValidOwnedPetStatus(rawPet.status) ? rawPet.status : "active_room",
+    behaviorProfileId: isValidPetBehaviorProfileId(rawPet.behaviorProfileId)
+      ? rawPet.behaviorProfileId
+      : "curious",
+    care
+  };
 }
 
 function isValidPlacementSurface(value: unknown): value is FurniturePlacementSurface {
@@ -113,21 +221,7 @@ function isValidOwnedFurnitureItem(value: unknown): value is OwnedFurnitureItem 
 }
 
 function isValidOwnedPet(value: unknown): value is OwnedPet {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    typeof value.id === "string" &&
-    "type" in value &&
-    typeof value.type === "string" &&
-    value.type in PET_REGISTRY &&
-    "presetId" in value &&
-    typeof value.presetId === "string" &&
-    "acquiredFrom" in value &&
-    value.acquiredFrom === "pet_shop" &&
-    "spawnPosition" in value &&
-    isValidVector3(value.spawnPosition)
-  );
+  return normalizeOwnedPet(value, "1970-01-01T00:00:00.000Z") !== null;
 }
 
 function isValidRoomState(value: unknown): value is RoomState {
@@ -229,9 +323,51 @@ function shouldResetToFallbackRoomState(
   );
 }
 
+function loadPersistedDefaultRoomState(
+  fallbackRoomState = createDefaultRoomState()
+): RoomState {
+  if (!canUseLocalStorage()) {
+    return cloneRoomState(fallbackRoomState);
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(DEV_DEFAULT_ROOM_STATE_KEY);
+
+    if (!storedValue) {
+      return cloneRoomState(fallbackRoomState);
+    }
+
+    const parsedValue = JSON.parse(storedValue) as unknown;
+
+    if (!isValidRoomState(parsedValue)) {
+      return cloneRoomState(fallbackRoomState);
+    }
+
+    return ensureRoomStateOwnership(cloneRoomState(parsedValue));
+  } catch {
+    return cloneRoomState(fallbackRoomState);
+  }
+}
+
+function savePersistedDefaultRoomState(roomState: RoomState): void {
+  if (!canUseLocalStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      DEV_DEFAULT_ROOM_STATE_KEY,
+      JSON.stringify(ensureRoomStateOwnership(cloneRoomState(roomState)))
+    );
+  } catch {
+    // Ignore local browser storage failures in dev mode.
+  }
+}
+
 export function createDefaultSandboxState(
   cameraPosition: PersistedVector3,
-  playerPosition: PersistedVector3
+  playerPosition: PersistedVector3,
+  fallbackRoomState = createDefaultRoomState()
 ): PersistedSandboxState {
   return {
     version: 6,
@@ -239,7 +375,7 @@ export function createDefaultSandboxState(
     cameraPosition,
     playerPosition,
     playerCoins: DEFAULT_STARTING_COINS,
-    roomState: createDefaultRoomState(),
+    roomState: loadPersistedDefaultRoomState(fallbackRoomState),
     pcMinigame: createDefaultPcMinigameProgress(),
     pets: []
   };
@@ -251,8 +387,10 @@ export function loadPersistedSandboxState(
   fallbackRoomState = createDefaultRoomState()
 ): PersistedSandboxState {
   if (!canUseLocalStorage()) {
-    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
+    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, fallbackRoomState);
   }
+
+  const defaultRoomState = loadPersistedDefaultRoomState(fallbackRoomState);
 
   try {
     const storedValue =
@@ -260,7 +398,7 @@ export function loadPersistedSandboxState(
       window.localStorage.getItem(LEGACY_SANDBOX_STATE_KEY);
 
     if (!storedValue) {
-      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
+      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
     }
 
     const parsedValue = JSON.parse(storedValue) as unknown;
@@ -279,15 +417,24 @@ export function loadPersistedSandboxState(
       !isValidVector3(parsedValue.playerPosition) ||
       !isValidRoomState(parsedValue.roomState)
     ) {
-      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
+      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
     }
 
+    const petsNowIso = new Date().toISOString();
     const parsedPets =
       "pets" in parsedValue && Array.isArray(parsedValue.pets)
-        ? cloneOwnedPets(parsedValue.pets.filter(isValidOwnedPet))
+        ? cloneOwnedPets(
+            parsedValue.pets
+              .map((pet) => normalizeOwnedPet(pet, petsNowIso))
+              .filter((pet): pet is OwnedPet => pet !== null)
+          )
         : [];
 
-    if (shouldResetToFallbackRoomState(parsedValue.roomState, fallbackRoomState, parsedValue.version)) {
+    if (!window.localStorage.getItem(DEV_DEFAULT_ROOM_STATE_KEY)) {
+      savePersistedDefaultRoomState(parsedValue.roomState);
+    }
+
+    if (shouldResetToFallbackRoomState(parsedValue.roomState, defaultRoomState, parsedValue.version)) {
       return {
         version: 6,
         skinSrc: parsedValue.skinSrc,
@@ -297,7 +444,7 @@ export function loadPersistedSandboxState(
           "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
             ? Math.floor(parsedValue.playerCoins)
             : DEFAULT_STARTING_COINS,
-        roomState: cloneRoomState(fallbackRoomState),
+        roomState: cloneRoomState(defaultRoomState),
         pcMinigame:
           "pcMinigame" in parsedValue && isValidPcMinigameProgress(parsedValue.pcMinigame)
             ? {
@@ -345,7 +492,7 @@ export function loadPersistedSandboxState(
       pets: parsedPets
     };
   } catch {
-    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition);
+    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
   }
 }
 
@@ -355,11 +502,29 @@ export function savePersistedSandboxState(state: PersistedSandboxState): void {
   }
 
   try {
-    window.localStorage.setItem(DEV_WORLD_DATA_KEY, JSON.stringify(state));
-    window.localStorage.setItem(DEV_SKIN_KEY, state.skinSrc ?? "");
-    window.localStorage.setItem(DEV_CAMERA_KEY, JSON.stringify(state.cameraPosition));
-    window.localStorage.setItem(DEV_PLAYER_KEY, JSON.stringify(state.playerPosition));
-    window.localStorage.setItem(DEV_FURNITURE_KEY, JSON.stringify(state.roomState.furniture));
+    const persistedState: PersistedSandboxState = {
+      version: 6,
+      skinSrc: state.skinSrc,
+      cameraPosition: [...state.cameraPosition] as PersistedVector3,
+      playerPosition: [...state.playerPosition] as PersistedVector3,
+      playerCoins: Math.max(0, Math.floor(state.playerCoins)),
+      roomState: ensureRoomStateOwnership(cloneRoomState(state.roomState)),
+      pcMinigame: {
+        bestScore: Math.max(0, Math.floor(state.pcMinigame.bestScore)),
+        lastScore: Math.max(0, Math.floor(state.pcMinigame.lastScore)),
+        gamesPlayed: Math.max(0, Math.floor(state.pcMinigame.gamesPlayed)),
+        totalCoinsEarned: Math.max(0, Math.floor(state.pcMinigame.totalCoinsEarned)),
+        lastRewardCoins: Math.max(0, Math.floor(state.pcMinigame.lastRewardCoins)),
+        lastCompletedAt: state.pcMinigame.lastCompletedAt
+      },
+      pets: cloneOwnedPets(state.pets.filter(isValidOwnedPet))
+    };
+
+    window.localStorage.setItem(DEV_WORLD_DATA_KEY, JSON.stringify(persistedState));
+    window.localStorage.setItem(DEV_SKIN_KEY, persistedState.skinSrc ?? "");
+    window.localStorage.setItem(DEV_CAMERA_KEY, JSON.stringify(persistedState.cameraPosition));
+    window.localStorage.setItem(DEV_PLAYER_KEY, JSON.stringify(persistedState.playerPosition));
+    window.localStorage.setItem(DEV_FURNITURE_KEY, JSON.stringify(persistedState.roomState.furniture));
   } catch {
     // Ignore local browser storage failures in dev mode.
   }
@@ -377,3 +542,5 @@ export function loadPersistedSkin(): string | null {
     return null;
   }
 }
+
+

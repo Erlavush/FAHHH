@@ -80,12 +80,14 @@ export function WallWindowModel({
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} onPointerDown={onPointerDown}>
+      {/* --- Main Frame (Beveled/Stepped) --- */}
+      {/* Outer Case */}
       <mesh
         castShadow={shadowsEnabled}
         receiveShadow={shadowsEnabled}
         position={[-(WINDOW_WIDTH - FRAME_THICKNESS) / 2, 0, 0]}
       >
-        <boxGeometry args={sideJambSize} />
+        <boxGeometry args={[FRAME_THICKNESS, WINDOW_HEIGHT, WINDOW_DEPTH]} />
         <meshStandardMaterial {...frameMaterial} />
       </mesh>
       <mesh
@@ -93,7 +95,7 @@ export function WallWindowModel({
         receiveShadow={shadowsEnabled}
         position={[(WINDOW_WIDTH - FRAME_THICKNESS) / 2, 0, 0]}
       >
-        <boxGeometry args={sideJambSize} />
+        <boxGeometry args={[FRAME_THICKNESS, WINDOW_HEIGHT, WINDOW_DEPTH]} />
         <meshStandardMaterial {...frameMaterial} />
       </mesh>
       <mesh
@@ -101,7 +103,7 @@ export function WallWindowModel({
         receiveShadow={shadowsEnabled}
         position={[0, (WINDOW_HEIGHT - FRAME_THICKNESS) / 2, 0]}
       >
-        <boxGeometry args={topBottomRailSize} />
+        <boxGeometry args={[OPENING_WIDTH, FRAME_THICKNESS, WINDOW_DEPTH]} />
         <meshStandardMaterial {...frameMaterial} />
       </mesh>
       <mesh
@@ -109,117 +111,147 @@ export function WallWindowModel({
         receiveShadow={shadowsEnabled}
         position={[0, -(WINDOW_HEIGHT - FRAME_THICKNESS) / 2, 0]}
       >
-        <boxGeometry args={topBottomRailSize} />
+        <boxGeometry args={[OPENING_WIDTH, FRAME_THICKNESS, WINDOW_DEPTH]} />
         <meshStandardMaterial {...frameMaterial} />
       </mesh>
 
-      <mesh position={[-(trimWidth - FRAME_THICKNESS * 0.86) / 2, 0, frontTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimSideSize} />
-        <meshStandardMaterial {...frameMaterial} />
+      {/* Inner Bevel (Subtle depth) */}
+      <mesh position={[-(OPENING_WIDTH - 0.08) / 2, 0, 0]} raycast={() => null}>
+        <boxGeometry args={[0.06, OPENING_HEIGHT, WINDOW_DEPTH - 0.04]} />
+        <meshStandardMaterial {...frameMaterial} roughness={0.9} />
       </mesh>
-      <mesh position={[(trimWidth - FRAME_THICKNESS * 0.86) / 2, 0, frontTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimSideSize} />
-        <meshStandardMaterial {...frameMaterial} />
+      <mesh position={[(OPENING_WIDTH - 0.08) / 2, 0, 0]} raycast={() => null}>
+        <boxGeometry args={[0.06, OPENING_HEIGHT, WINDOW_DEPTH - 0.04]} />
+        <meshStandardMaterial {...frameMaterial} roughness={0.9} />
       </mesh>
-      <mesh position={[0, (trimHeight - FRAME_THICKNESS * 0.86) / 2, frontTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimTopBottomSize} />
-        <meshStandardMaterial {...frameMaterial} />
+      <mesh position={[0, (OPENING_HEIGHT - 0.08) / 2, 0]} raycast={() => null}>
+        <boxGeometry args={[OPENING_WIDTH - 0.12, 0.06, WINDOW_DEPTH - 0.04]} />
+        <meshStandardMaterial {...frameMaterial} roughness={0.9} />
       </mesh>
-      <mesh position={[0, -(trimHeight - FRAME_THICKNESS * 0.86) / 2, frontTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimTopBottomSize} />
-        <meshStandardMaterial {...frameMaterial} />
-      </mesh>
-
-      <mesh position={[-(trimWidth - FRAME_THICKNESS * 0.86) / 2, 0, backTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimSideSize} />
-        <meshStandardMaterial {...frameMaterial} />
-      </mesh>
-      <mesh position={[(trimWidth - FRAME_THICKNESS * 0.86) / 2, 0, backTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimSideSize} />
-        <meshStandardMaterial {...frameMaterial} />
-      </mesh>
-      <mesh position={[0, (trimHeight - FRAME_THICKNESS * 0.86) / 2, backTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimTopBottomSize} />
-        <meshStandardMaterial {...frameMaterial} />
-      </mesh>
-      <mesh position={[0, -(trimHeight - FRAME_THICKNESS * 0.86) / 2, backTrimZ]} raycast={() => null}>
-        <boxGeometry args={trimTopBottomSize} />
-        <meshStandardMaterial {...frameMaterial} />
+      <mesh position={[0, -(OPENING_HEIGHT - 0.08) / 2, 0]} raycast={() => null}>
+        <boxGeometry args={[OPENING_WIDTH - 0.12, 0.06, WINDOW_DEPTH - 0.04]} />
+        <meshStandardMaterial {...frameMaterial} roughness={0.9} />
       </mesh>
 
+      {/* --- Interior Trim (Crown Molding Style) --- */}
+      <mesh position={[-(trimWidth - 0.12) / 2, 0, frontTrimZ + 0.01]} raycast={() => null}>
+        <boxGeometry args={[0.18, trimHeight + 0.04, 0.04]} />
+        <meshStandardMaterial {...frameMaterial} />
+      </mesh>
+      <mesh position={[(trimWidth - 0.12) / 2, 0, frontTrimZ + 0.01]} raycast={() => null}>
+        <boxGeometry args={[0.18, trimHeight + 0.04, 0.04]} />
+        <meshStandardMaterial {...frameMaterial} />
+      </mesh>
+      <group position={[0, (trimHeight - 0.02) / 2, frontTrimZ + 0.02]}>
+        <mesh position={[0, 0.06, 0]} raycast={() => null}>
+          <boxGeometry args={[trimWidth + 0.12, 0.08, 0.06]} />
+          <meshStandardMaterial {...frameMaterial} />
+        </mesh>
+        <mesh position={[0, 0, -0.01]} raycast={() => null}>
+          <boxGeometry args={[trimWidth + 0.04, 0.12, 0.04]} />
+          <meshStandardMaterial {...frameMaterial} />
+        </mesh>
+      </group>
+
+      {/* --- Glass Pane --- */}
       <mesh position={[0, 0, 0]} raycast={() => null}>
-        <boxGeometry args={[OPENING_WIDTH - 0.02, OPENING_HEIGHT - 0.02, GLASS_THICKNESS]} />
+        <boxGeometry args={[OPENING_WIDTH - 0.04, OPENING_HEIGHT - 0.04, GLASS_THICKNESS]} />
         <meshPhysicalMaterial
           color={glassColor}
           emissive={glowColor}
-          emissiveIntensity={mixNumber(0.22, 0, normalizedDaylightAmount)}
-          metalness={0}
-          roughness={mixNumber(0.08, 0.05, normalizedDaylightAmount)}
-          clearcoat={0.7}
-          clearcoatRoughness={0.06}
-          transmission={mixNumber(0.08, 0.9, normalizedDaylightAmount)}
-          thickness={0.12}
-          ior={1.12}
+          emissiveIntensity={mixNumber(0.4, 0, normalizedDaylightAmount)}
+          metalness={0.05}
+          roughness={mixNumber(0.12, 0.02, normalizedDaylightAmount)}
+          clearcoat={1.0}
+          clearcoatRoughness={0.02}
+          transmission={mixNumber(0.15, 0.95, normalizedDaylightAmount)}
+          thickness={0.24}
+          ior={1.45}
           transparent
-          opacity={mixNumber(0.2, 0.9, normalizedDaylightAmount)}
+          opacity={mixNumber(0.35, 0.85, normalizedDaylightAmount)}
           depthWrite={false}
           side={DoubleSide}
         />
       </mesh>
 
-      {nightAmount > 0.02 ? (
-        <mesh position={[0, 0, -WINDOW_DEPTH / 2 - 0.01]} raycast={() => null}>
-          <planeGeometry args={[OPENING_WIDTH - 0.12, OPENING_HEIGHT - 0.12]} />
-          <meshBasicMaterial
-            color="#ffdfab"
-            toneMapped={false}
-            transparent
-            opacity={skyCardOpacity}
-            side={DoubleSide}
-          />
-        </mesh>
-      ) : null}
-
+      {/* --- Mullions & Hardware --- */}
       <mesh position={[0, 0, 0.03]} raycast={() => null}>
-        <boxGeometry args={[INNER_MULLION_WIDTH, OPENING_HEIGHT + 0.1, 0.03]} />
+        <boxGeometry args={[INNER_MULLION_WIDTH, OPENING_HEIGHT + 0.08, 0.04]} />
         <meshStandardMaterial {...frameMaterial} />
       </mesh>
-      <mesh position={[0, 0, 0]} raycast={() => null}>
-        <boxGeometry args={[INNER_MULLION_WIDTH * 0.52, OPENING_HEIGHT - 0.08, WINDOW_DEPTH - 0.08]} />
-        <meshStandardMaterial {...frameMaterial} />
-      </mesh>
-
-      <mesh
-        castShadow={shadowsEnabled}
-        receiveShadow={shadowsEnabled}
-        position={[0, -WINDOW_HEIGHT / 2 - 0.08, WINDOW_DEPTH * 0.48]}
-      >
-        <boxGeometry args={[WINDOW_WIDTH + 0.2, 0.1, 0.3]} />
-        <meshStandardMaterial {...sillMaterial} />
-      </mesh>
-      <mesh
-        castShadow={shadowsEnabled}
-        receiveShadow={shadowsEnabled}
-        position={[0, -WINDOW_HEIGHT / 2 - 0.03, WINDOW_DEPTH * 0.66]}
-      >
-        <boxGeometry args={[WINDOW_WIDTH + 0.34, 0.04, 0.14]} />
-        <meshStandardMaterial {...sillMaterial} />
-      </mesh>
-
-      {nightAmount > 0.02 ? (
-        <mesh position={[0, 0, -WINDOW_DEPTH / 2 + 0.02]} raycast={() => null}>
-          <planeGeometry args={[OPENING_WIDTH - 0.16, OPENING_HEIGHT - 0.16]} />
-          <meshBasicMaterial
-            color="#ffd59a"
-            toneMapped={false}
-            transparent
-            opacity={glassGlowOpacity}
-            side={DoubleSide}
-          />
+      {/* Central Latch/Handle */}
+      <group position={[0, 0, 0.06]}>
+        <mesh castShadow={shadowsEnabled}>
+          <boxGeometry args={[0.06, 0.14, 0.03]} />
+          <meshStandardMaterial color="#8a8a8a" metalness={0.8} roughness={0.2} />
         </mesh>
+        <mesh position={[0, 0.03, 0.02]}>
+          <boxGeometry args={[0.02, 0.06, 0.04]} />
+          <meshStandardMaterial color="#666666" metalness={0.9} roughness={0.1} />
+        </mesh>
+      </group>
+
+      {/* --- Premium Window Sill --- */}
+      {/* Main Sill */}
+      <mesh
+        castShadow={shadowsEnabled}
+        receiveShadow={shadowsEnabled}
+        position={[0, -WINDOW_HEIGHT / 2 - 0.06, WINDOW_DEPTH * 0.44]}
+      >
+        <boxGeometry args={[WINDOW_WIDTH + 0.3, 0.12, 0.34]} />
+        <meshStandardMaterial {...sillMaterial} />
+      </mesh>
+      {/* Rounded Edge Shadow (Subtle depth) */}
+      <mesh
+        position={[0, -WINDOW_HEIGHT / 2 - 0.12, WINDOW_DEPTH * 0.44]}
+        raycast={() => null}
+      >
+        <boxGeometry args={[WINDOW_WIDTH + 0.2, 0.02, 0.3]} />
+        <meshStandardMaterial color="#000000" transparent opacity={0.15} />
+      </mesh>
+      {/* Detailed apron trim */}
+      <mesh
+        position={[0, -WINDOW_HEIGHT / 2 - 0.18, WINDOW_DEPTH * 0.32]}
+        raycast={() => null}
+      >
+        <boxGeometry args={[WINDOW_WIDTH + 0.1, 0.08, 0.04]} />
+        <meshStandardMaterial {...sillMaterial} />
+      </mesh>
+
+      {/* --- Ambient Occlusion / Shadow Planes --- */}
+      <mesh position={[0, 0, -WINDOW_DEPTH / 2 + 0.01]} raycast={() => null}>
+        <planeGeometry args={[OPENING_WIDTH, OPENING_HEIGHT]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.08} side={DoubleSide} />
+      </mesh>
+
+      {/* --- Night Sky/Glow --- */}
+      {nightAmount > 0.02 ? (
+        <>
+          <mesh position={[0, 0, -WINDOW_DEPTH / 2 - 0.01]} raycast={() => null}>
+            <planeGeometry args={[OPENING_WIDTH - 0.12, OPENING_HEIGHT - 0.12]} />
+            <meshBasicMaterial
+              color="#ffdfab"
+              toneMapped={false}
+              transparent
+              opacity={skyCardOpacity}
+              side={DoubleSide}
+            />
+          </mesh>
+          <mesh position={[0, 0, -WINDOW_DEPTH / 2 + 0.02]} raycast={() => null}>
+            <planeGeometry args={[OPENING_WIDTH - 0.16, OPENING_HEIGHT - 0.16]} />
+            <meshBasicMaterial
+              color="#ffd59a"
+              toneMapped={false}
+              transparent
+              opacity={glassGlowOpacity}
+              side={DoubleSide}
+            />
+          </mesh>
+        </>
       ) : null}
 
-      {selected || hovered || interactionHovered || blocked ? (
+      {/* --- Selection/Hover Highlight --- */}
+      {(selected || hovered || interactionHovered || blocked) && (
         <mesh position={[0, 0, WINDOW_DEPTH / 2 + 0.04]} raycast={() => null}>
           <boxGeometry args={[WINDOW_WIDTH + 0.14, WINDOW_HEIGHT + 0.14, 0.02]} />
           <meshBasicMaterial
@@ -228,7 +260,7 @@ export function WallWindowModel({
             opacity={selected || blocked ? 0.28 : 0.18}
           />
         </mesh>
-      ) : null}
+      )}
     </group>
   );
 }

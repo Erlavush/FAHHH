@@ -1,87 +1,120 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+@font-face {
+  font-family: "CatClockSevenSegment";
+  src: url("/fonts/seven-segment.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 .minecraft-clock {
   pointer-events: none;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  padding-top: 16px;
+  gap: 0;
+  padding-top: 6px;
+  transform: translateY(-18px);
 }
 
-.minecraft-clock__case {
+.minecraft-clock__frame {
   position: relative;
-  background: #000000;
-  padding: 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.58),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.minecraft-clock__buttons {
-  position: absolute;
-  top: -8px;
-  left: 30px;
-  right: 30px;
   display: flex;
-  justify-content: space-around;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
 }
 
-.minecraft-clock__button {
-  width: 16px;
-  height: 8px;
-  background: #101010;
-  border-radius: 4px 4px 1px 1px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+.minecraft-clock__image {
+  display: block;
+  width: 240px;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+  transform: scaleY(0.79);
+  transform-origin: center;
 }
 
-.minecraft-clock__screen {
-  background: #040404;
-  padding: 4px 24px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow:
-    inset 0 4px 12px rgba(0, 0, 0, 0.95),
-    0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.minecraft-clock__display-container {
+.minecraft-clock__time-text {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 4px;
+  z-index: 2;
+  white-space: nowrap;
+  min-width: 104px;
 }
 
-.minecraft-clock__main-display {
-  position: relative;
-  display: flex;
-  justify-content: center;
+.minecraft-clock__time-text--detailed {
+  min-width: 148px;
 }
 
 .minecraft-clock__label {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 3.2rem;
-  line-height: 1;
-  letter-spacing: 0.1em;
-  color: #ffffff;
-  font-weight: 700;
+  font-family: "CatClockSevenSegment", monospace;
+  font-size: 3.4rem;
+  line-height: 0.5;
+  letter-spacing: 0.07em;
+  font-variant-numeric: tabular-nums;
+  color: #fff3de;
   text-shadow:
-    0 0 12px rgba(255, 255, 255, 0.38),
-    0 0 28px rgba(255, 255, 255, 0.16);
+    0 1px 0 rgba(61, 31, 12, 0.95),
+    0 0 8px rgba(255, 188, 92, 0.45),
+    0 0 18px rgba(255, 167, 64, 0.24);
 }
 
-.minecraft-clock__indicator {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.18);
-  margin-bottom: 8px;
+.minecraft-clock__label--detailed {
+  font-size: 2.78rem;
+  letter-spacing: 0.03em;
 }
 
-.minecraft-clock__indicator--lit {
-  color: #ffffff;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.42);
+.minecraft-clock__ampm {
+  font-family: "CatClockSevenSegment", monospace;
+  font-size: 1.3rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  padding-bottom: 0.08rem;
+  color: rgba(255, 230, 190, 0.72);
+  opacity: 0.82;
+  text-shadow:
+    0 1px 0 rgba(61, 31, 12, 0.9),
+    0 0 6px rgba(255, 188, 92, 0.18);
+}
+
+.minecraft-clock__ampm--lit {
+  color: #ffe2b3;
+  opacity: 1;
+  text-shadow:
+    0 1px 0 rgba(61, 31, 12, 0.9),
+    0 0 8px rgba(255, 203, 120, 0.45),
+    0 0 14px rgba(255, 167, 64, 0.22);
+}
+
+@media (max-width: 600px) {
+  .minecraft-clock__image {
+    width: 130px;
+  }
+
+  .minecraft-clock__time-text {
+    min-width: 84px;
+    gap: 4px;
+  }
+
+  .minecraft-clock__time-text--detailed {
+    min-width: 104px;
+  }
+
+  .minecraft-clock__label {
+    font-size: 1.08rem;
+  }
+
+  .minecraft-clock__label--detailed {
+    font-size: 0.92rem;
+    letter-spacing: 0.03em;
+  }
+
+  .minecraft-clock__ampm {
+    font-size: 0.4rem;
+  }
 }

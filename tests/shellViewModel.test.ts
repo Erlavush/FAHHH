@@ -6,6 +6,7 @@ import {
   getDeveloperWorkspaceTabState,
   getDeveloperWorkspaceTabs,
   getPlayerActionDockState,
+  getPlayerDrawerTabsState,
   getPlayerCompanionCardState,
   getPlayerRoomDetailsState
 } from "../src/app/shellViewModel";
@@ -67,9 +68,31 @@ describe("shellViewModel", () => {
     ]);
     expect(getDeveloperWorkspaceTabState("world").find((tab) => tab.isActive)?.label).toBe("World");
   });
+  it("returns split drawer tabs for inventory, shop, and pet care", () => {
+    const sandboxTabs = getPlayerDrawerTabsState("pet_care", false, 2);
+    const sharedRoomTabs = getPlayerDrawerTabsState("inventory", true, 0);
+
+    expect(sandboxTabs.map((tab) => tab.label)).toEqual([
+      "Inventory",
+      "Shop",
+      "Pet Care"
+    ]);
+    expect(sandboxTabs.find((tab) => tab.value === "pet_care")).toMatchObject({
+      isActive: true,
+      badgeLabel: "2 need care"
+    });
+    expect(sharedRoomTabs.find((tab) => tab.value === "shop")?.description).toContain(
+      "shared companion"
+    );
+    expect(sharedRoomTabs.find((tab) => tab.value === "pet_care")?.description).not.toContain(
+      "tool"
+    );
+  });
 
   it("returns player companion card copy with Together Days and activity statuses", () => {
     const waitingState = getPlayerCompanionCardState({
+      activeCatCount: 2,
+      catsNeedingCareCount: 1,
       cozyRestPaidToday: false,
       cozyRestReadyNow: false,
       deskActivityPaidToday: false,
@@ -81,10 +104,13 @@ describe("shellViewModel", () => {
       runtimeEntryMode: "legacy",
       showInviteCode: true,
       statusMessage: null,
+      storedCatCount: 1,
       togetherDaysCount: 3,
       visitCompletedToday: true
     });
     const togetherState = getPlayerCompanionCardState({
+      activeCatCount: 3,
+      catsNeedingCareCount: 0,
       cozyRestPaidToday: false,
       cozyRestReadyNow: true,
       deskActivityPaidToday: true,
@@ -96,10 +122,13 @@ describe("shellViewModel", () => {
       runtimeEntryMode: "hosted",
       showInviteCode: false,
       statusMessage: null,
+      storedCatCount: 2,
       togetherDaysCount: 8,
       visitCompletedToday: true
     });
     const reconnectingState = getPlayerCompanionCardState({
+      activeCatCount: 1,
+      catsNeedingCareCount: 1,
       cozyRestPaidToday: false,
       cozyRestReadyNow: false,
       deskActivityPaidToday: false,
@@ -114,10 +143,13 @@ describe("shellViewModel", () => {
       runtimeEntryMode: "dev_fallback",
       showInviteCode: false,
       statusMessage: "Reloading latest room...",
+      storedCatCount: 0,
       togetherDaysCount: 3,
       visitCompletedToday: true
     });
     const awayState = getPlayerCompanionCardState({
+      activeCatCount: 2,
+      catsNeedingCareCount: 2,
       cozyRestPaidToday: false,
       cozyRestReadyNow: false,
       deskActivityPaidToday: false,
@@ -132,6 +164,7 @@ describe("shellViewModel", () => {
       runtimeEntryMode: "hosted",
       showInviteCode: false,
       statusMessage: null,
+      storedCatCount: 3,
       togetherDaysCount: 3,
       visitCompletedToday: false
     });
@@ -141,6 +174,9 @@ describe("shellViewModel", () => {
     expect(waitingState.roomModeLabel).toBe("Local room");
     expect(waitingState.togetherDaysLabel).toBe("Together Days 3");
     expect(waitingState.visitStatusLabel).toBe("Visited today");
+    expect(waitingState.activeCatCountLabel).toBe("2 active cats");
+    expect(waitingState.storedCatCountLabel).toBe("1 stored cat");
+    expect(waitingState.catsNeedingCareLabel).toBe("1 cat needs care");
     expect(waitingState.deskActivityStatus).toBe("Ready now");
     expect(waitingState.cozyRestStatus).toBe("Lie down together");
 
@@ -148,6 +184,7 @@ describe("shellViewModel", () => {
     expect(togetherState.ritualTitle).toBe("Room-day visit complete");
     expect(togetherState.roomModeLabel).toBe("Hosted couple room");
     expect(togetherState.deskActivityStatus).toBe("Paid today");
+    expect(togetherState.catsNeedingCareLabel).toBe("All cats doing well");
     expect(togetherState.cozyRestStatus).toBe("Ready now");
 
     expect(reconnectingState.partnerTitle).toBe("Partner reconnecting");
@@ -183,6 +220,22 @@ describe("shellViewModel", () => {
     ]);
   });
 
+  it("marks build and inventory dock plaques active when their modes are open", () => {
+    const dockState = getPlayerActionDockState({
+      buildModeEnabled: true,
+      catalogOpen: true,
+      playerInteractionStatus: null
+    });
+
+    expect(dockState.actions.find((action) => action.id === "build")).toMatchObject({
+      isActive: true,
+      label: "Exit Build Mode"
+    });
+    expect(dockState.actions.find((action) => action.id === "inventory")).toMatchObject({
+      isActive: true,
+      label: "Close Inventory"
+    });
+  });
   it("does not expose developer actions in the player dock", () => {
     const dockState = getPlayerActionDockState({
       buildModeEnabled: false,

@@ -1,44 +1,44 @@
-﻿---
+---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: planned
-stopped_at: Phase 06.1 execution completed; Phase 09 is the next planned phase directory
-last_updated: "2026-03-27T12:33:05.7924727Z"
-last_activity: 2026-03-27 -- Completed quick task QT-07 collapsible companion side panel
+milestone: v1.1
+milestone_name: online-foundation
+status: in_progress
+stopped_at: Phase 11 executed and verified; Phase 10 10-02 remains next for execution
+last_updated: "2026-03-28T05:08:48.5964329+08:00"
+last_activity: 2026-03-28 -- Executed and verified Phase 11 player shell inventory, shop, and pet care overhaul
 progress:
-  total_phases: 6
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_phases: 8
+  completed_phases: 5
+  total_plans: 24
+  completed_plans: 16
+  percent: 67
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-27)
+See: .planning/PROJECT.md (updated 2026-03-28)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 09 - major-improvements
+**Current focus:** Phase 10 - better-cats-variant-import
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
-Status: Phase 06.1 complete; Phase 09 is the next planned phase directory
-Last activity: 2026-03-27 -- Completed quick task QT-07 collapsible companion side panel
+Phase: 10
+Plan: 10-02 ready
+Status: Phase 10 Better Cats variant import remains in progress; Phase 11 player-shell inventory/shop/pet-care overhaul is complete and verified.
+Last activity: 2026-03-28 -- Executed and verified Phase 11 player shell inventory, shop, and pet care overhaul
 
-Progress: [##########] 100%
+Progress: [#######---] 67%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
-- Average duration: 1 session per completed plan
-- Total execution time: -
+- Total plans completed: 16
+- Average duration: 0.6 session per completed plan
+- Total execution time: 9 sessions
 
 **By Phase:**
 
@@ -49,18 +49,20 @@ Progress: [##########] 100%
 | 06.1 | 3/3 | 1 session | 0.3 session |
 | 07 | 0/3 | - | - |
 | 08 | 0/3 | - | - |
-| 09 | 0/0 | - | - |
+| 09 | 3/3 | 1 session | 0.3 session |
+| 10 | 1/3 | 1 session | 1.0 session |
+| 11 | 3/3 | 1 session | 0.3 session |
 
 **Recent Trend:**
 
-- Latest completed phase: Phase 06.1 Codebase modularization and oversized-file decomposition
-- Trend: the oversized-file modularization pass is complete; roadmap placeholders 7 and 8 still need planning, and Phase 09 is the next existing phase directory
+- Latest completed phase: Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul
+- Trend: Phase 11 completed with split warm drawer surfaces and direct care shortcuts, while Phase 10 still retains the Better Cats runtime and adoption follow-up work.
 
 ## Milestone Scope
 
 - Milestone: `v1.1 Online Foundation`
-- Goal: Move the shared-room MVP onto a real backend/auth foundation while deepening rituals, personalization, and content breadth.
-- Roadmap phases: `5`, `6`, `6.1`, `7`, `8`, `9`
+- Goal: Move the shared-room MVP onto a real backend/auth foundation while deepening rituals, personalization, content breadth, showcase readability, curated cat-variant depth, and player-shell readability.
+- Roadmap phases: `5`, `6`, `6.1`, `7`, `8`, `9`, `10`, `11`
 - Planning guardrail: every phase must produce `VERIFICATION.md`
 
 ## Quick Tasks Completed
@@ -74,6 +76,9 @@ Progress: [##########] 100%
 | QT-05 | AMOLED Player Theme and CSS Modularization | Rethemed the player-facing shell to high-contrast black and white, modularized the UI CSS, and aligned the HUD, overlays, and inventory drawer with the digital clock. |
 | QT-06 | Compact Mobile-Friendly Player Dock Sizing | Reduced the bottom-center dock footprint on desktop, tightened bottom offsets, and compressed the mobile layout so the HUD stays readable without dominating small screens. |
 | QT-07 | Collapsible Companion Side Panel | Turned the top-right companion card into a slide-out panel with a side-tab toggle so it can stay off-screen until needed. |
+| QT-08 | Showcase Cat Sanctuary Loop | Added a multi-cat local roster, smarter cat behaviors, care rewards, and player-shell summaries for the March 28 demo build. |
+| QT-09 | Clock-Themed Bottom HUD Overhaul | Rebuilt the bottom player HUD around the warm pixel-art clock theme using the supplied framed container and action/stat icons. |
+| QT-10 | Performance Audit and Runtime Optimization Pass | Reduced clock-driven rerenders, localized room-stage updates, shared pet obstacle computation, and throttled heavy render quality in dense showcase scenes. |
 
 ## Milestone Archive
 
@@ -118,6 +123,12 @@ Recent decisions affecting current work:
 - [Phase 05]: Passive canonical updates still need a better refresh/subscription path for first-time shared-pet adoption visibility on the non-authoritative browser.
 - [Phase 05]: Current remote actor playback is improved but still not smooth enough to meet the desired Minecraft-like multiplayer feel.
 - [Phase 05]: Bed slot identity exists, but the actual bed offsets and lie pose geometry still overlap visually.
+- [Phase 09]: The March 28 showcase focuses on a local-first cat sanctuary loop while preserving the Firebase and couple foundation for future co-care work.
+- [Phase 09]: UI polish is parallel-owned, so this phase exposes stable gameplay callbacks and labels without trying to own the broader shell redesign.
+- [Phase 10]: Curated Better Cats variants should ride the existing GLB actor and local cat runtime instead of creating per-breed gameplay code paths.
+- [Phase 11]: Player-facing inventory, shop, and pet-care surfaces should share the warm clock/HUD language while separating commerce, owned inventory, and care actions inside one drawer contract.
+- [Phase 11]: The player shell should route drawer navigation through explicit `Inventory`, `Shop`, and `Pet Care` modes rather than adding extra always-visible HUD buttons.
+- [Phase 11]: Shared-room Pet Care remains informational inside the drawer while the sandbox local-cat roster keeps direct care controls.
 
 ### Roadmap Evolution
 
@@ -133,7 +144,9 @@ Recent decisions affecting current work:
 - Phase 06 completed: Together Days, the retro desk-PC suite, Cozy Rest, and the matching shell updates are now part of the online baseline.
 - Phase 06.1 inserted after Phase 06: Codebase modularization and oversized-file decomposition (URGENT).
 - Phase 06.1 completed: shared progression, shared room runtime, and App shell orchestration now live behind focused modules with passing regression coverage.
-- Phase 09 added: MAJOR IMPROVEMENTS.
+- Phase 09 completed: Showcase Cat Sanctuary now ships as a local-first demo slice with multi-cat persistence, readable behaviors, care rewards, and shell surfacing.
+- Phase 10 execution started: 10-01 now ships a repo-owned Better Cats variant manifest, imported coat assets, and a built-in preset library for Mob Lab and later runtime wiring.
+- Phase 11 completed: player shell inventory, shop, and pet care now live in warm HUD-aligned drawer surfaces with a shared-room-safe care fallback and direct shell shortcuts.
 
 ### Pending Todos
 
@@ -158,14 +171,16 @@ Recent decisions affecting current work:
 - Phase 06.1 closed the urgent oversized-file debt by modularizing `src/App.tsx`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/lib/sharedProgression.ts`, and the shared-room runtime regression coverage under the CODE-01 guardrail.
 - Hosted mode now depends on valid `VITE_SHARED_BACKEND=firebase` and Firebase env values in deployment; when those are missing, the runtime surfaces hosted-unavailable instead of silently entering the local/dev path.
 - Phase 7 now depends on Phase 06.1 completing without regressing the player/developer shell split or the canonical versus ephemeral state boundary.
+- Phase 09 intentionally lands on the local showcase path first; hosted shared-room remains future-compatible but does not need full multi-cat expansion before the demo.
+- Phase 10 depends on adding a Better Cats texture/material seam to `GlbMobPreviewActor.tsx`; today the actor still does not honor preset-driven coat textures.
+- Phase 11 shipped without adding new bottom-HUD clutter; future shell expansion should continue routing through internal drawer navigation unless later testing proves otherwise.
 - v1.0 still carries missing `VERIFICATION.md` artifacts for Phases `2`, `3.1`, and `4`, but Phase 5 now establishes the mandatory verification baseline for v1.1.
 - `src/lib/devLocalState.ts` still rejects persisted `wall_front` and `wall_right` placement surfaces on the legacy sandbox path; shared-room runtime bypasses that gap today, but the validator remains stale.
 
 ## Session Continuity
 
-Last session: 2026-03-27T18:22:35+08:00
-Stopped at: Phase 06.1 execution completed; Phase 09 is the next planned phase directory
-Resume file: .planning/ROADMAP.md
-
+Last session: 2026-03-28T05:08:48.5964329+08:00
+Stopped at: Phase 11 executed and verified; execute 10-02 next
+Resume file: .planning/phases/10-better-cats-variant-import/10-02-PLAN.md
 
 

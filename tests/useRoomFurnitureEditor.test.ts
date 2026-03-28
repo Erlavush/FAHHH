@@ -180,6 +180,41 @@ describe("useRoomFurnitureEditor", () => {
     expect(latestHookValue?.busyFurnitureId).toBeNull();
   });
 
+  it("keeps local build-mode editing out of the shared-room stale lock path", async () => {
+    const initialPlacements = [makePoster("poster-1", [0, 2, -4.83])];
+    const sharedEditConflictSpy = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(HookHarness, {
+          buildModeEnabled: true,
+          gridSnapEnabled: true,
+          initialFurniturePlacements: initialPlacements,
+          onCommittedFurnitureChange: vi.fn(),
+          onFurnitureSnapshotChange: vi.fn(),
+          onSharedEditConflict: sharedEditConflictSpy,
+          playerWorldPosition: [6, 0, 6]
+        })
+      );
+    });
+
+    await act(async () => {
+      await latestHookValue?.selectFurnitureForEditing("poster-1");
+    });
+
+    expect(latestHookValue?.selectedFurnitureId).toBe("poster-1");
+    expect(sharedEditConflictSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      latestHookValue?.handleConfirmFurniturePlacement();
+    });
+
+    expect(sharedEditConflictSpy).not.toHaveBeenCalled();
+  });
   it("clears the busy item once the partner-held lock releases", async () => {
     const initialPlacements = [
       makePoster("poster-1", [0, 2, -4.83]),

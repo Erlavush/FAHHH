@@ -48,6 +48,19 @@ export function getRoomShellMaterialProps(renderMode: RoomShellRenderMode) {
   return {} as const;
 }
 
+export function shouldRoomShellCastShadow(
+  renderMode: RoomShellRenderMode,
+  shadowsEnabled: boolean
+) {
+  return shadowsEnabled;
+}
+
+export function shouldRoomShellReceiveShadow(
+  renderMode: RoomShellRenderMode,
+  shadowsEnabled: boolean
+) {
+  return shadowsEnabled && renderMode === "visible";
+}
 function WallInteractionPlane({
   surface,
   onWallClick,
@@ -124,8 +137,8 @@ function WallBand({
   return (
     <mesh
       position={position}
-      castShadow={shadowsEnabled}
-      receiveShadow={shadowsEnabled}
+      castShadow={shouldRoomShellCastShadow(renderMode, shadowsEnabled)}
+      receiveShadow={shouldRoomShellReceiveShadow(renderMode, shadowsEnabled)}
       raycast={() => null}
     >
       <boxGeometry args={isLateral ? [WALL_THICKNESS, height, span] : [span, height, WALL_THICKNESS]} />
@@ -399,8 +412,8 @@ export function RoomShell({
       <group>
         <mesh
           position={[0, CEILING_CENTER_Y, 0]}
-          receiveShadow={shadowsEnabled}
-          castShadow={shadowsEnabled}
+          receiveShadow={shouldRoomShellReceiveShadow(getRoomShellRenderMode(wallVisibility.ceiling ?? false), shadowsEnabled)}
+          castShadow={shouldRoomShellCastShadow(getRoomShellRenderMode(wallVisibility.ceiling ?? false), shadowsEnabled)}
           raycast={() => null}
         >
           <boxGeometry args={[GRID_SIZE + 0.18, CEILING_THICKNESS, GRID_SIZE + 0.18]} />

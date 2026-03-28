@@ -10,7 +10,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 
 ## Current Milestone: v1.1 Online Foundation
 
-**Goal:** Move the shared-room MVP off the dev-only persistence stack onto a real couple-owned online foundation while deepening rituals, personalization, and content breadth.
+**Goal:** Move the shared-room MVP off the dev-only persistence stack onto a real couple-owned online foundation while deepening rituals, personalization, content breadth, and player-shell readability.
 
 **Target features:**
 - Production backend/auth and real room ownership across browsers and devices
@@ -18,6 +18,9 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - Richer memory collection, deeper pet behavior, and additional themed room content
 - Oversized runtime and regression files are decomposed before deeper milestone work so active code does not keep growing past 1k-line boundaries
 - Mandatory phase verification artifacts to retire the process debt carried out of v1.0
+- A March 28, 2026 showcase slice that makes the room immediately readable as a cozy cat sanctuary without removing the future couple/shared-room foundation
+- Curated Better Cats visual variant imports that expand the cat roster without forking the current cat runtime or future couple/shared-room foundation
+- A clock-themed player-shell commerce/care overhaul that separates inventory, shopping, and pet care while matching the warm HUD and digital cat clock
 
 ## Requirements
 
@@ -37,10 +40,13 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - [x] Couple can authenticate or reclaim their room identity through Google sign-in, exclusive couple linking, and automatic paired-room re-entry across browsers or devices.
 - [x] Shared-room documents, presence, progression, memories, and the shared cat now sync through hosted Firebase adapters instead of the dev-only shared-room store.
 - [x] Couple now has Together Days, a retro three-app desk PC with once-per-room-day payouts, and a bed-based Cozy Rest earn loop surfaced in the player shell.
+- [x] The showcase build now supports a cozy cat sanctuary loop with multiple local cats, readable room-life behavior, cat-care rewards, and shell surfacing without removing the future hosted couple foundation.
+- [x] Player-facing inventory, shop, and pet-care surfaces now separate owned inventory, shopping/adoption, and care actions inside the same warm clock-themed shell as the bottom HUD and digital cat clock.
 
 ### Active
 
 - [ ] Couple can maintain a richer memory collection, interact with a deeper shared-pet loop, and unlock additional themed content.
+
 - [ ] Every v1.1 phase closes with explicit `VERIFICATION.md` coverage so the next milestone audit is evidence-complete.
 
 ### Out of Scope
@@ -69,10 +75,12 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - Camera-occluded walls and the ceiling now preserve their shadow-casting occluders, so room lighting stays stable while peeling surfaces away for interior visibility.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
 - Phase 5 now adds Google-auth couple ownership, hosted room/bootstrap adapters, pair-link presence, and automatic paired-room re-entry without breaking the brownfield local dev sandbox fallback.
-- v1.1 is now scoped around ritual/activity depth, richer memories and pet behavior, additional content expansion, and one follow-on Phase 9 slot for major improvements on top of the online foundation.
+- v1.1 is now scoped around ritual/activity depth, richer memories and pet behavior, additional content expansion, a shipped showcase cat sanctuary slice, curated Better Cats variant imports, and a follow-on player-shell commerce/care polish pass on top of the online foundation.
 - Phase 6 is now complete: Together Days, the retro desk-PC activity suite, Cozy Rest, and the matching shell surfacing are part of the active baseline.
 - Phase 06.1 is now complete: `src/App.tsx`, `src/app/hooks/useSharedRoomRuntime.ts`, `src/lib/sharedProgression.ts`, and the shared-room runtime regression coverage are split into modular seams under the 1k guardrail.
-- The next planned phase directory on disk is Phase 09; roadmap placeholders 7 and 8 still need planning before that broader follow-on work is reshaped.
+- Phase 09 is now complete: the showcase cat sanctuary slice adds multi-cat local persistence, readable cat behaviors, cat-care rewards, and player-shell summaries while preserving the future couple/Firebase path.
+- Phase 10 remains in progress: repo-owned Better Cats presets are in place, while variant-aware GLB rendering and adoption/runtime wiring still remain.
+- Phase 11 is now complete: the player drawer now splits `Inventory`, `Shop`, and `Pet Care` into warm HUD-aligned surfaces with shared-room-safe care messaging and direct shell shortcuts.
 
 ## Constraints
 
@@ -108,6 +116,9 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Archive v1.0 despite milestone audit gaps | HEAD is stable enough to treat the missing verification artifacts as process debt rather than reopen shipped scope | Revisit |
 | Continue numbering from Phase 5 and require verification artifacts in every v1.1 phase | Keeps history continuous while preventing another milestone audit evidence gap | Pending |
 | Insert urgent Phase `06.1` before Phase 7 to pay down oversized-file debt | `App.tsx`, `useSharedRoomRuntime.ts`, `sharedProgression.ts`, and the shared-room runtime regression coverage were already too large for safe feature growth | Good |
+| Phase 09 prioritizes a local-first cat sanctuary showcase while preserving the future couple/shared-room foundation | The showcase PC needs immediate readability and retention, but the hosted Firebase path must stay intact for later couple-cat work | Good |
+| Phase 10 uses curated Better Cats imports on top of the existing GLB actor instead of creating per-breed gameplay code paths | The pack already provides many textures, and the safest expansion is data-driven visual variety that preserves Phase 09 behavior/care logic | Good |
+| Phase 11 keeps the existing room, economy, and pet actions but re-houses them inside separate player-shell inventory, shop, and pet-care surfaces styled to match the warm HUD and cat-clock language | The current drawer still uses the older AMOLED panel styling and mixes commerce with care, which now fights the shipped bottom HUD and clock | Good |
 
 ## Evolution
 
@@ -127,7 +138,7 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-27 after completing Phase 06.1 codebase modularization*
+*Last updated: 2026-03-28 after executing Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul*
 
 
 

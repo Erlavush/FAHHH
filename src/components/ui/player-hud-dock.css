@@ -1,298 +1,682 @@
-﻿.player-hud-dock {
+.player-hud-dock {
+  --dock-stage-width: min(1240px, calc(100vw - 24px));
+  --dock-frame-width: min(840px, calc(100vw - 320px));
+  --dock-stage-min-height: 340px;
+  --dock-frame-shadow: drop-shadow(0 14px 24px rgba(54, 28, 10, 0.42));
   display: grid;
-  gap: 10px;
   justify-items: center;
+  gap: 10px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.player-hud-dock * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.player-hud-dock__stage {
+  position: relative;
+  width: var(--dock-stage-width);
+  min-height: var(--dock-stage-min-height);
   pointer-events: none;
 }
 
-.player-hud-dock__rail {
-  display: grid;
-  grid-template-columns: minmax(112px, 128px) minmax(228px, 292px) minmax(112px, 128px);
-  align-items: stretch;
-  gap: 12px;
-  width: min(556px, calc(100vw - 56px));
+.player-hud-dock--edit-mode .player-hud-dock__stage,
+.player-hud-dock--edit-mode .player-hud-dock__frame-wrap,
+.player-hud-dock--edit-mode .player-hud-dock__piece,
+.player-hud-dock--edit-mode .player-hud-dock__piece-center,
+.player-hud-dock--edit-mode .player-hud-dock__stage-piece,
+.player-hud-dock--edit-mode .player-hud-dock__editor-toolbar,
+.player-hud-dock--edit-mode .player-hud-dock__editor-button,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select-control,
+.player-hud-dock--edit-mode .player-hud-dock__resize-handle {
+  pointer-events: auto;
+}
+.player-hud-dock__editor-toolbar {
+  position: absolute;
+  left: 50%;
+  top: -58px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: min(100%, 1160px);
+}
+
+.player-hud-dock__editor-button,
+.player-hud-dock__editor-select-control {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(74, 41, 19, 0.92);
+  color: #f3dfba;
+  font: 900 11px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(32, 15, 5, 0.24);
+}
+
+.player-hud-dock__editor-button {
+  cursor: pointer;
+}
+
+.player-hud-dock__editor-button--secondary {
+  background: rgba(109, 65, 31, 0.88);
+}
+
+.player-hud-dock__editor-button:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.player-hud-dock__editor-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-hud-dock__editor-select-label {
+  color: #6d3516;
+  font: 900 11px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 240, 214, 0.7);
+}
+
+.player-hud-dock__editor-select-control {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 20px;
+}
+
+.player-hud-dock__editor-hint {
+  color: #6d3516;
+  font: 900 11px/1.2 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 240, 214, 0.7);
+}
+
+.player-hud-dock__editable {
+  --dock-editor-x: 0px;
+  --dock-editor-y: 0px;
+  --dock-editor-scale: 1;
+  position: relative;
+}
+
+.player-hud-dock__editable--editing {
+  cursor: grab;
+  touch-action: none;
+}
+
+.player-hud-dock__editable--editing:active {
+  cursor: grabbing;
+}
+
+.player-hud-dock__editable--editing::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 2px dashed transparent;
+  border-radius: 12px;
+  pointer-events: none;
+  transition: border-color 120ms ease;
+}
+
+.player-hud-dock__editable--selected {
+  z-index: 14;
+}
+
+.player-hud-dock__editable--selected::before {
+  border-color: rgba(124, 72, 35, 0.72);
+}
+
+.player-hud-dock__editable--locked.player-hud-dock__editable--selected::before {
+  border-color: rgba(99, 109, 124, 0.78);
+}
+
+.player-hud-dock__editable--editing::after {
+  content: attr(data-edit-label);
+  position: absolute;
+  left: 8px;
+  top: -24px;
+  z-index: 25;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(74, 41, 19, 0.92);
+  color: #f6e5c6;
+  font: 900 10px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.player-hud-dock__editable--editing:hover::after,
+.player-hud-dock__editable--selected::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.player-hud-dock__resize-handle {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  z-index: 28;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #7c4823;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f8e7c0, #ddb479);
+  box-shadow: 0 6px 10px rgba(54, 28, 10, 0.24);
+  cursor: nwse-resize;
+}
+
+.player-hud-dock__resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: rgba(124, 72, 35, 0.88);
+}
+
+.player-hud-dock__frame-wrap {
+  position: relative;
+  z-index: 2;
+  width: var(--dock-frame-width);
+  margin: 0 auto;
+  transform: translate(var(--dock-editor-x), var(--dock-editor-y));
+  pointer-events: none;
+}
+
+.player-hud-dock__center-shell {
+  position: relative;
+  filter: var(--dock-frame-shadow);
+  pointer-events: none;
+}
+
+.player-hud-dock__center-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.player-hud-dock__piece,
+.player-hud-dock__stage-piece {
+  position: absolute;
+  transform: translate(var(--dock-editor-x), var(--dock-editor-y)) scale(var(--dock-editor-scale));
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.player-hud-dock__piece {
+  z-index: 5;
+  pointer-events: none;
+}
+
+.player-hud-dock__stage-piece {
+  z-index: 12;
+  pointer-events: none;
+}
+
+.player-hud-dock__piece-center {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  transform-origin: center top;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.player-hud-dock__piece-center--status {
+  bottom: -16px;
+  transform: translate(calc(-50% + var(--dock-editor-x)), var(--dock-editor-y)) scale(var(--dock-editor-scale));
+}
+
+.player-hud-dock__piece-center--days {
+  bottom: 14px;
+  transform: translate(calc(-50% + var(--dock-editor-x)), var(--dock-editor-y)) scale(var(--dock-editor-scale));
+}
+
+.player-hud-dock__piece--title-left {
+  left: 34px;
+  top: -10px;
+}
+
+.player-hud-dock__piece--title-right {
+  right: 34px;
+  top: -10px;
+}
+
+.player-hud-dock__piece--player-portrait {
+  left: 78px;
+  top: 72px;
+}
+
+.player-hud-dock__piece--player-label {
+  left: 84px;
+  top: 162px;
+}
+
+.player-hud-dock__piece--kitty-portrait {
+  left: 196px;
+  top: 88px;
+}
+
+.player-hud-dock__piece--kitty-label {
+  left: 208px;
+  top: 164px;
+}
+
+.player-hud-dock__piece--pup-portrait {
+  left: 292px;
+  top: 88px;
+}
+
+.player-hud-dock__piece--pup-label {
+  left: 314px;
+  top: 164px;
+}
+
+.player-hud-dock__piece--level-icon {
+  left: 470px;
+  top: 72px;
+}
+
+.player-hud-dock__piece--level-label {
+  left: 492px;
+  top: 164px;
+}
+
+.player-hud-dock__piece--coin-icon {
+  left: 590px;
+  top: 86px;
+}
+
+.player-hud-dock__piece--coin-label {
+  left: 676px;
+  top: 94px;
+}
+
+.player-hud-dock__stage-piece--build-icon {
+  left: 52px;
+  bottom: 104px;
+}
+
+.player-hud-dock__stage-piece--build-plaque {
+  left: 44px;
+  bottom: 29px;
+}
+
+.player-hud-dock__stage-piece--inventory-icon {
+  right: 56px;
+  bottom: 92px;
+}
+
+.player-hud-dock__stage-piece--inventory-plaque {
+  right: 28px;
+  bottom: 29px;
+}
+
+.player-hud-dock__title {
+  min-width: 320px;
+  padding: 12px 20px 10px;
+  color: #6d3516;
+  font: 900 18px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  -webkit-text-stroke: 0.35px rgba(109, 53, 22, 0.35);
+  text-shadow:
+    0 1px 0 rgba(255, 240, 214, 0.84),
+    0 0 1px rgba(109, 53, 22, 0.26);
+}
+
+.player-hud-dock__portrait {
+  display: block;
+  position: relative;
+  border-radius: 16px;
+  box-shadow: inset 0 -4px 0 rgba(84, 47, 21, 0.16);
+}
+
+.player-hud-dock__portrait::before,
+.player-hud-dock__portrait::after {
+  content: "";
+  position: absolute;
+}
+
+.player-hud-dock__portrait--player {
+  width: 74px;
+  height: 74px;
+  background: linear-gradient(180deg, #5b1525 0 42%, #f1a6a7 42% 72%, #4d0f1d 72% 100%);
+  clip-path: polygon(22% 8%, 78% 8%, 88% 20%, 88% 68%, 74% 96%, 26% 96%, 12% 68%, 12% 20%);
+}
+
+.player-hud-dock__portrait--player::before {
+  inset: 24px 22px 18px;
+  border-radius: 10px;
+  background: #f5b3ab;
+}
+
+.player-hud-dock__portrait--cat {
+  width: 70px;
+  height: 60px;
+  border-radius: 50% 50% 44% 44%;
+  background: #c69662;
+}
+
+.player-hud-dock__portrait--cat::before {
+  top: -10px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  background: #c69662;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.player-hud-dock__portrait--cat::after {
+  top: -10px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  background: #c69662;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.player-hud-dock__portrait--pup {
+  width: 68px;
+  height: 60px;
+  border-radius: 48% 48% 44% 44%;
+  background: linear-gradient(90deg, #d99d5d 0 35%, #fff4e3 35% 65%, #d99d5d 65% 100%);
+}
+
+.player-hud-dock__portrait--pup::before {
+  top: 6px;
+  left: 4px;
+  width: 18px;
+  height: 28px;
+  border-radius: 12px;
+  background: #b86f3b;
+}
+
+.player-hud-dock__portrait--pup::after {
+  top: 6px;
+  right: 4px;
+  width: 18px;
+  height: 28px;
+  border-radius: 12px;
+  background: #b86f3b;
+}
+
+.player-hud-dock__companion-label,
+.player-hud-dock__stat-label {
+  color: #6d3516;
+  font: 900 17px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 240, 214, 0.7);
+  transform-origin: top left;
+}
+
+.player-hud-dock__stat-label--coins {
+  display: inline-block;
+  width: 108px;
+  font-size: 18px;
+  line-height: 1.04;
+  text-align: left;
+}
+
+.player-hud-dock__stat-icon {
+  object-fit: contain;
+  image-rendering: pixelated;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.player-hud-dock__stat-icon--level {
+  width: 88px;
+  height: 88px;
+}
+
+.player-hud-dock__stat-icon--coin {
+  width: 90px;
+  height: 90px;
+}
+
+.player-hud-dock__status-banner {
+  min-width: 314px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 2px solid rgba(139, 94, 52, 0.18);
+  background: linear-gradient(180deg, rgba(246, 229, 192, 0.96), rgba(227, 205, 160, 0.98));
+  color: #7b4622;
+  font: 900 13px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  box-shadow: 0 10px 18px rgba(77, 41, 17, 0.16);
+}
+
+.player-hud-dock__together-days {
+  color: rgba(109, 53, 22, 0.56);
+  font: 900 12px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.player-hud-dock__action-reset {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
   pointer-events: auto;
 }
 
-.player-hud-dock__action-card,
-.player-hud-dock__stats-card,
-.player-hud-dock__secondary-btn {
-  box-shadow:
-    0 14px 28px rgba(0, 0, 0, 0.36),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+.player-hud-dock__action-reset--icon .player-hud-dock__side-button-icon {
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 150ms ease;
+  transform-origin: center bottom;
 }
 
-.player-hud-dock__action-card {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 8px;
-  min-height: 90px;
-  padding: 12px;
-  border: 1px solid var(--player-shell-border);
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(12, 12, 12, 0.96), rgba(0, 0, 0, 0.98));
-  color: var(--player-shell-ink);
-  cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+.player-hud-dock__action-reset--icon:hover .player-hud-dock__side-button-icon {
+  transform: translateY(-2px) scale(1.02);
 }
 
-.player-hud-dock__action-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--player-shell-border-strong);
-  box-shadow:
-    0 18px 30px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+.player-hud-dock__action-reset--icon:active .player-hud-dock__side-button-icon {
+  transform: translateY(4px) scale(0.92);
+  filter: drop-shadow(0 7px 12px rgba(54, 28, 10, 0.2)) brightness(0.96);
 }
 
-.player-hud-dock__action-card:active {
-  transform: translateY(-1px);
+.player-hud-dock--edit-mode .player-hud-dock__action-reset {
+  cursor: inherit;
 }
 
-.player-hud-dock__action-card--accent {
-  border-color: rgba(255, 255, 255, 0.24);
-  background: linear-gradient(180deg, rgba(24, 24, 24, 0.98), rgba(4, 4, 4, 0.98));
+.player-hud-dock--edit-mode .player-hud-dock__action-reset--icon .player-hud-dock__side-button-icon {
+  transition: none;
 }
 
-.player-hud-dock__action-icon-shell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.player-hud-dock__action-icon {
-  width: 28px;
-  height: 28px;
+.player-hud-dock__side-button-icon {
+  display: block;
   object-fit: contain;
-  filter: grayscale(1) brightness(1.3);
+  image-rendering: pixelated;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 12px 18px rgba(54, 28, 10, 0.26));
 }
 
-.player-hud-dock__action-text {
-  display: grid;
-  gap: 3px;
-  text-align: center;
+.player-hud-dock__side-button-icon--build {
+  width: 148px;
+  height: auto;
 }
 
-.player-hud-dock__action-kicker,
-.player-hud-dock__eyebrow {
-  color: var(--player-shell-ink-soft);
-  font: 700 9px/1.15 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.player-hud-dock__side-button-icon--inventory {
+  width: 132px;
+  height: auto;
 }
 
-.player-hud-dock__action-label {
-  font: 700 13px/1.15 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.player-hud-dock__stats-card {
-  display: grid;
-  gap: 10px;
-  align-content: center;
-  min-height: 90px;
-  padding: 12px 14px;
-  border: 1px solid var(--player-shell-border);
-  border-radius: 26px;
-  background: linear-gradient(180deg, rgba(8, 8, 8, 0.98), rgba(0, 0, 0, 0.98));
-  backdrop-filter: blur(16px);
-}
-
-.player-hud-dock__stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.player-hud-dock__stat-block {
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-  padding: 8px 6px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.player-hud-dock__stat-block--featured {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.player-hud-dock__value {
-  color: var(--player-shell-ink);
-  font: 700 18px/1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  letter-spacing: 0.04em;
-}
-
-.player-hud-dock__status-row {
-  display: flex;
-  justify-content: center;
-}
-
-.player-hud-dock__status-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #000000;
-  font: 700 10px/1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  letter-spacing: 0.07em;
+.player-hud-dock__side-button-plaque {
+  display: inline-grid;
+  place-items: center;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ddb479, #cb9558);
+  box-shadow:
+    0 10px 16px rgba(77, 41, 17, 0.22),
+    inset 0 1px 0 rgba(255, 241, 208, 0.68),
+    inset 0 -2px 0 rgba(127, 73, 34, 0.18);
+  color: #7b4622;
+  font: 900 13px/1.08 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   text-transform: uppercase;
   text-align: center;
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.player-hud-dock__side-button-plaque:hover {
+  filter: brightness(1.03);
+}
+
+.player-hud-dock__side-button-plaque:active {
+  transform: translateY(1px);
+}
+
+.player-hud-dock__side-button-plaque--active {
+  background: linear-gradient(180deg, #cf4a41, #8f1f1b);
+  box-shadow:
+    0 12px 20px rgba(75, 13, 10, 0.3),
+    inset 0 1px 0 rgba(255, 209, 204, 0.72),
+    inset 0 -2px 0 rgba(78, 10, 8, 0.38);
+  color: #fff1e8;
+}
+
+.player-hud-dock__side-button-plaque--active:hover {
+  filter: brightness(1.05);
+}
+
+.player-hud-dock__side-button-plaque--build {
+  width: 150px;
+  min-height: 60px;
+}
+
+.player-hud-dock__side-button-plaque--inventory {
+  width: 150px;
+  min-height: 60px;
 }
 
 .player-hud-dock__secondary {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
-  width: min(540px, calc(100vw - 56px));
+  gap: 10px;
+  width: min(720px, calc(100vw - 24px));
   pointer-events: auto;
 }
 
 .player-hud-dock__secondary-btn {
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--player-shell-border);
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.9);
-  color: var(--player-shell-ink);
-  font: 700 10px/1 "Orbitron", "Source Sans 3", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, #f1d6a6, #c9975d);
+  box-shadow:
+    0 8px 14px rgba(77, 41, 17, 0.2),
+    inset 0 1px 0 rgba(255, 240, 201, 0.6),
+    inset 0 -2px 0 rgba(127, 73, 34, 0.18);
+  color: #6e3413;
+  font: 900 12px/1.05 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
 .player-hud-dock__secondary-btn:hover {
-  transform: translateY(-2px);
-  border-color: var(--player-shell-border-strong);
-  background: rgba(18, 18, 18, 0.98);
+  filter: brightness(1.03);
 }
 
-.player-hud-dock__secondary-btn--primary {
-  background: rgba(255, 255, 255, 0.94);
-  color: #000000;
+@media (max-width: 980px) {
+  .player-hud-dock {
+    --dock-stage-width: min(100%, calc(100vw - 16px));
+    --dock-frame-width: min(100%, calc(100vw - 16px));
+    --dock-stage-min-height: 380px;
+  }
+
+  .player-hud-dock--edit-mode .player-hud-dock__stage,
+.player-hud-dock--edit-mode .player-hud-dock__frame-wrap,
+.player-hud-dock--edit-mode .player-hud-dock__piece,
+.player-hud-dock--edit-mode .player-hud-dock__piece-center,
+.player-hud-dock--edit-mode .player-hud-dock__stage-piece,
+.player-hud-dock--edit-mode .player-hud-dock__editor-toolbar,
+.player-hud-dock--edit-mode .player-hud-dock__editor-button,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select-control,
+.player-hud-dock--edit-mode .player-hud-dock__resize-handle {
+  pointer-events: auto;
 }
-
-.player-hud-dock__secondary-btn--secondary,
-.player-hud-dock__secondary-btn--ghost {
-  background: rgba(0, 0, 0, 0.9);
-}
-
-@media (max-width: 900px) {
-  .player-hud-dock__rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    width: min(520px, calc(100vw - 32px));
-  }
-
-  .player-hud-dock__action-card {
-    min-height: 82px;
-  }
-
-  .player-hud-dock__stats-card {
-    grid-column: 1 / -1;
-    order: -1;
-  }
-
-  .player-hud-dock__secondary {
-    width: min(520px, calc(100vw - 32px));
+.player-hud-dock__editor-toolbar {
+    position: static;
+    transform: none;
+    margin-bottom: 12px;
   }
 }
 
 @media (max-width: 640px) {
-  .player-hud-dock {
-    gap: 8px;
-  }
-
-  .player-hud-dock__rail {
-    width: min(100%, calc(100vw - 24px));
-    gap: 8px;
-  }
-
-  .player-hud-dock__action-card {
-    grid-template-columns: auto minmax(0, 1fr);
-    justify-items: start;
-    align-items: center;
-    gap: 8px;
-    min-height: 68px;
-    padding: 10px;
-    border-radius: 20px;
-  }
-
-  .player-hud-dock__action-icon-shell {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
-
-  .player-hud-dock__action-icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  .player-hud-dock__action-text {
-    gap: 2px;
-    text-align: left;
-  }
-
-  .player-hud-dock__action-kicker,
-  .player-hud-dock__eyebrow {
-    font-size: 8px;
-  }
-
-  .player-hud-dock__action-label {
-    font-size: 11px;
-  }
-
-  .player-hud-dock__stats-card {
-    gap: 8px;
-    min-height: auto;
-    padding: 10px 12px;
-    border-radius: 22px;
-  }
-
-  .player-hud-dock__stats-grid {
+  .player-hud-dock--edit-mode .player-hud-dock__stage,
+.player-hud-dock--edit-mode .player-hud-dock__frame-wrap,
+.player-hud-dock--edit-mode .player-hud-dock__piece,
+.player-hud-dock--edit-mode .player-hud-dock__piece-center,
+.player-hud-dock--edit-mode .player-hud-dock__stage-piece,
+.player-hud-dock--edit-mode .player-hud-dock__editor-toolbar,
+.player-hud-dock--edit-mode .player-hud-dock__editor-button,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select,
+.player-hud-dock--edit-mode .player-hud-dock__editor-select-control,
+.player-hud-dock--edit-mode .player-hud-dock__resize-handle {
+  pointer-events: auto;
+}
+.player-hud-dock__editor-toolbar {
     gap: 6px;
   }
 
-  .player-hud-dock__stat-block {
-    padding: 7px 5px;
-    border-radius: 12px;
-  }
-
-  .player-hud-dock__value {
-    font-size: 15px;
-  }
-
-  .player-hud-dock__status-pill {
-    min-height: 22px;
+  .player-hud-dock__editor-button,
+  .player-hud-dock__editor-select-control {
+    min-height: 30px;
     padding: 0 10px;
-    font-size: 9px;
-    letter-spacing: 0.06em;
+    font-size: 10px;
   }
 
-  .player-hud-dock__secondary {
-    width: min(100%, calc(100vw - 24px));
-    gap: 8px;
+  .player-hud-dock__editor-hint {
+    width: 100%;
   }
 
-  .player-hud-dock__secondary-btn {
-    flex: 1 1 136px;
-    min-height: 34px;
-    padding: 0 12px;
-    font-size: 9px;
+  .player-hud-dock__resize-handle {
+    right: -8px;
+    bottom: -8px;
+    width: 16px;
+    height: 16px;
   }
 }
+
+
+
+
+
+

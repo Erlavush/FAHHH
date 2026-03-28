@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   getRoomShellMaterialProps,
-  getRoomShellRenderMode
+  getRoomShellRenderMode,
+  shouldRoomShellCastShadow,
+  shouldRoomShellReceiveShadow
 } from "../src/components/room-view/RoomShell";
 
 describe("RoomShell occlusion helpers", () => {
@@ -16,5 +18,19 @@ describe("RoomShell occlusion helpers", () => {
       colorWrite: false,
       depthWrite: false
     });
+  });
+
+  it("casts shadows in both visible and shadow-only modes", () => {
+    expect(shouldRoomShellCastShadow("visible", true)).toBe(true);
+    expect(shouldRoomShellCastShadow("shadow_only", true)).toBe(true);
+    expect(shouldRoomShellCastShadow("visible", false)).toBe(false);
+    expect(shouldRoomShellCastShadow("shadow_only", false)).toBe(false);
+  });
+
+  it("receives shadows only in visible mode", () => {
+    expect(shouldRoomShellReceiveShadow("visible", true)).toBe(true);
+    expect(shouldRoomShellReceiveShadow("shadow_only", true)).toBe(false);
+    expect(shouldRoomShellReceiveShadow("visible", false)).toBe(false);
+    expect(shouldRoomShellReceiveShadow("shadow_only", false)).toBe(false);
   });
 });

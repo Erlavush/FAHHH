@@ -1,14 +1,16 @@
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PerspectiveCamera as ThreePerspectiveCamera } from "three";
 import type {
+  BuildModeSource,
   FurnitureSpawnRequest,
   LocalPlayerPresenceSnapshot,
   PlayerInteractionStatus,
   SceneJumpRequest
 } from "../app/types";
 import { placementListsMatch } from "../lib/roomPlacementEquality";
+import { buildPetNavigationMap, buildPetObstacles } from "../lib/petPathing";
 import { getFurnitureDefinition } from "../lib/furnitureRegistry";
 import { DEFAULT_IMPORTED_MOB_PRESETS } from "../lib/mobLab";
 import type {
@@ -51,8 +53,9 @@ import { useRoomViewSpawn } from "./room-view/useRoomViewSpawn";
 import { WallOcclusionController } from "./room-view/WallOcclusionController";
 
 interface RoomViewProps {
-  acquireEditLock: (furnitureId: string) => Promise<boolean>;
+  acquireEditLock?: (furnitureId: string) => Promise<boolean>;
   buildModeEnabled: boolean;
+  buildModeSource: BuildModeSource;
   gridSnapEnabled: boolean;
   spawnRequest: FurnitureSpawnRequest | null;
   cameraResetToken: number;
@@ -64,7 +67,7 @@ interface RoomViewProps {
   pets: OwnedPet[];
   skinSrc: string | null;
   localLockedFurnitureIds: ReadonlySet<string>;
-  onSharedEditConflict: () => void;
+  onSharedEditConflict?: () => void;
   worldTimeMinutes: number;
   sunEnabled: boolean;
   shadowsEnabled: boolean;
@@ -86,10 +89,11 @@ interface RoomViewProps {
   onCommittedFurnitureChange: (placements: RoomFurniturePlacement[]) => void;
   onInteractionStateChange: (status: PlayerInteractionStatus) => void;
   onOpenMemoryFrame: ((furnitureId: string) => void) | null;
+  onPlacementBuildSessionComplete?: () => void;
   partnerLockedFurnitureIds: ReadonlySet<string>;
-  releaseEditLock: (furnitureId: string) => Promise<void>;
+  releaseEditLock?: (furnitureId: string) => Promise<void>;
   remotePresence: SharedPresenceSnapshot | null;
-  renewEditLock: (furnitureId: string) => Promise<boolean>;
+  renewEditLock?: (furnitureId: string) => Promise<boolean>;
   sceneJumpRequest: SceneJumpRequest | null;
   sharedPetAuthorityActive: boolean;
   sharedPetLiveState: SharedPetLiveState | null;
@@ -98,6 +102,7 @@ interface RoomViewProps {
 export function RoomView({
   acquireEditLock,
   buildModeEnabled,
+  buildModeSource,
   gridSnapEnabled,
   spawnRequest,
   cameraResetToken,
@@ -131,6 +136,7 @@ export function RoomView({
   onCommittedFurnitureChange,
   onInteractionStateChange,
   onOpenMemoryFrame,
+  onPlacementBuildSessionComplete,
   partnerLockedFurnitureIds,
   releaseEditLock,
   remotePresence,
@@ -142,6 +148,7 @@ export function RoomView({
   const initialCameraPositionRef = useRef(initialCameraPosition);
   const initialSceneTarget = ROOM_CAMERA_TARGET;
   const cameraRef = useRef<ThreePerspectiveCamera | null>(null);
+  const playerWorldPositionRef = useRef<Vector3Tuple>(initialPlayerPosition);
   const orbitControlsRef = useRef<any>(null);
   const zoomTargetDistanceRef = useRef<number | null>(null);
   const [playerWorldPosition, setPlayerWorldPosition] =
@@ -198,6 +205,22 @@ export function RoomView({
     releaseEditLock,
     renewEditLock
   });
+
+  const previousSelectedFurnitureIdRef = useRef<string | null>(selectedFurnitureId);
+
+  useEffect(() => {
+    const previousSelectedFurnitureId = previousSelectedFurnitureIdRef.current;
+
+    if (
+      buildModeSource === "placement" &&
+      previousSelectedFurnitureId !== null &&
+      selectedFurnitureId === null
+    ) {
+      onPlacementBuildSessionComplete?.();
+    }
+
+    previousSelectedFurnitureIdRef.current = selectedFurnitureId;
+  }, [buildModeSource, onPlacementBuildSessionComplete, selectedFurnitureId]);
 
   const {
     hoveredInteractableFurnitureId,
@@ -307,13 +330,19 @@ export function RoomView({
   } = useRoomViewLighting({
     ambientMultiplier,
     brightness,
+    buildModeEnabled,
     contrast,
     furniture,
+    petCount: pets.length,
     saturation,
     shouldUseReducedRenderQuality,
     sunIntensityMultiplier,
     worldTimeMinutes
   });
+
+  const petObstacles = useMemo(() => buildPetObstacles(furniture), [furniture]);
+
+  const petNavigationMap = useMemo(() => buildPetNavigationMap(petObstacles), [petObstacles]);
 
   useRoomViewSpawn({
     beginNewFurnitureEditing,
@@ -353,6 +382,7 @@ export function RoomView({
 
   const handlePlayerActorTransformChange = useCallback(
     (position: Vector3Tuple, facingY: number) => {
+      playerWorldPositionRef.current = position;
       handlePlayerActorPositionChange(position);
       setLocalPlayerTransform((currentTransform) =>
         Math.abs(currentTransform.facingY - facingY) < 0.0001 &&
@@ -368,6 +398,10 @@ export function RoomView({
     },
     [handlePlayerActorPositionChange]
   );
+
+  useEffect(() => {
+    playerWorldPositionRef.current = playerWorldPosition;
+  }, [playerWorldPosition]);
 
   useEffect(() => {
     onLocalPresenceChange({
@@ -541,8 +575,9 @@ export function RoomView({
               authorityActive={sharedPetAuthorityActive}
               pet={pet}
               preset={preset}
-              playerPosition={playerWorldPosition}
-              furniture={furniture}
+              navigationMap={petNavigationMap}
+              obstacles={petObstacles}
+              playerPositionRef={playerWorldPositionRef}
               onSharedLiveStateChange={onLocalSharedPetStateChange}
               shadowsEnabled={shadowsEnabled}
               sharedLiveState={

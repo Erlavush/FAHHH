@@ -1,5 +1,5 @@
 import { type ThreeEvent } from "@react-three/fiber";
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { FurnitureVisual } from "./FurnitureVisual";
 import { RoomInteractionProxy } from "./RoomInteractionProxy";
@@ -13,7 +13,6 @@ type RoomFurnitureActorProps = {
   buildModeEnabled: boolean;
   frameMemory?: SharedRoomFrameMemory | null;
   hovered: boolean;
-  hoveredInteractableFurnitureId: string | null;
   interactionHovered: boolean;
   isSelected: boolean;
   item: RoomFurniturePlacement;
@@ -39,13 +38,12 @@ type RoomFurnitureActorProps = {
   windowSurfaceLightAmount: number;
 };
 
-export function RoomFurnitureActor({
+export const RoomFurnitureActor = memo(function RoomFurnitureActor({
   applyTransform = true,
   blocked,
   buildModeEnabled,
   frameMemory = null,
   hovered,
-  hoveredInteractableFurnitureId,
   interactionHovered,
   isSelected,
   item,
@@ -92,21 +90,20 @@ export function RoomFurnitureActor({
       <RoomSurfaceDecorSelectionProxy buildModeEnabled={buildModeEnabled} item={item} />
       <RoomInteractionProxy
         buildModeEnabled={buildModeEnabled}
-        hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
         item={item}
         onInteractionCommand={onInteractionCommand}
         setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
       />
       <RoomMemoryFrameProxy
         buildModeEnabled={buildModeEnabled}
-        hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
+        hovered={interactionHovered}
         item={item}
         onOpenMemoryFrame={onOpenMemoryFrame}
         setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
       />
     </group>
   );
-}
+});
 
 function handlePointerUp(
   callback: (event?: ThreeEvent<PointerEvent>) => void

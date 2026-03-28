@@ -1,6 +1,6 @@
 import { PivotControls } from "@react-three/drei";
 import { type ThreeEvent } from "@react-three/fiber";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { memo, useMemo, type Dispatch, type SetStateAction } from "react";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
 import {
   FLOOR_GIZMO_SCREEN_SIZE,
@@ -75,7 +75,7 @@ export function isSelectedFurnitureVisible(input: {
   return wallVisibility[selectedFurniture.surface] !== false;
 }
 
-export function RoomSelectedFurnitureLayer({
+export const RoomSelectedFurnitureLayer = memo(function RoomSelectedFurnitureLayer({
   buildModeEnabled,
   frameMemories,
   hoveredInteractableFurnitureId,
@@ -138,6 +138,8 @@ export function RoomSelectedFurnitureLayer({
   const shouldRenderFallbackActor = isVisible && !shouldUsePivotControls;
   const actionOffset = getPlacementActionOffset(selectedFurniture);
   const isBlocked = isPlacementBlocked || isBusyByPartner;
+  const interactionHovered =
+    !buildModeEnabled && hoveredInteractableFurnitureId === selectedFurniture.id;
 
   return (
     <>
@@ -179,11 +181,7 @@ export function RoomSelectedFurnitureLayer({
             blocked={isBlocked}
             frameMemory={frameMemories[selectedFurniture.id] ?? null}
             hovered={false}
-            hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
-            interactionHovered={
-              !buildModeEnabled &&
-              hoveredInteractableFurnitureId === selectedFurniture.id
-            }
+            interactionHovered={interactionHovered}
             isSelected
             nightFactor={nightFactor}
             onFurnitureClick={onFurnitureClick}
@@ -206,11 +204,7 @@ export function RoomSelectedFurnitureLayer({
           blocked={buildModeEnabled && isBlocked}
           frameMemory={frameMemories[selectedFurniture.id] ?? null}
           hovered={false}
-          hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
-          interactionHovered={
-            !buildModeEnabled &&
-            hoveredInteractableFurnitureId === selectedFurniture.id
-          }
+          interactionHovered={interactionHovered}
           isSelected={buildModeEnabled}
           nightFactor={nightFactor}
           onFurnitureClick={onFurnitureClick}
@@ -240,4 +234,4 @@ export function RoomSelectedFurnitureLayer({
       ) : null}
     </>
   );
-}
+});

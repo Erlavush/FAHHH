@@ -1,5 +1,5 @@
 import { type ThreeEvent } from "@react-three/fiber";
-import type { Dispatch, SetStateAction } from "react";
+import { memo, useMemo, type Dispatch, type SetStateAction } from "react";
 import type { SharedRoomFrameMemory } from "../../lib/sharedRoomTypes";
 import { RoomFurnitureActor } from "./RoomFurnitureActor";
 import { isWallSurface } from "./helpers";
@@ -37,7 +37,7 @@ export type RoomFurnitureLayerProps = {
   windowSurfaceLightAmount: number;
 };
 
-export function RoomFurnitureLayer({
+export const RoomFurnitureLayer = memo(function RoomFurnitureLayer({
   buildModeEnabled,
   busyFurnitureIds,
   frameMemories,
@@ -59,54 +59,57 @@ export function RoomFurnitureLayer({
   wallVisibility,
   windowSurfaceLightAmount
 }: RoomFurnitureLayerProps) {
+  const visibleFurniture = useMemo(
+    () =>
+      furniture.filter((item) => {
+        if (item.id === selectedFurnitureId) {
+          return false;
+        }
+
+        if (item.surface === "ceiling") {
+          return wallVisibility.ceiling !== false;
+        }
+
+        if (isWallSurface(item.surface)) {
+          return wallVisibility[item.surface] !== false;
+        }
+
+        return true;
+      }),
+    [furniture, selectedFurnitureId, wallVisibility]
+  );
+
   return (
     <>
-      {furniture
-        .filter((item) => {
-          if (item.id === selectedFurnitureId) {
-            return false;
+      {visibleFurniture.map((item) => (
+        <RoomFurnitureActor
+          key={item.id}
+          item={item}
+          buildModeEnabled={buildModeEnabled}
+          blocked={buildModeEnabled && busyFurnitureIds.has(item.id)}
+          frameMemory={frameMemories[item.id] ?? null}
+          hovered={
+            buildModeEnabled &&
+            hoveredFurnitureId === item.id &&
+            !isDraggingFurniture
           }
-
-          if (item.surface === "ceiling") {
-            return wallVisibility.ceiling !== false;
+          interactionHovered={
+            !buildModeEnabled && hoveredInteractableFurnitureId === item.id
           }
-
-          if (isWallSurface(item.surface)) {
-            return wallVisibility[item.surface] !== false;
-          }
-
-          return true;
-        })
-        .map((item) => (
-          <RoomFurnitureActor
-            key={item.id}
-            item={item}
-            buildModeEnabled={buildModeEnabled}
-            blocked={buildModeEnabled && busyFurnitureIds.has(item.id)}
-            frameMemory={frameMemories[item.id] ?? null}
-            hovered={
-              buildModeEnabled &&
-              hoveredFurnitureId === item.id &&
-              !isDraggingFurniture
-            }
-            hoveredInteractableFurnitureId={hoveredInteractableFurnitureId}
-            interactionHovered={
-              !buildModeEnabled && hoveredInteractableFurnitureId === item.id
-            }
-            isSelected={false}
-            nightFactor={nightFactor}
-            onFurnitureClick={onFurnitureClick}
-            onFurnitureDoubleClick={onFurnitureDoubleClick}
-            onFurniturePointerDown={onFurniturePointerDown}
-            onFurniturePointerMove={onFurniturePointerMove}
-            onFurniturePointerUp={onFurniturePointerUp}
-            onInteractionCommand={onInteractionCommand}
-            onOpenMemoryFrame={onOpenMemoryFrame}
-            setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
-            shadowsEnabled={shadowsEnabled}
-            windowSurfaceLightAmount={windowSurfaceLightAmount}
-          />
-        ))}
+          isSelected={false}
+          nightFactor={nightFactor}
+          onFurnitureClick={onFurnitureClick}
+          onFurnitureDoubleClick={onFurnitureDoubleClick}
+          onFurniturePointerDown={onFurniturePointerDown}
+          onFurniturePointerMove={onFurniturePointerMove}
+          onFurniturePointerUp={onFurniturePointerUp}
+          onInteractionCommand={onInteractionCommand}
+          onOpenMemoryFrame={onOpenMemoryFrame}
+          setHoveredInteractableFurnitureId={setHoveredInteractableFurnitureId}
+          shadowsEnabled={shadowsEnabled}
+          windowSurfaceLightAmount={windowSurfaceLightAmount}
+        />
+      ))}
     </>
   );
-}
+});

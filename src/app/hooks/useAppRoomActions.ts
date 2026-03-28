@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { getOwnedFurnitureSellPrice } from "../../lib/economy";
+import { applyCatCareAction, type CatCareActionId } from "../../lib/catCare";
 import { FURNITURE_REGISTRY, type FurnitureType } from "../../lib/furnitureRegistry";
 import {
   applyPcMinigameResult,
@@ -8,11 +9,12 @@ import {
   type PcMinigameResult
 } from "../../lib/pcMinigame";
 import {
-  ALL_PET_TYPES,
-  PET_REGISTRY,
+  countOwnedPetsByStatus,
+  countOwnedPetsByType,
   createOwnedPet,
+  getNextPetDisplayName,
   type OwnedPet,
-  type PetType
+  type PetDefinition
 } from "../../lib/pets";
 import { pickPetSpawnPosition } from "../../lib/petPathing";
 import {
@@ -33,11 +35,13 @@ import {
 } from "../../lib/roomState";
 import { placementListsMatch } from "../../lib/roomPlacementEquality";
 import type { SharedPlayerProgression } from "../../lib/sharedProgressionTypes";
-import type { InventoryStats, FurnitureSpawnRequest } from "../types";
+import type { BuildModeSource, InventoryStats, FurnitureSpawnRequest } from "../types";
 import { useSharedRoomRuntime } from "./useSharedRoomRuntime";
 
 const COZY_REST_REWARD_COINS = 6;
 const COZY_REST_REWARD_XP = 10;
+const MAX_ACTIVE_SHOWCASE_CATS = 6;
+const MAX_TOTAL_SHOWCASE_CATS = 12;
 
 function getPcGameRewardReason(activityId: PcDeskActivityId): string {
   switch (activityId) {
@@ -53,15 +57,17 @@ function getPcGameRewardReason(activityId: PcDeskActivityId): string {
 
 interface UseAppRoomActionsInput {
   activePlayerProgression: SharedPlayerProgression | null;
+  buildModeSource: BuildModeSource;
   cozyRestReadyNow: boolean;
   inventoryByType: Map<FurnitureType, InventoryStats>;
   liveFurniturePlacements: RoomFurniturePlacement[];
-  ownedPetTypes: Set<PetType>;
+  ownedPetsRef: MutableRefObject<OwnedPet[]>;
   playerPosition: Vector3Tuple;
   pendingSpawnOwnedFurnitureIdsRef: MutableRefObject<Set<string>>;
   playerCoinsRef: MutableRefObject<number>;
   roomStateRef: MutableRefObject<RoomState>;
   setBuildModeEnabled: Dispatch<SetStateAction<boolean>>;
+  setBuildModeSource: Dispatch<SetStateAction<BuildModeSource>>;
   setCatalogOpen: Dispatch<SetStateAction<boolean>>;
   setLiveFurniturePlacements: Dispatch<SetStateAction<RoomFurniturePlacement[]>>;
   setOwnedPets: Dispatch<SetStateAction<OwnedPet[]>>;
@@ -88,15 +94,17 @@ interface UseAppRoomActionsInput {
 
 export function useAppRoomActions({
   activePlayerProgression,
+  buildModeSource,
   cozyRestReadyNow,
   inventoryByType,
   liveFurniturePlacements,
-  ownedPetTypes,
+  ownedPetsRef,
   playerPosition,
   pendingSpawnOwnedFurnitureIdsRef,
   playerCoinsRef,
   roomStateRef,
   setBuildModeEnabled,
+  setBuildModeSource,
   setCatalogOpen,
   setLiveFurniturePlacements,
   setOwnedPets,
@@ -165,6 +173,14 @@ export function useAppRoomActions({
       });
     },
     [pendingSpawnOwnedFurnitureIdsRef, setPendingSpawnOwnedFurnitureIds]
+  );
+
+  const commitOwnedPets = useCallback(
+    (nextPets: OwnedPet[]): void => {
+      ownedPetsRef.current = nextPets;
+      setOwnedPets(nextPets);
+    },
+    [ownedPetsRef, setOwnedPets]
   );
 
   const handleDeveloperPlayerCoinsCommit = useCallback(
@@ -288,10 +304,7 @@ export function useAppRoomActions({
 
       const nextRoomState = {
         ...roomStateRef.current,
-        ownedFurniture: [
-          ...roomStateRef.current.ownedFurniture,
-          createOwnedFurnitureItem(type)
-        ]
+        ownedFurniture: [...roomStateRef.current.ownedFurniture, createOwnedFurnitureItem(type)]
       };
 
       applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
@@ -308,13 +321,15 @@ export function useAppRoomActions({
   );
 
   const handleBuyPet = useCallback(
-    (type: PetType): void => {
+    (petDefinition: PetDefinition): void => {
+      const type = petDefinition.type;
+
       if (sharedRoomActive) {
         if (
           type !== "minecraft_cat" ||
           !sharedRoomPlayerId ||
           !activePlayerProgression ||
-          activePlayerProgression.coins < PET_REGISTRY[type].price ||
+          activePlayerProgression.coins < petDefinition.price ||
           sharedRoomRuntime.runtimeSnapshot?.sharedPet
         ) {
           return;
@@ -325,7 +340,7 @@ export function useAppRoomActions({
           progression: applyPersonalWalletSpend(
             snapshot.progression,
             sharedRoomPlayerId,
-            PET_REGISTRY[type].price,
+            petDefinition.price,
             new Date().toISOString()
           ),
           frameMemories: snapshot.frameMemories,
@@ -338,31 +353,153 @@ export function useAppRoomActions({
         return;
       }
 
-      const petDefinition = PET_REGISTRY[type];
+      const currentPets = ownedPetsRef.current;
 
-      if (ownedPetTypes.has(type) || !trySpendCoins(petDefinition.price)) {
+      if (
+        type !== "minecraft_cat" ||
+        currentPets.some((pet) => pet.presetId === petDefinition.presetId) ||
+        countOwnedPetsByType(currentPets, type) >= MAX_TOTAL_SHOWCASE_CATS ||
+        !trySpendCoins(petDefinition.price)
+      ) {
         return;
       }
 
       const spawnPosition = pickPetSpawnPosition(playerPosition, liveFurniturePlacements);
+      const nextStatus =
+        countOwnedPetsByStatus(currentPets, "active_room", type) < MAX_ACTIVE_SHOWCASE_CATS
+          ? "active_room"
+          : "stored_roster";
+      const nextPets = [
+        ...currentPets,
+        createOwnedPet(type, spawnPosition, {
+          displayName: getNextPetDisplayName(type, currentPets),
+          presetId: petDefinition.presetId,
+          status: nextStatus,
+          nowIso: new Date().toISOString()
+        })
+      ];
 
-      setOwnedPets((currentPets) =>
-        currentPets.some((pet) => pet.type === type)
-          ? currentPets
-          : [...currentPets, createOwnedPet(type, spawnPosition)]
-      );
+      commitOwnedPets(nextPets);
     },
     [
       activePlayerProgression,
+      commitOwnedPets,
       liveFurniturePlacements,
-      ownedPetTypes,
+      ownedPetsRef,
       playerPosition,
-      setOwnedPets,
       sharedRoomActive,
       sharedRoomPlayerId,
       sharedRoomRuntime,
       trySpendCoins
     ]
+  );
+
+  const handleStorePet = useCallback(
+    (petId: string): void => {
+      if (sharedRoomActive) {
+        return;
+      }
+
+      const currentPets = ownedPetsRef.current;
+      const nextPets = currentPets.map((pet) =>
+        pet.id === petId && pet.status === "active_room"
+          ? {
+              ...pet,
+              status: "stored_roster" as const
+            }
+          : pet
+      );
+
+      if (nextPets.every((pet, index) => pet === currentPets[index])) {
+        return;
+      }
+
+      commitOwnedPets(nextPets);
+    },
+    [commitOwnedPets, ownedPetsRef, sharedRoomActive]
+  );
+
+  const handleActivateStoredPet = useCallback(
+    (petId: string): void => {
+      if (sharedRoomActive) {
+        return;
+      }
+
+      const currentPets = ownedPetsRef.current;
+      const storedPet = currentPets.find(
+        (pet) => pet.id === petId && pet.status === "stored_roster"
+      );
+
+      if (!storedPet) {
+        return;
+      }
+
+      if (
+        storedPet.type === "minecraft_cat" &&
+        countOwnedPetsByStatus(currentPets, "active_room", "minecraft_cat") >=
+          MAX_ACTIVE_SHOWCASE_CATS
+      ) {
+        return;
+      }
+
+      const nextSpawnPosition = pickPetSpawnPosition(playerPosition, liveFurniturePlacements);
+      const nextPets = currentPets.map((pet) =>
+        pet.id === petId
+          ? {
+              ...pet,
+              status: "active_room" as const,
+              spawnPosition: nextSpawnPosition
+            }
+          : pet
+      );
+
+      commitOwnedPets(nextPets);
+    },
+    [commitOwnedPets, liveFurniturePlacements, ownedPetsRef, playerPosition, sharedRoomActive]
+  );
+
+  const handleRemovePet = useCallback(
+    (petId: string): void => {
+      if (sharedRoomActive) {
+        return;
+      }
+
+      const currentPets = ownedPetsRef.current;
+      const nextPets = currentPets.filter((pet) => pet.id !== petId);
+
+      if (nextPets.length === currentPets.length) {
+        return;
+      }
+
+      commitOwnedPets(nextPets);
+    },
+    [commitOwnedPets, ownedPetsRef, sharedRoomActive]
+  );
+
+  const handleCareForPet = useCallback(
+    (petId: string, actionId: CatCareActionId): void => {
+      if (sharedRoomActive) {
+        return;
+      }
+
+      const currentPets = ownedPetsRef.current;
+      const targetPet = currentPets.find(
+        (pet) => pet.id === petId && pet.status === "active_room"
+      );
+
+      if (!targetPet) {
+        return;
+      }
+
+      const careResult = applyCatCareAction(targetPet, actionId, new Date().toISOString());
+      const nextPets = currentPets.map((pet) =>
+        pet.id === petId ? careResult.pet : pet
+      );
+
+      commitOwnedPets(nextPets);
+      addCoins(careResult.rewardCoins);
+    },
+    [addCoins, commitOwnedPets, ownedPetsRef, sharedRoomActive]
   );
 
   const handleSpawnFurniture = useCallback(
@@ -374,6 +511,9 @@ export function useAppRoomActions({
         return;
       }
 
+      if (buildModeSource !== "manual") {
+        setBuildModeSource("placement");
+      }
       setBuildModeEnabled(true);
       setCatalogOpen(true);
       pendingSpawnOwnedFurnitureIdsRef.current.add(ownedFurnitureId);
@@ -388,10 +528,12 @@ export function useAppRoomActions({
       nextSpawnRequestIdRef.current += 1;
     },
     [
+      buildModeSource,
       liveFurniturePlacements,
       nextSpawnRequestIdRef,
       pendingSpawnOwnedFurnitureIdsRef,
       setBuildModeEnabled,
+      setBuildModeSource,
       setCatalogOpen,
       setSpawnRequest,
       updatePendingSpawnOwnedFurnitureIds
@@ -536,14 +678,18 @@ export function useAppRoomActions({
     addCoins,
     applyLocalSharedSnapshot,
     commitPlayerCoins,
+    handleActivateStoredPet,
     handleBuyFurniture,
     handleBuyPet,
+    handleCareForPet,
     handleClaimCozyRest,
     handleDeveloperPlayerCoinsCommit,
     handleExitPcMinigame,
     handlePcMinigameComplete,
     handlePlaceStoredFurniture,
+    handleRemovePet,
     handleSellStoredFurniture,
+    handleStorePet,
     trySpendCoins,
     updatePendingSpawnOwnedFurnitureIds
   };

@@ -12,6 +12,10 @@ export type PreviewStudioMode = "furniture" | "mob_lab";
 
 export type AppShellViewMode = "player" | "developer";
 
+export type BuildModeSource = "manual" | "placement" | null;
+
+export type PlayerDrawerMode = "inventory" | "shop" | "pet_care";
+
 export type DeveloperWorkspaceTab =
   | "room"
   | "inventory"

@@ -33,6 +33,7 @@ export type MobExternalMotionState = {
   rotationY: number;
   walkAmount: number;
   stridePhase: number;
+  behaviorState: "idle" | "walk" | "sit" | "lick" | "sleep";
 };
 
 type MobPreviewActorProps = {

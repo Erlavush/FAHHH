@@ -2,13 +2,17 @@ import { button, folder, useControls } from "leva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   controlHoursToMinutes,
-  formatClock24h,
   formatClock12h,
+  formatClock24h,
   getLocalClockMinutes,
   minutesToControlHours,
   wrapClockMinutes
 } from "../clock";
-import { GameLoopManager, ticksToMinutes } from "../../lib/gameLoop";
+import {
+  GameLoopManager,
+  minutesToTicks,
+  ticksToMinutes
+} from "../../lib/gameLoop";
 import {
   loadPersistedWorldSettings,
   savePersistedWorldSettings,
@@ -22,7 +26,7 @@ export interface SandboxWorldClockState {
   worldTicks: number;
   worldTimeLabel: string;
   worldTimeLabel12h: string;
-  ampm: 'AM' | 'PM';
+  ampm: "AM" | "PM";
   useMinecraftTime: boolean;
   minecraftTimeHours: number;
   timeLocked: boolean;
@@ -64,12 +68,15 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   }
 
   const savedSettings = savedSettingsRef.current;
-  const [realTimeMinutes, setRealTimeMinutes] = useState(() => getLocalClockMinutes());
-  const [minecraftTimeMinutes, setMinecraftTimeMinutes] = useState(
-    savedSettings.minecraftTimeMinutes ?? 360
+  const [realTimeMinutes, setRealTimeMinutes] = useState(() =>
+    Math.floor(getLocalClockMinutes())
   );
-  const [worldTicks, setWorldTicks] = useState(0);
-
+  const [minecraftTimeMinutes, setMinecraftTimeMinutes] = useState(() =>
+    Math.floor(savedSettings.minecraftTimeMinutes ?? 360)
+  );
+  const worldTicksRef = useRef(
+    minutesToTicks(savedSettings.minecraftTimeMinutes ?? 360)
+  );
   const [useMinecraftTime, setUseMinecraftTime] = useState(
     savedSettings.useMinecraftTimeToggle ?? true
   );
@@ -110,13 +117,30 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   );
 
   const gameLoopRef = useRef<GameLoopManager | null>(null);
+  const syncingWorldControlsRef = useRef(false);
+  const lastPublishedMinecraftMinuteRef = useRef(minecraftTimeMinutes);
 
   if (!gameLoopRef.current) {
     gameLoopRef.current = new GameLoopManager(minecraftTimeMinutes, (ticks) => {
-      setWorldTicks(ticks);
-      setMinecraftTimeMinutes(ticksToMinutes(ticks));
+      worldTicksRef.current = ticks;
+      const nextMinecraftTimeMinutes = Math.floor(ticksToMinutes(ticks));
+
+      if (nextMinecraftTimeMinutes === lastPublishedMinecraftMinuteRef.current) {
+        return;
+      }
+
+      lastPublishedMinecraftMinuteRef.current = nextMinecraftTimeMinutes;
+      setMinecraftTimeMinutes(nextMinecraftTimeMinutes);
     });
   }
+
+  const applyMinecraftTimeMinutes = useCallback((nextMinutes: number) => {
+    const wrappedMinutes = wrapClockMinutes(Math.round(nextMinutes));
+    lastPublishedMinecraftMinuteRef.current = wrappedMinutes;
+    worldTicksRef.current = minutesToTicks(wrappedMinutes);
+    setMinecraftTimeMinutes(wrappedMinutes);
+    gameLoopRef.current?.setMinutes(wrappedMinutes);
+  }, []);
 
   const [
     {
@@ -147,7 +171,13 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
       useMinecraftTimeToggle: {
         value: useMinecraftTime,
         label: "Minecraft Clock",
-        onChange: (value: boolean) => setUseMinecraftTime(value)
+        onChange: (value: boolean, _path: string, context: { initial: boolean }) => {
+          if (context.initial || syncingWorldControlsRef.current) {
+            return;
+          }
+
+          setUseMinecraftTime(value);
+        }
       },
       minecraftTime24h: {
         value: (minecraftTimeMinutes / 60) % 24,
@@ -157,11 +187,11 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         label: "Minecraft Time",
         render: (get) => get("----- WORLD SETTINGS -----.useMinecraftTimeToggle"),
         onChange: (value: number, _path: string, context: { initial: boolean }) => {
-          if (!context.initial) {
-            const nextMinutes = controlHoursToMinutes(value);
-            setMinecraftTimeMinutes(nextMinutes);
-            gameLoopRef.current?.setMinutes(nextMinutes);
+          if (context.initial || syncingWorldControlsRef.current) {
+            return;
           }
+
+          applyMinecraftTimeMinutes(controlHoursToMinutes(value));
         }
       },
       lockTimeOfDay: {
@@ -169,7 +199,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         label: "Lock Time",
         transient: false,
         onChange: (value: boolean, _path: string, context: { initial: boolean }) => {
-          if (context.initial) {
+          if (context.initial || syncingWorldControlsRef.current) {
             return;
           }
 
@@ -189,7 +219,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
         render: (get) => get("----- WORLD SETTINGS -----.lockTimeOfDay"),
         transient: false,
         onChange: (value: number, _path: string, context: { initial: boolean }) => {
-          if (context.initial) {
+          if (context.initial || syncingWorldControlsRef.current) {
             return;
           }
 
@@ -277,10 +307,8 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
       return;
     }
 
-    const nextMinutes = controlHoursToMinutes(value);
-    setMinecraftTimeMinutes(nextMinutes);
-    gameLoopRef.current?.setMinutes(nextMinutes);
-  }, []);
+    applyMinecraftTimeMinutes(controlHoursToMinutes(value));
+  }, [applyMinecraftTimeMinutes]);
 
   const setTimeLockedEnabled = useCallback((value: boolean) => {
     if (value) {
@@ -364,7 +392,10 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
 
   useEffect(() => {
     const syncLocalClock = () => {
-      setRealTimeMinutes(getLocalClockMinutes());
+      const nextMinutes = Math.floor(getLocalClockMinutes());
+      setRealTimeMinutes((current) =>
+        current === nextMinutes ? current : nextMinutes
+      );
     };
 
     syncLocalClock();
@@ -394,6 +425,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
   }, [timeLocked, useMinecraftTime]);
 
   useEffect(() => {
+    syncingWorldControlsRef.current = true;
     setWorldSettings({
       localClock: localTimeLabel,
       worldClock: worldTimeLabel,
@@ -402,6 +434,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
       lockTimeOfDay: timeLocked,
       lockedTime24h: lockedTimeHours
     });
+    syncingWorldControlsRef.current = false;
   }, [
     localTimeLabel,
     lockedTimeHours,
@@ -446,7 +479,7 @@ export function useSandboxWorldClock(): SandboxWorldClockState {
 
   return {
     worldTimeMinutes,
-    worldTicks,
+    worldTicks: worldTicksRef.current,
     worldTimeLabel,
     worldTimeLabel12h: worldTime12h.time,
     ampm: worldTime12h.ampm,

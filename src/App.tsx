@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Leva } from "leva";
 import { loadPersistedSandboxState } from "./lib/devLocalState";
-import { ALL_PET_TYPES, PET_REGISTRY, type PetType } from "./lib/pets";
+import { buildCatCareSummary } from "./lib/catCare";
+import { PET_REGISTRY, SANDBOX_PET_CATALOG, type PetType } from "./lib/pets";
 import {
   cloneSharedPetLiveState,
   createSharedPetLiveState,
@@ -46,9 +47,13 @@ import {
 } from "./app/shellViewModel";
 import type {
   AppShellViewMode,
+  BuildModeSource,
+  PlayerDrawerMode,
   PreviewStudioMode
 } from "./app/types";
 import { InventoryPanel } from "./components/ui";
+
+const SHOWCASE_IMPORTED_CAT_PRESET_ID = "better_cat_tabby_fluffy_tail_orange_eye_grey";
 
 function App() {
   const isDev = import.meta.env.DEV;
@@ -74,7 +79,9 @@ function App() {
     devBootstrapRoomState: initialSandboxState.roomState,
     devBootstrapSharedCoins: initialSandboxState.playerCoins
   });
-  const sharedRoomActive = sharedRoomRuntime.runtimeSnapshot !== null;
+  const showcaseLocalRoomMode = sharedRoomRuntime.entryMode === "dev_fallback";
+  const sharedRoomActive =
+    sharedRoomRuntime.runtimeSnapshot !== null && !showcaseLocalRoomMode;
   const roomSession = useLocalRoomSession({
     initialSandboxState,
     skinSrc,
@@ -181,6 +188,7 @@ function App() {
     nextSceneJumpRequestIdRef,
     nextSpawnRequestIdRef,
     ownedPets,
+    ownedPetsRef,
     pendingSpawnOwnedFurnitureIds,
     pendingSpawnOwnedFurnitureIdsRef,
     pcMinigameProgress,
@@ -217,7 +225,8 @@ function App() {
     soldOwnedFurnitureIdsRef,
     spawnRequest,
     standRequestToken
-  } = roomSession;  const {
+  } = roomSession;
+  const {
     catalogSections,
     inventoryByType,
     storedInventorySections
@@ -226,10 +235,7 @@ function App() {
     liveFurniturePlacements,
     pendingSpawnOwnedFurnitureIds
   );
-  const petCatalogEntries = useMemo(
-    () => ALL_PET_TYPES.map((type) => PET_REGISTRY[type]),
-    []
-  );
+  const petCatalogEntries = SANDBOX_PET_CATALOG;
   const sharedRoomPlayerId = sharedRoomRuntime.session?.playerId ?? null;
   const displayedPets = useMemo(
     () =>
@@ -237,7 +243,7 @@ function App() {
         ? sharedRoomRuntime.runtimeSnapshot?.sharedPet
           ? [toRuntimeOwnedPet(sharedRoomRuntime.runtimeSnapshot.sharedPet)]
           : []
-        : ownedPets,
+        : ownedPets.filter((pet) => pet.status === "active_room"),
     [ownedPets, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.sharedPet]
   );
   const activePetCatalogEntries = useMemo(
@@ -248,6 +254,21 @@ function App() {
   const ownedPetTypes = useMemo(
     () => new Set<PetType>(displayedPets.map((pet) => pet.type)),
     [displayedPets]
+  );
+  const ownedPetPresetIds = useMemo(
+    () => new Set(ownedPets.map((pet) => pet.presetId)),
+    [ownedPets]
+  );
+  const sandboxCatCareSummary = useMemo(() => buildCatCareSummary(ownedPets), [ownedPets]);
+  const activeCats = displayedPets;
+  const storedCats = useMemo(
+    () => (sharedRoomActive ? [] : ownedPets.filter((pet) => pet.status === "stored_roster")),
+    [ownedPets, sharedRoomActive]
+  );
+  const catsNeedingCare = sharedRoomActive ? [] : sandboxCatCareSummary.catsNeedingCare;
+  const catsNeedingCareIds = useMemo(
+    () => new Set(catsNeedingCare.map((pet) => pet.id)),
+    [catsNeedingCare]
   );
   const runtimeFrameMemories = sharedRoomRuntime.runtimeSnapshot?.frameMemories ?? {};
   const selectedMemoryFrame = selectedMemoryFrameId
@@ -445,17 +466,21 @@ function App() {
   const lastSyncedRevisionRef = useRef<number>(0);
 
   useEffect(() => {
+    if (!sharedRoomActive) {
+      lastSyncedRevisionRef.current = 0;
+      return;
+    }
+
     const runtimeSnapshot = sharedRoomRuntime.runtimeSnapshot;
-    const runtimePlayerProgression = runtimeSnapshot
-      ? selectActivePlayerProgression(
-          runtimeSnapshot.progression,
-          sharedRoomRuntime.session?.playerId
-        )
-      : null;
 
     if (!runtimeSnapshot) {
       return;
     }
+
+    const runtimePlayerProgression = selectActivePlayerProgression(
+      runtimeSnapshot.progression,
+      sharedRoomRuntime.session?.playerId
+    );
 
     if (runtimeSnapshot.revision === lastSyncedRevisionRef.current) {
       if (runtimePlayerProgression && playerCoinsRef.current !== runtimePlayerProgression.coins) {
@@ -486,6 +511,7 @@ function App() {
     setPlayerCoins,
     setRoomState,
     setSpawnRequest,
+    sharedRoomActive,
     sharedRoomRuntime.runtimeSnapshot,
     sharedRoomRuntime.session?.playerId,
     soldOwnedFurnitureIdsRef
@@ -515,29 +541,56 @@ function App() {
     setBreakupResetDialogOpen,
     setSelectedMemoryFrameId,
     sharedRoomActive
-  ]);  const {
+  ]);
+  const [playerDrawerMode, setPlayerDrawerMode] = useState<PlayerDrawerMode>("inventory");
+  const [buildModeSource, setBuildModeSource] = useState<BuildModeSource>(
+    buildModeEnabled ? "manual" : null
+  );
+
+  useEffect(() => {
+    if (!buildModeEnabled && buildModeSource !== null) {
+      setBuildModeSource(null);
+    }
+  }, [buildModeEnabled, buildModeSource]);
+
+  const handlePlacementBuildSessionComplete = useCallback(() => {
+    if (buildModeSource !== "placement") {
+      return;
+    }
+
+    setBuildModeEnabled(false);
+    setBuildModeSource(null);
+  }, [buildModeSource, setBuildModeEnabled, setBuildModeSource]);
+
+  const {
     applyLocalSharedSnapshot,
     commitPlayerCoins,
+    handleActivateStoredPet,
     handleBuyFurniture,
     handleBuyPet,
+    handleCareForPet,
     handleClaimCozyRest,
     handleDeveloperPlayerCoinsCommit,
     handleExitPcMinigame,
     handlePcMinigameComplete,
     handlePlaceStoredFurniture,
+    handleRemovePet,
     handleSellStoredFurniture,
+    handleStorePet,
     updatePendingSpawnOwnedFurnitureIds
   } = useAppRoomActions({
     activePlayerProgression,
+    buildModeSource,
     cozyRestReadyNow,
     inventoryByType,
     liveFurniturePlacements,
-    ownedPetTypes,
+    ownedPetsRef,
     playerPosition,
     pendingSpawnOwnedFurnitureIdsRef,
     playerCoinsRef,
     roomStateRef,
     setBuildModeEnabled,
+    setBuildModeSource,
     setCatalogOpen,
     setLiveFurniturePlacements,
     setOwnedPets,
@@ -561,6 +614,7 @@ function App() {
     commitPlayerAxis,
     handleBreakupResetConfirm,
     handleCameraPositionChange,
+    openPlayerDrawerMode,
     handleClearMemoryFrame,
     handleCommittedFurnitureChange,
     handleDeveloperQuickAction,
@@ -581,6 +635,7 @@ function App() {
     openPreviewStudio
   } = useAppShellCallbacks({
     cameraPositionRef,
+    catalogOpen,
     commitPlayerCoins,
     handleClaimCozyRest,
     handleSkinImport,
@@ -596,6 +651,7 @@ function App() {
     setBreakupResetDialogOpen,
     setBreakupResetSaving,
     setBuildModeEnabled,
+    setBuildModeSource,
     setCameraPosition,
     setCameraResetToken,
     setCatalogOpen,
@@ -608,6 +664,7 @@ function App() {
     setPcMinigameProgress,
     setPendingSpawnOwnedFurnitureIds,
     setPlayerInteractionStatus,
+    setPlayerDrawerMode,
     setPlayerPosition,
     setPlayerRoomDetailsOpen,
     setPreviewStudioMode,
@@ -644,18 +701,10 @@ function App() {
   const roomId = sharedRoomRuntime.roomDocument?.roomId ?? null;
   const developerWorkspaceTabs = getDeveloperWorkspaceTabState(developerWorkspaceTab);
   const activeDeveloperTab =
-    developerWorkspaceTabs.find((tab) => tab.isActive) ?? developerWorkspaceTabs[0];  const playerRoomActivityRows = sharedPcClaimStatusByActivityId
-    ? [
-        { label: "Snake", value: sharedPcClaimStatusByActivityId.pc_snake.payoutAvailable ? "Ready now" : "Paid today" },
-        { label: "Block Stacker", value: sharedPcClaimStatusByActivityId.pc_block_stacker.payoutAvailable ? "Ready now" : "Paid today" },
-        { label: "Runner", value: sharedPcClaimStatusByActivityId.pc_runner.payoutAvailable ? "Ready now" : "Paid today" },
-        { label: "Cozy Rest", value: cozyRestPaidToday ? "Paid today" : cozyRestReadyNow ? "Ready now" : "Lie down together" }
-      ]
-    : [
-        { label: "Desk PC", value: "Ready now" },
-        { label: "Cozy Rest", value: sharedRoomActive ? "Lie down together" : "Shared room only" }
-      ];
+    developerWorkspaceTabs.find((tab) => tab.isActive) ?? developerWorkspaceTabs[0];
   const playerCompanionCardState = getPlayerCompanionCardState({
+    activeCatCount: activeCats.length,
+    catsNeedingCareCount: catsNeedingCare.length,
     cozyRestPaidToday,
     cozyRestReadyNow,
     deskActivityPaidToday,
@@ -667,9 +716,24 @@ function App() {
     runtimeEntryMode: sharedRoomRuntime.entryMode,
     showInviteCode: !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null,
     statusMessage: sharedRoomRuntime.statusMessage,
+    storedCatCount: storedCats.length,
     togetherDaysCount,
     visitCompletedToday
   });
+  const playerRoomActivityRows = sharedPcClaimStatusByActivityId
+    ? [
+        { label: "Snake", value: sharedPcClaimStatusByActivityId.pc_snake.payoutAvailable ? "Ready now" : "Paid today" },
+        { label: "Block Stacker", value: sharedPcClaimStatusByActivityId.pc_block_stacker.payoutAvailable ? "Ready now" : "Paid today" },
+        { label: "Runner", value: sharedPcClaimStatusByActivityId.pc_runner.payoutAvailable ? "Ready now" : "Paid today" },
+        { label: "Cozy Rest", value: cozyRestPaidToday ? "Paid today" : cozyRestReadyNow ? "Ready now" : "Lie down together" }
+      ]
+    : [
+        { label: "Active Cats", value: playerCompanionCardState.activeCatCountLabel },
+        { label: "Stored Cats", value: playerCompanionCardState.storedCatCountLabel },
+        { label: "Cat Care", value: playerCompanionCardState.catsNeedingCareLabel },
+        { label: "Desk PC", value: "Ready now" },
+        { label: "Cozy Rest", value: sharedRoomActive ? "Lie down together" : "Shared room only" }
+      ];
   const playerActionDockState = getPlayerActionDockState({
     buildModeEnabled,
     catalogOpen,
@@ -754,95 +818,233 @@ function App() {
     />
   );
 
-  const inventoryPanelNode = (
-    <InventoryPanel
-      catalogSections={catalogSections}
-      className={developerSurfaceVisible ? "spawn-panel--developer-workspace" : "spawn-panel--player-drawer"}
-      hoverPreviewEnabled={hoverPreviewEnabled}
-      inventoryByType={inventoryByType}
-      onBuyFurniture={handleBuyFurniture}
-      onBuyPet={handleBuyPet}
-      onCloseFurnitureInfo={handleCloseFurnitureInfo}
-      onOpenFurnitureInfo={handleOpenFurnitureInfo}
-      onOpenMobStudio={openMobPreviewStudio}
-      onOpenStudio={openPreviewStudio}
-      onPlaceStoredFurniture={handlePlaceStoredFurniture}
-      onSellStoredFurniture={handleSellStoredFurniture}
-      onToggleFurnitureInfo={handleToggleFurnitureInfo}
-      openFurnitureInfoKey={openFurnitureInfoKey}
-      ownedPetTypes={ownedPetTypes}
-      petCatalogEntries={activePetCatalogEntries}
-      petCatalogMode={sharedRoomActive ? "shared_room" : "sandbox"}
-      playerCoins={displayedPlayerCoins}
-      showAuthoringActions={developerSurfaceVisible}
-      showPetCatalog
-      walletLabel={walletLabel}
-      storedInventorySections={storedInventorySections}
-    />
+  const inventoryPanelNode = useMemo(
+    () => (
+      <InventoryPanel
+        activeCats={sharedRoomActive ? [] : activeCats}
+        catalogSections={catalogSections}
+        catsNeedingCareIds={catsNeedingCareIds}
+        className={developerSurfaceVisible ? "spawn-panel--developer-workspace" : "spawn-panel--player-drawer"}
+        activeMode={playerDrawerMode}
+        hoverPreviewEnabled={hoverPreviewEnabled}
+        inventoryByType={inventoryByType}
+        onActivateStoredPet={handleActivateStoredPet}
+        onBuyFurniture={handleBuyFurniture}
+        onBuyPet={handleBuyPet}
+        onChangeMode={setPlayerDrawerMode}
+        onCareForPet={handleCareForPet}
+        onCloseFurnitureInfo={handleCloseFurnitureInfo}
+        onOpenFurnitureInfo={handleOpenFurnitureInfo}
+        onOpenMobStudio={openMobPreviewStudio}
+        onOpenStudio={openPreviewStudio}
+        onPlaceStoredFurniture={handlePlaceStoredFurniture}
+        onRemovePet={handleRemovePet}
+        onSellStoredFurniture={handleSellStoredFurniture}
+        onStorePet={handleStorePet}
+        onToggleFurnitureInfo={handleToggleFurnitureInfo}
+        openFurnitureInfoKey={openFurnitureInfoKey}
+        ownedPetPresetIds={ownedPetPresetIds}
+        ownedPetTypes={ownedPetTypes}
+        petCatalogEntries={activePetCatalogEntries}
+        petCatalogMode={sharedRoomActive ? "shared_room" : "sandbox"}
+        playerCoins={displayedPlayerCoins}
+        storedCats={sharedRoomActive ? [] : storedCats}
+        showAuthoringActions={developerSurfaceVisible}
+        showPetCatalog
+        walletLabel={walletLabel}
+        storedInventorySections={storedInventorySections}
+      />
+    ),
+    [
+      activeCats,
+      activePetCatalogEntries,
+      catalogSections,
+      catsNeedingCareIds,
+      developerSurfaceVisible,
+      displayedPlayerCoins,
+      handleActivateStoredPet,
+      handleBuyFurniture,
+      handleBuyPet,
+      handleCareForPet,
+      handleCloseFurnitureInfo,
+      handleOpenFurnitureInfo,
+      handlePlaceStoredFurniture,
+      handleRemovePet,
+      handleSellStoredFurniture,
+      handleStorePet,
+      handleToggleFurnitureInfo,
+      hoverPreviewEnabled,
+      playerDrawerMode,
+      inventoryByType,
+      openFurnitureInfoKey,
+      openMobPreviewStudio,
+      openPreviewStudio,
+      ownedPetPresetIds,
+      ownedPetTypes,
+      sharedRoomActive,
+      storedCats,
+      storedInventorySections,
+      walletLabel
+    ]
   );
 
-  const roomViewProps = {
-    acquireEditLock: sharedRoomPresence.acquireEditLock,
-    buildModeEnabled,
-    gridSnapEnabled,
-    spawnRequest,
-    cameraResetToken,
-    standRequestToken,
-    initialCameraPosition: cameraPosition,
-    initialPlayerPosition: playerPosition,
-    initialFurniturePlacements: roomState.furniture,
-    frameMemories: runtimeFrameMemories,
-    pets: displayedPets,
-    skinSrc,
-    localLockedFurnitureIds: sharedRoomPresence.localEditLockIds,
-    onSharedEditConflict: () => { void sharedRoomRuntime.recoverFromStaleSharedEdit(); },
-    worldTimeMinutes,
-    sunEnabled,
-    shadowsEnabled,
-    fogEnabled,
-    fogDensity,
-    ambientMultiplier,
-    sunIntensityMultiplier,
-    brightness,
-    saturation,
-    contrast,
-    showCollisionDebug,
-    showPlayerCollider,
-    showInteractionMarkers,
-    onCameraPositionChange: handleCameraPositionChange,
-    onLocalPresenceChange: setLocalPresenceSnapshot,
-    onLocalSharedPetStateChange: setLocalSharedPetState,
-    onPlayerPositionChange: handlePlayerPositionChange,
-    onFurnitureSnapshotChange: handleFurnitureSnapshotChange,
-    onCommittedFurnitureChange: handleCommittedFurnitureChange,
-    onInteractionStateChange: setPlayerInteractionStatus,
-    onOpenMemoryFrame: sharedRoomActive ? handleOpenMemoryFrame : null,
-    partnerLockedFurnitureIds: sharedRoomPresence.partnerEditLockIds,
-    releaseEditLock: sharedRoomPresence.releaseEditLock,
-    remotePresence: sharedRoomPresence.remotePresence,
-    renewEditLock: sharedRoomPresence.renewEditLock,
-    sceneJumpRequest,
-    sharedPetAuthorityActive,
-    sharedPetLiveState: effectiveSharedPetLiveState
-  };
-  const previewStudioProps = {
-    catalogSections,
-    mode: previewStudioMode,
-    onClose: () => { setPreviewStudioOpen(false); setDeveloperWorkspaceTab("room"); },
-    onModeChange: (nextMode: PreviewStudioMode) => {
-      setPreviewStudioMode(nextMode);
-      setPreviewStudioOpen(true);
-      setDeveloperWorkspaceTab(nextMode === "mob_lab" ? "mob_lab" : "preview_studio");
-    },
-    onSelectMobChange: setPreviewStudioSelectedMobId,
-    onSelectTypeChange: setPreviewStudioSelectedType,
-    presentation: "workspace" as const,
-    selectedMobId: previewStudioSelectedMobId,
-    selectedType: previewStudioSelectedType
-  };
-  const roomStageNode = <AppRoomStage inventoryPanelNode={inventoryPanelNode} previewStudioProps={previewStudioProps} roomViewProps={roomViewProps} />;
-  const developerStageNode = <AppRoomStage inventoryPanelNode={inventoryPanelNode} previewStudioProps={previewStudioProps} roomViewProps={roomViewProps} workspaceTab={developerWorkspaceTab} />;
-  const modeSwitchNode = <ViewModeSwitch onChange={setShellViewMode} value={effectiveShellViewMode} />;
+  const roomViewProps = useMemo(
+    () => ({
+      acquireEditLock: sharedRoomActive ? sharedRoomPresence.acquireEditLock : undefined,
+      buildModeEnabled,
+      buildModeSource,
+      gridSnapEnabled,
+      spawnRequest,
+      cameraResetToken,
+      standRequestToken,
+      initialCameraPosition: cameraPosition,
+      initialPlayerPosition: playerPosition,
+      initialFurniturePlacements: roomState.furniture,
+      frameMemories: runtimeFrameMemories,
+      pets: displayedPets,
+      skinSrc,
+      localLockedFurnitureIds: sharedRoomPresence.localEditLockIds,
+      onSharedEditConflict: sharedRoomActive
+        ? () => { void sharedRoomRuntime.recoverFromStaleSharedEdit(); }
+        : undefined,
+      worldTimeMinutes,
+      sunEnabled,
+      shadowsEnabled,
+      fogEnabled,
+      fogDensity,
+      ambientMultiplier,
+      sunIntensityMultiplier,
+      brightness,
+      saturation,
+      contrast,
+      showCollisionDebug,
+      showPlayerCollider,
+      showInteractionMarkers,
+      onCameraPositionChange: handleCameraPositionChange,
+      onLocalPresenceChange: setLocalPresenceSnapshot,
+      onLocalSharedPetStateChange: setLocalSharedPetState,
+      onPlayerPositionChange: handlePlayerPositionChange,
+      onFurnitureSnapshotChange: handleFurnitureSnapshotChange,
+      onCommittedFurnitureChange: handleCommittedFurnitureChange,
+      onInteractionStateChange: setPlayerInteractionStatus,
+      onOpenMemoryFrame: sharedRoomActive ? handleOpenMemoryFrame : null,
+      onPlacementBuildSessionComplete: handlePlacementBuildSessionComplete,
+      partnerLockedFurnitureIds: sharedRoomPresence.partnerEditLockIds,
+      releaseEditLock: sharedRoomActive ? sharedRoomPresence.releaseEditLock : undefined,
+      remotePresence: sharedRoomPresence.remotePresence,
+      renewEditLock: sharedRoomActive ? sharedRoomPresence.renewEditLock : undefined,
+      sceneJumpRequest,
+      sharedPetAuthorityActive,
+      sharedPetLiveState: effectiveSharedPetLiveState
+    }),
+    [
+      ambientMultiplier,
+      brightness,
+      cameraPosition,
+      cameraResetToken,
+      contrast,
+      displayedPets,
+      effectiveSharedPetLiveState,
+      fogDensity,
+      fogEnabled,
+      gridSnapEnabled,
+      handleCameraPositionChange,
+      handleCommittedFurnitureChange,
+      handleFurnitureSnapshotChange,
+      handleOpenMemoryFrame,
+      handlePlayerPositionChange,
+      handlePlacementBuildSessionComplete,
+      buildModeEnabled,
+      buildModeSource,
+      playerPosition,
+      roomState.furniture,
+      runtimeFrameMemories,
+      saturation,
+      sceneJumpRequest,
+      setLocalPresenceSnapshot,
+      setLocalSharedPetState,
+      setPlayerInteractionStatus,
+      sharedPetAuthorityActive,
+      sharedRoomActive,
+      sharedRoomPresence.acquireEditLock,
+      sharedRoomPresence.localEditLockIds,
+      sharedRoomPresence.partnerEditLockIds,
+      sharedRoomPresence.releaseEditLock,
+      sharedRoomPresence.remotePresence,
+      sharedRoomPresence.renewEditLock,
+      sharedRoomRuntime.recoverFromStaleSharedEdit,
+      shadowsEnabled,
+      showCollisionDebug,
+      showInteractionMarkers,
+      showPlayerCollider,
+      skinSrc,
+      spawnRequest,
+      standRequestToken,
+      sunEnabled,
+      sunIntensityMultiplier,
+      worldTimeMinutes
+    ]
+  );
+
+  const previewStudioProps = useMemo(
+    () => ({
+      catalogSections,
+      mode: previewStudioMode,
+      onClose: () => {
+        setPreviewStudioOpen(false);
+        setDeveloperWorkspaceTab("room");
+      },
+      onModeChange: (nextMode: PreviewStudioMode) => {
+        setPreviewStudioMode(nextMode);
+        setPreviewStudioOpen(true);
+        setDeveloperWorkspaceTab(nextMode === "mob_lab" ? "mob_lab" : "preview_studio");
+      },
+      onSelectMobChange: setPreviewStudioSelectedMobId,
+      onSelectTypeChange: setPreviewStudioSelectedType,
+      presentation: "workspace" as const,
+      selectedMobId: previewStudioSelectedMobId,
+      selectedType: previewStudioSelectedType
+    }),
+    [
+      catalogSections,
+      previewStudioMode,
+      previewStudioSelectedMobId,
+      previewStudioSelectedType,
+      setDeveloperWorkspaceTab,
+      setPreviewStudioMode,
+      setPreviewStudioOpen,
+      setPreviewStudioSelectedMobId,
+      setPreviewStudioSelectedType
+    ]
+  );
+
+  const roomStageNode = useMemo(
+    () => (
+      <AppRoomStage
+        inventoryPanelNode={inventoryPanelNode}
+        previewStudioProps={previewStudioProps}
+        roomViewProps={roomViewProps}
+      />
+    ),
+    [inventoryPanelNode, previewStudioProps, roomViewProps]
+  );
+
+  const developerStageNode = useMemo(
+    () => (
+      <AppRoomStage
+        inventoryPanelNode={inventoryPanelNode}
+        previewStudioProps={previewStudioProps}
+        roomViewProps={roomViewProps}
+        workspaceTab={developerWorkspaceTab}
+      />
+    ),
+    [developerWorkspaceTab, inventoryPanelNode, previewStudioProps, roomViewProps]
+  );
+
+  const modeSwitchNode = useMemo(
+    () => <ViewModeSwitch onChange={setShellViewMode} value={effectiveShellViewMode} />,
+    [effectiveShellViewMode, setShellViewMode]
+  );
   const devPanelProps = {
     className: "dev-panel--workspace",
     visible: debugOpen,
@@ -952,6 +1154,7 @@ function App() {
             displayedPlayerCoins={displayedPlayerCoins}
             handleBreakupResetConfirm={handleBreakupResetConfirm}
             handleExitPcMinigame={handleExitPcMinigame}
+            handleOpenPetCare={() => openPlayerDrawerMode("pet_care")}
             handlePcMinigameComplete={handlePcMinigameComplete}
             handlePlayerDockAction={handlePlayerDockAction}
             handlePlayerRoomDetailsAction={handlePlayerRoomDetailsAction}
@@ -962,6 +1165,7 @@ function App() {
             playerCompanionCardExpanded={playerCompanionCardExpanded}
             playerCompanionCardState={playerCompanionCardState}
             playerLevel={playerLevel}
+            showPlayerCompanionCard={!showcaseLocalRoomMode && (sharedRoomActive || playerCompanionCardState.petCareActionLabel !== null)}
             playerRoomDetailsOpen={playerRoomDetailsOpen}
             playerRoomDetailsState={playerRoomDetailsState}
             roomStageNode={roomStageNode}
@@ -985,3 +1189,8 @@ function App() {
 }
 
 export default App;
+
+
+
+
+

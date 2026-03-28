@@ -6,7 +6,6 @@ import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 type RoomInteractionProxyProps = {
   buildModeEnabled: boolean;
-  hoveredInteractableFurnitureId: string | null;
   item: RoomFurniturePlacement;
   onInteractionCommand: (
     furnitureId: string,
@@ -17,7 +16,6 @@ type RoomInteractionProxyProps = {
 
 export function RoomInteractionProxy({
   buildModeEnabled,
-  hoveredInteractableFurnitureId,
   item,
   onInteractionCommand,
   setHoveredInteractableFurnitureId
@@ -36,13 +34,13 @@ export function RoomInteractionProxy({
       onContextMenu={(event) => onInteractionCommand(item.id, event)}
       onPointerOver={(event) => {
         event.stopPropagation();
-        if (hoveredInteractableFurnitureId !== item.id) {
-          setHoveredInteractableFurnitureId(item.id);
-        }
+        setHoveredInteractableFurnitureId(item.id);
       }}
       onPointerOut={(event) => {
         event.stopPropagation();
-        setHoveredInteractableFurnitureId((current) => (current === item.id ? null : current));
+        setHoveredInteractableFurnitureId((current) =>
+          current === item.id ? null : current
+        );
       }}
     >
       <boxGeometry args={[width, height, depth]} />

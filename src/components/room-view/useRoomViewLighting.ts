@@ -19,8 +19,10 @@ import {
 type UseRoomViewLightingOptions = {
   ambientMultiplier: number;
   brightness: number;
+  buildModeEnabled?: boolean;
   contrast: number;
   furniture: RoomFurniturePlacement[];
+  petCount?: number;
   saturation: number;
   shouldUseReducedRenderQuality: boolean;
   sunIntensityMultiplier: number;
@@ -70,8 +72,10 @@ export type RoomViewLightingDerivation = {
 export function deriveRoomViewLighting({
   ambientMultiplier,
   brightness,
+  buildModeEnabled = false,
   contrast,
   furniture,
+  petCount = 0,
   saturation,
   shouldUseReducedRenderQuality,
   sunIntensityMultiplier,
@@ -120,17 +124,21 @@ export function deriveRoomViewLighting({
   const shouldApplyHueSaturation = Math.abs(saturation - 1) > 0.001;
   const shouldApplyBrightnessContrast =
     Math.abs(composerBrightness) > 0.001 || Math.abs(composerContrast) > 0.001;
-  const composerMultisampling = shouldUseReducedRenderQuality
+  const shouldThrottleForSceneComplexity =
+    shouldUseReducedRenderQuality ||
+    furniture.length >= 24 ||
+    petCount >= 4;
+  const composerMultisampling = shouldThrottleForSceneComplexity
     ? TOUCH_COMPOSER_MULTISAMPLING
     : DESKTOP_COMPOSER_MULTISAMPLING;
-  const sunShadowMapSize = shouldUseReducedRenderQuality
+  const sunShadowMapSize = shouldThrottleForSceneComplexity
     ? TOUCH_SUN_SHADOW_MAP_SIZE
     : DESKTOP_SUN_SHADOW_MAP_SIZE;
-  const moonShadowMapSize = shouldUseReducedRenderQuality
+  const moonShadowMapSize = shouldThrottleForSceneComplexity
     ? TOUCH_MOON_SHADOW_MAP_SIZE
     : DESKTOP_MOON_SHADOW_MAP_SIZE;
   const shouldUseAmbientOcclusion =
-    !shouldUseReducedRenderQuality && composerAoIntensity > 0.02;
+    !shouldThrottleForSceneComplexity && composerAoIntensity > 0.02;
   const shouldUseBloom = composerBloomIntensity > 0.02;
   const hemisphereLightIntensity = (
     mixNumber(0.22, 0.38, lightingState.daylightAmount) +
@@ -199,8 +207,10 @@ export function useRoomViewLighting(
     [
       options.ambientMultiplier,
       options.brightness,
+      options.buildModeEnabled,
       options.contrast,
       options.furniture,
+      options.petCount,
       options.saturation,
       options.shouldUseReducedRenderQuality,
       options.sunIntensityMultiplier,

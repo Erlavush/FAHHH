@@ -1,5 +1,19 @@
 import alexsMobsRaccoonPreset from "./mob-presets/alexs_mobs_raccoon.json";
 import betterCatGlbPreset from "./mob-presets/better_cat_glb.json";
+import betterCatBaseBodyBaseEarsBobtailPreset from "./mob-presets/better_cat_base_body_base_ears_bobtail.json";
+import betterCatFluffyBodyBaseEarsFlufftailPreset from "./mob-presets/better_cat_fluffy_body_base_ears_flufftail.json";
+import betterCatFluffyBodyBigEarsBobtailPreset from "./mob-presets/better_cat_fluffy_body_big_ears_bobtail.json";
+import betterCatTabbyFluffyTailOrangeEyeGreyPreset from "./mob-presets/better_cat_tabby_fluffy_tail_orange_eye_grey.json";
+import betterCatVariantBlackPreset from "./mob-presets/better_cat_variant_black.json";
+import betterCatVariantBritishShorthairPreset from "./mob-presets/better_cat_variant_british_shorthair.json";
+import betterCatVariantCalicoPreset from "./mob-presets/better_cat_variant_calico.json";
+import betterCatVariantRagdollPreset from "./mob-presets/better_cat_variant_ragdoll.json";
+import betterCatVariantRedPreset from "./mob-presets/better_cat_variant_red.json";
+import betterCatVariantSiamesePreset from "./mob-presets/better_cat_variant_siamese.json";
+import betterCatVariantTabbyPreset from "./mob-presets/better_cat_variant_tabby.json";
+import betterCatVariantWhitePreset from "./mob-presets/better_cat_variant_white.json";
+import type { BetterCatGlbVariantSelection } from "./betterCatGlb";
+import type { BetterCatVariantId } from "./catVariants";
 import type { CubeFaceUvMap, TextureSize } from "./mobTextureLayout";
 import type { Vector3Tuple } from "./roomState";
 
@@ -131,9 +145,11 @@ export type ImportedMobPreset = {
   label: string;
   sourceLabel: string;
   sourceMobPath: string;
+  variantId?: BetterCatVariantId;
   presetRevision?: number;
   renderMode?: MobRenderMode;
   editorTransformSpace?: MobEditorTransformSpace;
+  betterCatVariant?: BetterCatGlbVariantSelection;
   textureSrc: string;
   textureSize?: TextureSize;
   parts: MobPartDefinition[];
@@ -146,11 +162,23 @@ export type ImportedMobPreset = {
 
 export type MobPresetLibrary = Record<string, ImportedMobPreset>;
 
-export const DEFAULT_MOB_LAB_MOB_ID = "alexs_mobs_raccoon";
+export const DEFAULT_MOB_LAB_MOB_ID = "better_cat_glb";
 
 const IMPORTED_MOB_PRESETS = [
-  alexsMobsRaccoonPreset as unknown as ImportedMobPreset,
-  betterCatGlbPreset as unknown as ImportedMobPreset
+  betterCatGlbPreset as unknown as ImportedMobPreset,
+  betterCatVariantTabbyPreset as unknown as ImportedMobPreset,
+  betterCatVariantRedPreset as unknown as ImportedMobPreset,
+  betterCatVariantCalicoPreset as unknown as ImportedMobPreset,
+  betterCatVariantSiamesePreset as unknown as ImportedMobPreset,
+  betterCatVariantBritishShorthairPreset as unknown as ImportedMobPreset,
+  betterCatVariantRagdollPreset as unknown as ImportedMobPreset,
+  betterCatVariantBlackPreset as unknown as ImportedMobPreset,
+  betterCatVariantWhitePreset as unknown as ImportedMobPreset,
+  betterCatTabbyFluffyTailOrangeEyeGreyPreset as unknown as ImportedMobPreset,
+  betterCatBaseBodyBaseEarsBobtailPreset as unknown as ImportedMobPreset,
+  betterCatFluffyBodyBaseEarsFlufftailPreset as unknown as ImportedMobPreset,
+  betterCatFluffyBodyBigEarsBobtailPreset as unknown as ImportedMobPreset,
+  alexsMobsRaccoonPreset as unknown as ImportedMobPreset
 ];
 
 export function cloneMobPreset<T>(preset: T): T {

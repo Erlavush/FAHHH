@@ -1,9 +1,10 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import type { PlayerCompanionCardState } from "../../app/shellViewModel";
 
 type PlayerCompanionCardProps = {
   expanded: boolean;
   onOpenDetails: () => void;
+  onOpenPetCare?: () => void;
   onToggleExpanded: () => void;
   state: PlayerCompanionCardState;
 };
@@ -11,6 +12,7 @@ type PlayerCompanionCardProps = {
 export function PlayerCompanionCard({
   expanded,
   onOpenDetails,
+  onOpenPetCare,
   onToggleExpanded,
   state
 }: PlayerCompanionCardProps) {
@@ -38,6 +40,11 @@ export function PlayerCompanionCard({
             <button className="player-companion-card__button" onClick={onToggleExpanded} type="button">
               {expanded ? "Less info" : "More info"}
             </button>
+            {state.petCareActionLabel && onOpenPetCare ? (
+              <button className="player-companion-card__button" onClick={onOpenPetCare} type="button">
+                {state.petCareActionLabel}
+              </button>
+            ) : null}
             <button
               className="player-companion-card__button player-companion-card__button--accent"
               onClick={onOpenDetails}
@@ -73,6 +80,18 @@ export function PlayerCompanionCard({
         </div>
         {expanded ? (
           <div className="player-companion-card__details">
+            <div className="player-companion-card__detail-row">
+              <span>Active cats</span>
+              <strong>{state.activeCatCountLabel}</strong>
+            </div>
+            <div className="player-companion-card__detail-row">
+              <span>Stored cats</span>
+              <strong>{state.storedCatCountLabel}</strong>
+            </div>
+            <div className="player-companion-card__detail-row">
+              <span>Cat care</span>
+              <strong>{state.catsNeedingCareLabel}</strong>
+            </div>
             {state.showInviteCode ? (
               <div className="player-companion-card__detail-row">
                 <span>Invite code</span>

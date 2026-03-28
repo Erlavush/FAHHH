@@ -22,11 +22,19 @@
 ### Activities
 
 - [x] **ACTV-01**: Couple can access another repeatable earn loop beyond the desk PC path.
+- [x] **ACTV-02**: Caring for cats and the existing PC loop produce coins that can buy more cats or decor during a showcase session.
+
+### Player Shell
+
+- [x] **SHELL-01**: Player-facing inventory, shop, and pet-care surfaces use the same warm clock-themed visual language as the bottom HUD and digital cat clock while separating owned inventory, purchasing/adoption, and care flows into distinct views.
 
 ### Personalization
 
 - [ ] **MEMR-02**: Couple can maintain a richer memory collection beyond a single frame or object.
 - [ ] **PETS-02**: Shared-room pet has deeper behavior such as needs, moods, or interactions that matter during room visits.
+- [x] **PETS-03**: Player can adopt, keep active, and store multiple cats in one room without breaking pet persistence or room runtime.
+- [x] **PETS-04**: Cats exhibit readable room-life behavior through improved movement, mood or needs state, and sit / lick / sleep presentation.
+- [ ] **PETS-05**: Player can adopt curated Better Cats visual variants in the local room while reusing the current cat behavior/runtime and preserving persistence.
 
 ### Content
 
@@ -35,6 +43,10 @@
 ### Delivery
 
 - [x] **CODE-01**: Active runtime and regression files targeted by this milestone stay below 1000 lines through modular extraction without regressing room-builder, shared-room, or authoring boundaries.
+
+### Showcase
+
+- [x] **SHOW-01**: Showcase build is immediately readable and rewarding as a single-player cat-room demo without requiring pairing.
 
 ## v2 Requirements
 
@@ -66,17 +78,23 @@
 | ROOM-05 | Phase 5 | Complete |
 | RITL-02 | Phase 6 | Complete |
 | ACTV-01 | Phase 6 | Complete |
+| ACTV-02 | Phase 9 | Complete |
+| SHELL-01 | Phase 11 | Complete |
 | MEMR-02 | Phase 7 | Pending |
 | PETS-02 | Phase 7 | Pending |
+| PETS-03 | Phase 9 | Complete |
+| PETS-04 | Phase 9 | Complete |
+| PETS-05 | Phase 10 | Pending |
 | CONT-01 | Phase 8 | Pending |
 | CODE-01 | Phase 06.1 | Complete |
+| SHOW-01 | Phase 9 | Complete |
 
 **Coverage:**
-- v1 requirements: 10 total
-- Mapped to phases: 10
+- v1 requirements: 16 total
+- Mapped to phases: 16
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after completing Phase 06.1 codebase modularization*
+*Last updated: 2026-03-28 after executing Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul*
 

@@ -3,6 +3,7 @@ import type { SharedRoomRuntimeEntryMode } from "./hooks/useSharedRoomRuntime";
 import type {
   AppShellViewMode,
   DeveloperWorkspaceTab,
+  PlayerDrawerMode,
   PlayerInteractionStatus,
   PreviewStudioMode
 } from "./types";
@@ -16,11 +17,14 @@ export type DeveloperWorkspaceTabDefinition = {
 
 export type PlayerActionDockAction = {
   id: "build" | "inventory" | "interaction" | "cozy_rest";
+  isActive: boolean;
   label: string;
   tone: "primary" | "secondary" | "ghost";
 };
 
 export type PlayerCompanionCardState = {
+  activeCatCountLabel: string;
+  catsNeedingCareLabel: string;
   cozyRestStatus: string;
   deskActivityStatus: string;
   inviteCode: string;
@@ -34,10 +38,19 @@ export type PlayerCompanionCardState = {
   ritualTitle: "Room-day visit open" | "Room-day visit complete" | "Visit saved" | "Partner visited";
   roomModeLabel: string | null;
   roomSyncStatus: string | null;
+  petCareActionLabel: "Open Pet Care" | null;
   showInviteCode: boolean;
+  storedCatCountLabel: string;
   togetherDaysLabel: string;
   tone: "presence" | "success" | "attention";
   visitStatusLabel: string;
+};
+export type PlayerDrawerTabState = {
+  badgeLabel: string | null;
+  description: string;
+  isActive: boolean;
+  label: "Inventory" | "Shop" | "Pet Care";
+  value: PlayerDrawerMode;
 };
 
 export type PlayerRoomDetailsAction = {
@@ -223,6 +236,63 @@ function getCozyRestStatus(
   return "Lie down together";
 }
 
+function formatCatCountLabel(count: number, singularLabel: string, pluralLabel: string): string {
+  return `${count} ${count === 1 ? singularLabel : pluralLabel}`;
+}
+
+function getCatsNeedingCareLabel(count: number): string {
+  if (count === 0) {
+    return "All cats doing well";
+  }
+
+  return `${count} cat${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} care`;
+}
+function getPlayerDrawerPetCareDescription(sharedRoomActive: boolean): string {
+  return sharedRoomActive
+    ? "Check your shared companion status and jump back to room interactions when care is needed."
+    : "Keep active cats happy, rotate the roster, and handle care without mixing it into shopping.";
+}
+
+function getPlayerDrawerPetCareBadgeLabel(catsNeedingCareCount: number): string | null {
+  if (catsNeedingCareCount <= 0) {
+    return null;
+  }
+
+  return `${catsNeedingCareCount} need${catsNeedingCareCount === 1 ? "s" : ""} care`;
+}
+
+export function getPlayerDrawerTabsState(
+  activeMode: PlayerDrawerMode,
+  sharedRoomActive: boolean,
+  catsNeedingCareCount: number
+): PlayerDrawerTabState[] {
+  return [
+    {
+      value: "inventory",
+      label: "Inventory",
+      description: "Stored furniture and roster items ready to bring back into the room.",
+      badgeLabel: null,
+      isActive: activeMode === "inventory"
+    },
+    {
+      value: "shop",
+      label: "Shop",
+      description: sharedRoomActive
+        ? "Buy room decor and the shared companion from the same player-facing shop."
+        : "Buy decor and cat variants without mixing purchases into care actions.",
+      badgeLabel: null,
+      isActive: activeMode === "shop"
+    },
+    {
+      value: "pet_care",
+      label: "Pet Care",
+      description: getPlayerDrawerPetCareDescription(sharedRoomActive),
+      badgeLabel: getPlayerDrawerPetCareBadgeLabel(catsNeedingCareCount),
+      isActive: activeMode === "pet_care"
+    }
+  ];
+}
+
 function getInteractionAction(
   playerInteractionStatus: PlayerInteractionStatus
 ): PlayerActionDockAction | null {
@@ -232,6 +302,7 @@ function getInteractionAction(
 
   return {
     id: "interaction",
+    isActive: false,
     label:
       playerInteractionStatus.phase === "active"
         ? `Stand Up (${playerInteractionStatus.label})`
@@ -272,6 +343,8 @@ export function getDeveloperWorkspaceTabState(
 }
 
 export function getPlayerCompanionCardState({
+  activeCatCount,
+  catsNeedingCareCount,
   cozyRestPaidToday,
   cozyRestReadyNow,
   deskActivityPaidToday,
@@ -283,9 +356,12 @@ export function getPlayerCompanionCardState({
   runtimeEntryMode,
   showInviteCode,
   statusMessage,
+  storedCatCount,
   togetherDaysCount,
   visitCompletedToday
 }: {
+  activeCatCount: number;
+  catsNeedingCareCount: number;
   cozyRestPaidToday: boolean;
   cozyRestReadyNow: boolean;
   deskActivityPaidToday: boolean;
@@ -297,14 +373,19 @@ export function getPlayerCompanionCardState({
   runtimeEntryMode: SharedRoomRuntimeEntryMode;
   showInviteCode: boolean;
   statusMessage: string | null;
+  storedCatCount: number;
   togetherDaysCount: number;
   visitCompletedToday: boolean;
 }): PlayerCompanionCardState {
   return {
+    activeCatCountLabel: formatCatCountLabel(activeCatCount, "active cat", "active cats"),
+    catsNeedingCareLabel: getCatsNeedingCareLabel(catsNeedingCareCount),
     inviteCode,
     roomModeLabel: getRoomModeLabel(runtimeEntryMode),
     roomSyncStatus: statusMessage,
+    petCareActionLabel: catsNeedingCareCount > 0 ? "Open Pet Care" : null,
     showInviteCode,
+    storedCatCountLabel: formatCatCountLabel(storedCatCount, "stored cat", "stored cats"),
     togetherDaysLabel: `Together Days ${togetherDaysCount}`,
     visitStatusLabel: getVisitStatusLabel(visitCompletedToday),
     deskActivityStatus: getDeskActivityStatus(deskActivityReadyNow, deskActivityPaidToday),
@@ -333,11 +414,13 @@ export function getPlayerActionDockState({
   const actions: PlayerActionDockAction[] = [
     {
       id: "build",
+      isActive: buildModeEnabled,
       label: buildModeEnabled ? "Exit Build Mode" : "Enter Build Mode",
       tone: "primary"
     },
     {
       id: "inventory",
+      isActive: catalogOpen,
       label: catalogOpen ? "Close Inventory" : "Open Inventory",
       tone: "secondary"
     }
@@ -347,6 +430,7 @@ export function getPlayerActionDockState({
   if (cozyRestReadyNow) {
     actions.push({
       id: "cozy_rest",
+      isActive: false,
       label: "Cozy Rest",
       tone: "secondary"
     });
@@ -491,3 +575,7 @@ export function getPreviewStudioTab(
 ): DeveloperWorkspaceTab {
   return mode === "mob_lab" ? "mob_lab" : "preview_studio";
 }
+
+
+
+

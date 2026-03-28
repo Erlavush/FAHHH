@@ -4,6 +4,10 @@
   "sourceLabel": "Blockbench",
   "sourceMobPath": "/models/better_cat.glb",
   "renderMode": "glb",
+  "betterCatVariant": {
+    "body": "base",
+    "tail": "normal"
+  },
   "textureSrc": "placeholder",
   "parts": [],
   "animation": {

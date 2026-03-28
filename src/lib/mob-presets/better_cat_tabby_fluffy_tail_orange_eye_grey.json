@@ -1,0 +1,51 @@
+{
+  "id": "better_cat_tabby_fluffy_tail_orange_eye_grey",
+  "label": "Better Cat - Tabby Fluffy Tail",
+  "sourceLabel": "Blockbench",
+  "sourceMobPath": "/models/tabbyfluffytailoreangeeyegreycat.glb",
+  "renderMode": "glb",
+  "betterCatVariant": {
+    "body": "fluffy",
+    "tail": "fluffy"
+  },
+  "textureSrc": "placeholder",
+  "parts": [],
+  "animation": {
+    "idle": {
+      "frequency": 1.15,
+      "bodyBob": 0,
+      "headYaw": 3,
+      "headPitch": 2,
+      "tailYaw": 8,
+      "tailPitch": 3,
+      "earPitch": 0,
+      "earRoll": 0
+    },
+    "walk": {
+      "strideRate": 12.0,
+      "limbSwing": 40,
+      "bodyBob": 0.6,
+      "bodyRoll": 3.5,
+      "headNod": 3.0,
+      "tailYaw": 22,
+      "tailPitch": 8
+    }
+  },
+  "locomotion": {
+    "mode": "walk_in_place",
+    "speed": 1.8,
+    "turnResponsiveness": 100,
+    "loopRadius": 1
+  },
+  "physics": {
+    "groundOffset": 0,
+    "colliderSize": [0.6, 0.6, 0.6],
+    "colliderOffset": [0, 0.3, 0],
+    "showCollider": false
+  },
+  "stage": {
+    "modelScale": 0.5,
+    "cameraPosition": [3, 2, 3],
+    "cameraTarget": [0, 0.5, 0]
+  }
+}

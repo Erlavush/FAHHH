@@ -1,0 +1,71 @@
+{
+    "id":  "better_cat_variant_ragdoll",
+    "label":  "Better Cat - Ragdoll",
+    "sourceLabel":  "Better Cats v4.0",
+    "sourceMobPath":  "/models/better_cat.glb",
+    "variantId":  "ragdoll",
+    "renderMode":  "glb",
+    "betterCatVariant":  {
+                             "body":  "base",
+                             "tail":  "normal"
+                         },
+    "textureSrc":  "/textures/cats/better-cats/coats/ragdoll.png",
+    "parts":  [
+
+              ],
+    "animation":  {
+                      "idle":  {
+                                   "frequency":  1.15,
+                                   "bodyBob":  0,
+                                   "headYaw":  3,
+                                   "headPitch":  2,
+                                   "tailYaw":  8,
+                                   "tailPitch":  3,
+                                   "earPitch":  0,
+                                   "earRoll":  0
+                               },
+                      "walk":  {
+                                   "strideRate":  12.0,
+                                   "limbSwing":  40,
+                                   "bodyBob":  0.6,
+                                   "bodyRoll":  3.5,
+                                   "headNod":  3.0,
+                                   "tailYaw":  22,
+                                   "tailPitch":  8
+                               }
+                  },
+    "locomotion":  {
+                       "mode":  "walk_in_place",
+                       "speed":  1.8,
+                       "turnResponsiveness":  100,
+                       "loopRadius":  1
+                   },
+    "physics":  {
+                    "groundOffset":  0,
+                    "colliderSize":  [
+                                         0.6,
+                                         0.6,
+                                         0.6
+                                     ],
+                    "colliderOffset":  [
+                                           0,
+                                           0.3,
+                                           0
+                                       ],
+                    "showCollider":  false
+                },
+    "stage":  {
+                  "modelScale":  0.5,
+                  "cameraPosition":  [
+                                         3,
+                                         2,
+                                         3
+                                     ],
+                  "cameraTarget":  [
+                                       0,
+                                       0.5,
+                                       0
+                                   ]
+              }
+}
+

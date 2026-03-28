@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 type FurniturePreviewThumbProps = {
+  badgeLabel?: string;
   label: string;
   authoringEnabled?: boolean;
   previewSrc: string;
@@ -9,6 +10,7 @@ type FurniturePreviewThumbProps = {
 };
 
 export function FurniturePreviewThumb({
+  badgeLabel,
   label,
   authoringEnabled = true,
   previewSrc,
@@ -23,6 +25,7 @@ export function FurniturePreviewThumb({
 
   return (
     <div className="spawn-card__preview">
+      {badgeLabel ? <span className="spawn-card__preview-badge">{badgeLabel}</span> : null}
       {loadFailed ? (
         <div className="spawn-card__preview-fallback">
           <span>Preview pending</span>

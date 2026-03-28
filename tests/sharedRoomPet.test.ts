@@ -42,7 +42,17 @@ describe("sharedRoomPet", () => {
       type: "minecraft_cat",
       presetId: "better_cat_glb",
       acquiredFrom: "pet_shop",
-      spawnPosition: [0.5, 0, 1.5]
+      spawnPosition: [0.5, 0, 1.5],
+      displayName: "Shared Cat",
+      status: "active_room",
+      behaviorProfileId: "curious",
+      care: {
+        hunger: 75,
+        affection: 75,
+        energy: 75,
+        lastUpdatedAt: "2026-03-26T13:00:00.000Z",
+        lastCareActionAt: null
+      }
     });
   });
 

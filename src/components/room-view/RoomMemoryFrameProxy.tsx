@@ -5,7 +5,7 @@ import type { RoomFurniturePlacement } from "../../lib/roomState";
 
 type RoomMemoryFrameProxyProps = {
   buildModeEnabled: boolean;
-  hoveredInteractableFurnitureId: string | null;
+  hovered: boolean;
   item: RoomFurniturePlacement;
   onOpenMemoryFrame: ((furnitureId: string) => void) | null;
   setHoveredInteractableFurnitureId: Dispatch<SetStateAction<string | null>>;
@@ -13,7 +13,7 @@ type RoomMemoryFrameProxyProps = {
 
 export function RoomMemoryFrameProxy({
   buildModeEnabled,
-  hoveredInteractableFurnitureId,
+  hovered,
   item,
   onOpenMemoryFrame,
   setHoveredInteractableFurnitureId
@@ -21,8 +21,6 @@ export function RoomMemoryFrameProxy({
   if (buildModeEnabled || item.type !== "wall_frame" || !onOpenMemoryFrame) {
     return null;
   }
-
-  const hovered = hoveredInteractableFurnitureId === item.id;
 
   return (
     <group position={[0, 0.02, 0.07]}>
@@ -33,9 +31,7 @@ export function RoomMemoryFrameProxy({
         }}
         onPointerOver={(event) => {
           event.stopPropagation();
-          if (hoveredInteractableFurnitureId !== item.id) {
-            setHoveredInteractableFurnitureId(item.id);
-          }
+          setHoveredInteractableFurnitureId(item.id);
         }}
         onPointerOut={(event) => {
           event.stopPropagation();

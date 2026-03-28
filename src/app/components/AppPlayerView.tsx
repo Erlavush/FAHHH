@@ -25,6 +25,7 @@ interface AppPlayerViewProps {
   displayedPlayerCoins: number;
   handleBreakupResetConfirm: () => void;
   handleExitPcMinigame: () => void;
+  handleOpenPetCare: () => void;
   handlePcMinigameComplete: (result: PcMinigameResult) => void;
   handlePlayerDockAction: (actionId: "build" | "inventory" | "interaction" | "cozy_rest") => void;
   handlePlayerRoomDetailsAction: (
@@ -38,6 +39,7 @@ interface AppPlayerViewProps {
   playerCompanionCardExpanded: boolean;
   playerCompanionCardState: PlayerCompanionCardState;
   playerLevel: number;
+  showPlayerCompanionCard: boolean;
   playerRoomDetailsOpen: boolean;
   playerRoomDetailsState: PlayerRoomDetailsState;
   roomStageNode: ReactNode;
@@ -67,6 +69,7 @@ export function AppPlayerView({
   displayedPlayerCoins,
   handleBreakupResetConfirm,
   handleExitPcMinigame,
+  handleOpenPetCare,
   handlePcMinigameComplete,
   handlePlayerDockAction,
   handlePlayerRoomDetailsAction,
@@ -78,6 +81,7 @@ export function AppPlayerView({
   playerCompanionCardExpanded,
   playerCompanionCardState,
   playerLevel,
+  showPlayerCompanionCard,
   playerRoomDetailsOpen,
   playerRoomDetailsState,
   roomStageNode,
@@ -151,11 +155,14 @@ export function AppPlayerView({
       topCenter={<MinecraftClock label={worldTimeLabel12h} ampm={ampm} />}
       topLeft={modeSwitchNode}
       topRight={
-        hostedEntryFlowActive ? null : (
+        hostedEntryFlowActive || !showPlayerCompanionCard ? null : (
           <div className="player-room-shell__top-right-stack">
             <PlayerCompanionCard
               expanded={playerCompanionCardExpanded}
               onOpenDetails={() => setPlayerRoomDetailsOpen(true)}
+              onOpenPetCare={
+                playerCompanionCardState.petCareActionLabel ? handleOpenPetCare : undefined
+              }
               onToggleExpanded={() =>
                 setPlayerCompanionCardExpanded((current) => !current)
               }

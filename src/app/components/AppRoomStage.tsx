@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ReactNode } from "react";
+import { Suspense, lazy, memo, type ReactNode } from "react";
 import type { DeveloperWorkspaceTab } from "../types";
 
 type RoomViewProps = Parameters<typeof import("../../components/RoomView").RoomView>[0];
@@ -23,7 +23,7 @@ interface AppRoomStageProps {
   workspaceTab?: DeveloperWorkspaceTab;
 }
 
-export function AppRoomStage({
+export const AppRoomStage = memo(function AppRoomStage({
   inventoryPanelNode,
   previewStudioProps,
   roomViewProps,
@@ -50,4 +50,4 @@ export function AppRoomStage({
   }
 
   return roomStageNode;
-}
+});

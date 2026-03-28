@@ -1,4 +1,4 @@
-import type { OwnedPet } from "./pets";
+import { createOwnedPetCareState, type OwnedPet } from "./pets";
 import type { SharedPetLiveState } from "./sharedPresenceTypes";
 import type { Vector3Tuple } from "./roomState";
 import type { SharedRoomPetRecord } from "./sharedRoomTypes";
@@ -65,6 +65,10 @@ export function toRuntimeOwnedPet(sharedPet: SharedRoomPetRecord): OwnedPet {
     type: sharedPet.type,
     presetId: sharedPet.presetId,
     acquiredFrom: "pet_shop",
-    spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple
+    spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple,
+    displayName: "Shared Cat",
+    status: "active_room",
+    behaviorProfileId: "curious",
+    care: createOwnedPetCareState(sharedPet.adoptedAt)
   };
 }

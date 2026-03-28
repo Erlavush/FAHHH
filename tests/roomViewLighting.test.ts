@@ -94,3 +94,4 @@ describe("deriveRoomViewLighting", () => {
     expect(withCeilingLight.pointLightPosition[1]).toBeGreaterThan(withoutLights.pointLightPosition[1]);
   });
 });
+

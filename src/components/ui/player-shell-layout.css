@@ -1,4 +1,4 @@
-﻿.view-mode-switch {
+.view-mode-switch {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -90,6 +90,7 @@
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .player-room-shell__drawer {
@@ -189,3 +190,4 @@
     bottom: 12px;
   }
 }
+
