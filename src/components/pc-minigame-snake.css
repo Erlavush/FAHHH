@@ -1,0 +1,127 @@
+.pc-retro-snake {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 468px);
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid rgba(192, 240, 244, 0.16);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(18, 22, 24, 0.98), rgba(8, 10, 12, 0.99));
+  box-shadow:
+    0 18px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pc-retro-snake__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(107, 107, 107, 0.42), rgba(45, 45, 45, 0.42));
+}
+
+.pc-retro-snake__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pc-retro-snake__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #e7fbfd;
+  color: #2994a0;
+  font: 900 14px/1 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.pc-retro-snake__brand-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.pc-retro-snake__brand-copy strong,
+.pc-retro-snake__pill,
+.pc-retro-snake__scoreboard span,
+.pc-retro-snake__hint-row span {
+  font: 700 12px/1.2 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.pc-retro-snake__brand-copy strong {
+  color: #f2fbfb;
+}
+
+.pc-retro-snake__brand-copy span {
+  color: rgba(192, 240, 244, 0.7);
+  font: 600 11px/1.2 "Trebuchet MS", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.pc-retro-snake__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(192, 240, 244, 0.12);
+  color: #c0f0f4;
+}
+
+.pc-retro-snake__scoreboard {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pc-retro-snake__scoreboard span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(192, 240, 244, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #c0f0f4;
+}
+
+.pc-retro-snake__canvas-frame {
+  padding: 12px;
+  border: 1px solid rgba(192, 240, 244, 0.16);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(6, 9, 10, 0.98), rgba(14, 18, 20, 0.98));
+}
+
+.pc-retro-snake__canvas {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 16px;
+  background: #111111;
+}
+
+.pc-retro-snake__hint-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 468px);
+  margin: 0 auto;
+  color: rgba(246, 234, 216, 0.76);
+}
+
+@media (max-width: 700px) {
+  .pc-retro-snake__header,
+  .pc-retro-snake__hint-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pc-retro-snake__scoreboard {
+    grid-template-columns: 1fr;
+  }
+}

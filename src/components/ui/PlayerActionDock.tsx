@@ -16,6 +16,7 @@ type PlayerActionDockProps = {
   coins?: number;
   level?: number;
   togetherDays?: number;
+  metricLabel?: string;
   editorVisible?: boolean;
 };
 
@@ -242,6 +243,7 @@ export function PlayerActionDock({
   coins = 0,
   level = 1,
   togetherDays = 0,
+  metricLabel,
   editorVisible = false
 }: PlayerActionDockProps) {
   const buildAction = actions.find((action) => action.id === "build");
@@ -605,7 +607,7 @@ export function PlayerActionDock({
             {renderEditablePart(
               "togetherDays",
               "player-hud-dock__piece-center player-hud-dock__piece-center--days",
-              <div className="player-hud-dock__together-days">Day {togetherDays}</div>
+              <div className="player-hud-dock__together-days">{metricLabel ?? `Day ${togetherDays}`}</div>
             )}
           </div>
         )}
@@ -701,6 +703,7 @@ export function PlayerActionDock({
     </section>
   );
 }
+
 
 
 

@@ -49,7 +49,7 @@ export function PlayerRoomDetailsSheet({
       </div>
 
       <div className="player-room-details-sheet__card">
-        <span className="player-room-details-sheet__card-label">Together Days</span>
+        <span className="player-room-details-sheet__card-label">{state.primaryMetricTitle}</span>
         <strong>{state.togetherDaysLabel}</strong>
         <span>{state.visitStatusLabel}</span>
       </div>
@@ -127,3 +127,4 @@ export function PlayerRoomDetailsSheet({
     </aside>
   );
 }
+

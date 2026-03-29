@@ -43,16 +43,16 @@ describe("pc desk minigame", () => {
     expect(getPcDeskAppDefinitions().map((definition) => definition.id)).toEqual([
       "pc_snake",
       "pc_block_stacker",
-      "pc_runner"
+      "pc_pacman"
     ]);
     expect(getPcDeskRewardCoins("pc_snake", 12)).toBeGreaterThan(0);
     expect(getPcDeskRewardCoins("pc_block_stacker", 12)).toBeGreaterThan(
       getPcDeskRewardCoins("pc_snake", 12)
     );
-    expect(getPcDeskRewardCoins("pc_runner", 12)).toBeGreaterThan(0);
+    expect(getPcDeskRewardCoins("pc_pacman", 180)).toBeGreaterThan(0);
   });
 
-  it("launches distinct Snake, Block Stacker, and Runner boards from the retro desktop shell", async () => {
+  it("launches distinct Snake, Block Stacker, and Pacman boards from the retro desktop shell", async () => {
     const onComplete = vi.fn<(result: PcDeskRunResult) => void>();
 
     await act(async () => {
@@ -91,13 +91,13 @@ describe("pc desk minigame", () => {
       queryButton("Back to desktop")?.click();
     });
     await act(async () => {
-      queryButton("Runner")?.click();
+      queryButton("Pacman")?.click();
     });
     await act(async () => {
       queryButton("Run app")?.click();
     });
-    expect(container?.querySelector('[aria-label="Runner track"]')).not.toBeNull();
-    expect(queryButton("Jump")).not.toBeNull();
+    expect(container?.querySelector('[aria-label="Pacman maze"]')).not.toBeNull();
+    expect(queryButton("Up")).not.toBeNull();
     expect(onComplete).not.toHaveBeenCalled();
   });
 
@@ -195,4 +195,3 @@ describe("pc desk minigame", () => {
     expect(queryButton("Play again")).not.toBeNull();
   });
 });
-

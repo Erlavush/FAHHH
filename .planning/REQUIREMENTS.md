@@ -46,7 +46,7 @@
 
 ### Showcase
 
-- [x] **SHOW-01**: Showcase build is immediately readable and rewarding as a single-player cat-room demo without requiring pairing.
+- [x] **SHOW-01**: Showcase build is immediately readable and rewarding as a single-player cat-room demo without requiring pairing, Firebase setup, or dev-only shared-room APIs.
 
 ## v2 Requirements
 
@@ -96,5 +96,6 @@
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-28 after executing Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul*
+*Last updated: 2026-03-28 after fixing the Vercel showcase runtime env lookup for public demo builds*
+
 

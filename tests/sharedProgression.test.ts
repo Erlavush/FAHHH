@@ -176,7 +176,7 @@ describe("sharedProgression", () => {
       countedAt: null
     });
     expect(progression.couple.featuredActivity?.dayKey).toBe("2026-03-26");
-    expect(["pc_snake", "pc_block_stacker", "pc_runner", "cozy_rest"]).toContain(
+    expect(["pc_snake", "pc_block_stacker", "pc_pacman", "cozy_rest"]).toContain(
       progression.couple.featuredActivity?.activityId
     );
     expect(progression.couple.activityClaimsByDayKey).toEqual({});
@@ -240,6 +240,106 @@ describe("sharedProgression", () => {
       rewardXp: 6,
       score: 0
     });
+  });
+
+  it("upgrades legacy pc_runner activity records into Pacman data", () => {
+    const progression = createProgression(0);
+    const rawProgression = {
+      ...progression,
+      players: {
+        ...progression.players,
+        "player-1": {
+          ...progression.players["player-1"],
+          deskPc: {
+            bestScore: 30,
+            gamesPlayed: 5,
+            lastRewardCoins: 6,
+            lastScore: 18,
+            lastCompletedAt: "2026-03-26T08:00:00.000Z",
+            totalCoinsEarned: 16,
+            appsByActivityId: {
+              pc_runner: {
+                bestScore: 22,
+                gamesPlayed: 2,
+                lastRewardCoins: 4,
+                lastScore: 14,
+                lastCompletedAt: "2026-03-26T07:30:00.000Z",
+                totalCoinsEarned: 7
+              },
+              pc_pacman: {
+                bestScore: 17,
+                gamesPlayed: 1,
+                lastRewardCoins: 6,
+                lastScore: 18,
+                lastCompletedAt: "2026-03-26T08:00:00.000Z",
+                totalCoinsEarned: 9
+              }
+            }
+          }
+        }
+      },
+      couple: {
+        ...progression.couple,
+        featuredActivity: {
+          dayKey: "2026-03-26",
+          activityId: "pc_runner",
+          selectedAt: "2026-03-26T08:00:00.000Z"
+        },
+        activityClaimsByDayKey: {
+          "2026-03-26": {
+            pc_runner: {
+              activityId: "pc_runner",
+              claimMode: "per_player",
+              perPlayerClaimsByPlayerId: {
+                "player-1": {
+                  claimedAt: "2026-03-26T10:00:00.000Z",
+                  rewardCoins: 6,
+                  rewardXp: 4,
+                  score: 12
+                }
+              },
+              coupleClaim: null
+            }
+          }
+        }
+      }
+    } as unknown as SharedRoomProgressionState;
+
+    const ensured = ensureSharedRoomProgressionMembers(
+      rawProgression,
+      ["player-1", "player-2"],
+      createMembers(),
+      "2026-03-26T12:00:00.000Z"
+    );
+    const playerOneProgress = ensured.players["player-1"];
+    if (!playerOneProgress) {
+      throw new Error("player-1 progression missing after normalization");
+    }
+    const pacmanApps = playerOneProgress.deskPc.appsByActivityId ?? {};
+
+    expect(ensured.couple.featuredActivity?.activityId).toBe("pc_pacman");
+    expect(
+      ensured.couple.activityClaimsByDayKey["2026-03-26"]?.pc_pacman?.perPlayerClaimsByPlayerId[
+        "player-1"
+      ]
+    ).toMatchObject({
+      rewardCoins: 6,
+      rewardXp: 4,
+      score: 12
+    });
+    expect(
+      pacmanApps["pc_pacman"]
+    ).toMatchObject({
+      bestScore: 22,
+      gamesPlayed: 3,
+      lastRewardCoins: 6,
+      lastScore: 18,
+      lastCompletedAt: "2026-03-26T08:00:00.000Z",
+      totalCoinsEarned: 16
+    });
+    expect(
+      Object.keys(pacmanApps)
+    ).not.toContain("pc_runner");
   });
 
   it("increments Together Days once when both partners visit the same room day", () => {
@@ -521,3 +621,8 @@ describe("sharedProgression", () => {
     expect(nextDayProgression.couple.ritual.dayKey).toBe("2026-03-27");
   });
 });
+
+
+
+
+

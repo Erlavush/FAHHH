@@ -1,4 +1,4 @@
-export type PcDeskActivityId = "pc_snake" | "pc_block_stacker" | "pc_runner";
+export type PcDeskActivityId = "pc_snake" | "pc_block_stacker" | "pc_pacman";
 
 export interface PcMinigameProgress {
   bestScore: number;
@@ -20,7 +20,7 @@ export type PcMinigameResult = Omit<PcDeskRunResult, "activityId"> & { activityI
 
 export interface PcDeskAppDefinition {
   id: PcDeskActivityId;
-  label: "Snake" | "Block Stacker" | "Runner";
+  label: "Snake" | "Block Stacker" | "Pacman";
   executableName: string;
   desktopIcon: string;
   intro: string;
@@ -45,11 +45,11 @@ const PC_DESK_APP_DEFINITIONS: readonly PcDeskAppDefinition[] = [
     accentTone: "amber"
   },
   {
-    id: "pc_runner",
-    label: "Runner",
-    executableName: "RUNNER.EXE",
-    desktopIcon: ">",
-    intro: "Sprint through the dusk track, clear hazards, and keep the pace alive.",
+    id: "pc_pacman",
+    label: "Pacman",
+    executableName: "PACMAN.EXE",
+    desktopIcon: "C",
+    intro: "Sweep the maze, flip the ghosts with power pellets, and keep the night shift rolling.",
     accentTone: "cyan"
   }
 ] as const;
@@ -81,8 +81,8 @@ export function getPcDeskRewardCoins(activityId: PcDeskActivityId, score: number
   switch (activityId) {
     case "pc_block_stacker":
       return Math.min(24, 4 + Math.floor(normalizedScore / 4));
-    case "pc_runner":
-      return Math.min(20, 2 + Math.floor(normalizedScore / 6));
+    case "pc_pacman":
+      return Math.min(22, 4 + Math.floor(normalizedScore / 90));
     case "pc_snake":
     default:
       return Math.min(18, 2 + Math.floor(normalizedScore / 4));
@@ -113,5 +113,3 @@ export function applyPcMinigameResult(
     lastCompletedAt: completedAt
   };
 }
-
-

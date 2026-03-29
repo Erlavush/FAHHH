@@ -141,9 +141,21 @@ function sanitizeWorldSettings(value: unknown): PersistedWorldSettings {
   };
 }
 
-export function loadPersistedWorldSettings(): PersistedWorldSettings {
+export function clonePersistedWorldSettings(
+  value: PersistedWorldSettings
+): PersistedWorldSettings {
+  return sanitizeWorldSettings(value);
+}
+
+export function loadPersistedWorldSettings(
+  seedSettings?: PersistedWorldSettings
+): PersistedWorldSettings {
+  const fallbackSettings: PersistedWorldSettings = seedSettings
+    ? clonePersistedWorldSettings(seedSettings)
+    : { version: 1 };
+
   if (!canUseLocalStorage()) {
-    return { version: 1 };
+    return fallbackSettings;
   }
 
   try {
@@ -152,12 +164,12 @@ export function loadPersistedWorldSettings(): PersistedWorldSettings {
       window.localStorage.getItem(LEGACY_LEVA_SETTINGS_KEY);
 
     if (!rawValue) {
-      return { version: 1 };
+      return fallbackSettings;
     }
 
     return sanitizeWorldSettings(JSON.parse(rawValue) as unknown);
   } catch {
-    return { version: 1 };
+    return fallbackSettings;
   }
 }
 
@@ -180,3 +192,4 @@ export function savePersistedWorldSettings(
     // Ignore dev-only local storage failures.
   }
 }
+

@@ -19,6 +19,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - Oversized runtime and regression files are decomposed before deeper milestone work so active code does not keep growing past 1k-line boundaries
 - Mandatory phase verification artifacts to retire the process debt carried out of v1.0
 - A March 28, 2026 showcase slice that makes the room immediately readable as a cozy cat sanctuary without removing the future couple/shared-room foundation
+- A deployable single-player showcase runtime that boots a seeded local browser snapshot without Firebase setup or dev-only shared-room APIs
 - Curated Better Cats visual variant imports that expand the cat roster without forking the current cat runtime or future couple/shared-room foundation
 - A clock-themed player-shell commerce/care overhaul that separates inventory, shopping, and pet care while matching the warm HUD and digital cat clock
 
@@ -72,6 +73,8 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 - v1.0 Shared Room MVP shipped on 2026-03-27 and is archived under `.planning/milestones/`.
 - The live runtime now supports canonical room identity, committed shared edits, live partner presence, personal and couple progression, a room-first player shell, developer-only authoring workspace surfaces, shared memories, one canonical shared cat, and breakup-reset stakes.
 - The room-builder now supports ceiling placement with a starter catalog set of overhead fixtures and decor, including preview-studio support and practical nighttime ceiling lighting.
+
+- Production showcase builds now resolve VITE_APP_MODE through a static Vite env access so Vercel deployments keep the showcase runtime instead of falling back to the local dev room shell.
 - Camera-occluded walls and the ceiling now preserve their shadow-casting occluders, so room lighting stays stable while peeling surfaces away for interior visibility.
 - Shared-room commits remain authoritative for confirmed room and progression mutations, while presence, item locks, camera/player transforms, and authoring-tool persistence remain outside canonical room revisions.
 - Phase 5 now adds Google-auth couple ownership, hosted room/bootstrap adapters, pair-link presence, and automatic paired-room re-entry without breaking the brownfield local dev sandbox fallback.
@@ -119,6 +122,7 @@ Two partners can build and maintain a room that feels shared, earned, and emotio
 | Phase 09 prioritizes a local-first cat sanctuary showcase while preserving the future couple/shared-room foundation | The showcase PC needs immediate readability and retention, but the hosted Firebase path must stay intact for later couple-cat work | Good |
 | Phase 10 uses curated Better Cats imports on top of the existing GLB actor instead of creating per-breed gameplay code paths | The pack already provides many textures, and the safest expansion is data-driven visual variety that preserves Phase 09 behavior/care logic | Good |
 | Phase 11 keeps the existing room, economy, and pet actions but re-houses them inside separate player-shell inventory, shop, and pet-care surfaces styled to match the warm HUD and cat-clock language | The current drawer still uses the older AMOLED panel styling and mixes commerce with care, which now fights the shipped bottom HUD and clock | Good |
+| Public demo deployments use an explicit showcase runtime mode instead of inferring from missing backend config | A Vercel/Hobby build must not hit the dev-only shared-room endpoints or silently depend on Firebase setup just to show the solo cat sanctuary | Good |
 
 ## Evolution
 
@@ -138,7 +142,8 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive milestone artifacts and refresh current-state context
 
 ---
-*Last updated: 2026-03-28 after executing Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul*
+*Last updated: 2026-03-28 after fixing the Vercel showcase runtime env lookup and redeploying the public demo*
+
 
 
 

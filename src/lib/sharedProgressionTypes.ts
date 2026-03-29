@@ -40,7 +40,7 @@ export interface SharedCoupleRitualDay {
   bonusAppliedAt: string | null;
 }
 
-export type SharedRoomActivityId = "pc_snake" | "pc_block_stacker" | "pc_runner" | "cozy_rest";
+export type SharedRoomActivityId = "pc_snake" | "pc_block_stacker" | "pc_pacman" | "cozy_rest";
 
 export type SharedActivityClaimMode = "per_player" | "couple";
 
@@ -92,3 +92,4 @@ export interface SharedRoomProgressionState {
   couple: SharedCoupleProgression;
   migratedFromSharedCoins: number | null;
 }
+

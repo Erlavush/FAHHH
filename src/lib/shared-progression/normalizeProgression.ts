@@ -52,8 +52,10 @@ export function normalizeActivityId(value: unknown): SharedRoomActivityId | null
     return null;
   }
 
-  return SHARED_ROOM_ACTIVITY_IDS.includes(value as SharedRoomActivityId)
-    ? (value as SharedRoomActivityId)
+  const normalizedValue = value === "pc_runner" ? "pc_pacman" : value;
+
+  return SHARED_ROOM_ACTIVITY_IDS.includes(normalizedValue as SharedRoomActivityId)
+    ? (normalizedValue as SharedRoomActivityId)
     : null;
 }
 
@@ -473,28 +475,59 @@ function splitLegacySharedCoins(
   return allocation;
 }
 
+function normalizeDeskPcActivityProgressValue(
+  value: unknown
+): SharedPlayerDeskPcActivityProgress {
+  if (!isRecord(value)) {
+    return createDefaultDeskPcActivityProgress();
+  }
+
+  return {
+    bestScore: normalizeInteger(value.bestScore),
+    gamesPlayed: normalizeInteger(value.gamesPlayed),
+    lastRewardCoins: normalizeInteger(value.lastRewardCoins),
+    lastScore: normalizeInteger(value.lastScore),
+    lastCompletedAt: normalizeIsoString(value.lastCompletedAt),
+    totalCoinsEarned: normalizeInteger(value.totalCoinsEarned)
+  };
+}
+
+function mergeDeskPcActivityProgress(
+  current: SharedPlayerDeskPcActivityProgress,
+  incoming: SharedPlayerDeskPcActivityProgress
+): SharedPlayerDeskPcActivityProgress {
+  const currentCompletedAt = current.lastCompletedAt ? Date.parse(current.lastCompletedAt) : 0;
+  const incomingCompletedAt = incoming.lastCompletedAt ? Date.parse(incoming.lastCompletedAt) : 0;
+  const latestProgress = incomingCompletedAt >= currentCompletedAt ? incoming : current;
+
+  return {
+    bestScore: Math.max(current.bestScore, incoming.bestScore),
+    gamesPlayed: current.gamesPlayed + incoming.gamesPlayed,
+    lastRewardCoins: latestProgress.lastRewardCoins,
+    lastScore: latestProgress.lastScore,
+    lastCompletedAt: latestProgress.lastCompletedAt,
+    totalCoinsEarned: current.totalCoinsEarned + incoming.totalCoinsEarned
+  };
+}
+
 function normalizeDeskPcProgress(deskPc: unknown): SharedPlayerDeskPcProgress {
   if (!isRecord(deskPc)) {
     return createDefaultDeskPcProgress();
   }
 
-  const appsByActivityId = isRecord(deskPc.appsByActivityId)
-    ? Object.fromEntries(
-        Object.entries(deskPc.appsByActivityId).map(([activityId, value]) => [
-          activityId,
-          isRecord(value)
-            ? {
-                bestScore: normalizeInteger(value.bestScore),
-                gamesPlayed: normalizeInteger(value.gamesPlayed),
-                lastRewardCoins: normalizeInteger(value.lastRewardCoins),
-                lastScore: normalizeInteger(value.lastScore),
-                lastCompletedAt: normalizeIsoString(value.lastCompletedAt),
-                totalCoinsEarned: normalizeInteger(value.totalCoinsEarned)
-              }
-            : createDefaultDeskPcActivityProgress()
-        ])
-      )
-    : {};
+  const appsByActivityId: Record<string, SharedPlayerDeskPcActivityProgress> = {};
+
+  if (isRecord(deskPc.appsByActivityId)) {
+    Object.entries(deskPc.appsByActivityId).forEach(([activityId, value]) => {
+      const normalizedActivityId = activityId === "pc_runner" ? "pc_pacman" : activityId;
+      const nextProgress = normalizeDeskPcActivityProgressValue(value);
+      const currentProgress = appsByActivityId[normalizedActivityId];
+
+      appsByActivityId[normalizedActivityId] = currentProgress
+        ? mergeDeskPcActivityProgress(currentProgress, nextProgress)
+        : nextProgress;
+    });
+  }
 
   return {
     bestScore: normalizeInteger(deskPc.bestScore),
@@ -606,7 +639,7 @@ export function applyPlayerXp(
 }
 
 export function isDeskPcActivityId(activityId: SharedRoomActivityId): activityId is PcDeskActivityId {
-  return activityId === "pc_snake" || activityId === "pc_block_stacker" || activityId === "pc_runner";
+  return activityId === "pc_snake" || activityId === "pc_block_stacker" || activityId === "pc_pacman";
 }
 
 export function recordDeskPcActivityRun(input: {
@@ -732,4 +765,6 @@ export function ensureSharedRoomProgressionMembers(
 
   return nextProgression;
 }
+
+
 

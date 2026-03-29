@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PC_MINIGAME_SESSION_MS,
   getPcDeskAppDefinitions,
@@ -7,6 +7,8 @@ import {
   type PcDeskRunResult,
   type PcMinigameProgress
 } from "../lib/pcMinigame";
+import { PcPacmanBoard, type PcPacmanBoardStats } from "./pc-minigame/PcPacmanBoard";
+import "./pc-minigame-snake.css";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -36,39 +38,42 @@ type StackerState = {
   settled: StackerSlice[];
 };
 
-type RunnerObstacle = {
-  id: number;
-  x: number;
-  height: number;
-  passed: boolean;
-};
-
-type RunnerState = {
-  runnerY: number;
-  velocityY: number;
-  obstacles: RunnerObstacle[];
-  spawnCooldownMs: number;
-  distance: number;
-  collisionFlashMs: number;
-};
-
-const DESKTOP_SHORTCUT_LABELS: Record<PcDeskActivityId, "Snake" | "Block Stacker" | "Runner"> = {
+const DESKTOP_SHORTCUT_LABELS: Record<PcDeskActivityId, "Snake" | "Block Stacker" | "Pacman"> = {
   pc_snake: "Snake",
   pc_block_stacker: "Block Stacker",
-  pc_runner: "Runner"
+  pc_pacman: "Pacman"
 };
 
-const SNAKE_GRID_SIZE = 10;
-const SNAKE_TICK_MS = 220;
+const DESKTOP_SHORTCUT_BADGES: Record<PcDeskActivityId, "SNA" | "BLK" | "PAC"> = {
+  pc_snake: "SNA",
+  pc_block_stacker: "BLK",
+  pc_pacman: "PAC"
+};
+
+const SNAKE_GRID_SIZE = 20;
+const RETRO_SNAKE_CANVAS_SIZE = 400;
+const RETRO_SNAKE_CELL_SIZE = RETRO_SNAKE_CANVAS_SIZE / SNAKE_GRID_SIZE;
+const RETRO_SNAKE_BASE_FPS = 10;
+const RETRO_SNAKE_BODY_COLORS = ["#B4ECED", "#81DDDF", "#46C5CA", "#2AA8B0"] as const;
+const RETRO_SNAKE_HEAD_COLOR = "#265B64";
+const RETRO_SNAKE_APPLE_COLOR = "#f4c0c0";
+const RETRO_SNAKE_BACKGROUND_COLOR = "#111111";
+const RETRO_SNAKE_GRID_COLOR = "rgba(192, 240, 244, 0.08)";
+const RETRO_SNAKE_BORDER_COLOR = "#c0f0f4";
 const BLOCK_STACKER_COLUMNS = 7;
 const BLOCK_STACKER_ROWS = 6;
 const BLOCK_STACKER_MOVE_MS = 125;
-const RUNNER_TICK_MS = 80;
-const RUNNER_PLAYER_X = 0.16;
-const RUNNER_OBSTACLE_WIDTH = 0.1;
-const RUNNER_SPEED = 0.72;
-const RUNNER_GRAVITY = 14;
-const RUNNER_JUMP_VELOCITY = 4.9;
+
+function createDefaultPacmanBoardStats(): PcPacmanBoardStats {
+  return {
+    frightenedActive: false,
+    hits: 0,
+    lives: 3,
+    mistakes: 0,
+    pelletsRemaining: 0,
+    score: 0
+  };
+}
 
 function randomInt(max: number): number {
   return Math.max(0, Math.floor(Math.random() * max));
@@ -94,9 +99,9 @@ function createSnakeFood(snake: GridCell[]): GridCell {
 
 function createInitialSnakeState(): SnakeState {
   const snake = [
-    { x: 4, y: 5 },
-    { x: 3, y: 5 },
-    { x: 2, y: 5 }
+    { x: 10, y: 10 },
+    { x: 9, y: 10 },
+    { x: 8, y: 10 }
   ];
 
   return {
@@ -141,19 +146,38 @@ function createInitialStackerState(): StackerState {
   };
 }
 
-function createInitialRunnerState(): RunnerState {
-  return {
-    runnerY: 0,
-    velocityY: 0,
-    obstacles: [],
-    spawnCooldownMs: 900,
-    distance: 0,
-    collisionFlashMs: 0
-  };
-}
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function getRetroSnakeSpeed(score: number): number {
+  return RETRO_SNAKE_BASE_FPS + score * 0.5;
+}
+
+function formatRetroSnakeSpeed(score: number): string {
+  return `${(getRetroSnakeSpeed(score) / RETRO_SNAKE_BASE_FPS).toFixed(2)}x`;
+}
+
+function drawRoundedRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  fillColor: string
+) {
+  context.fillStyle = fillColor;
+  context.beginPath();
+
+  if (typeof context.roundRect === "function") {
+    context.roundRect(x, y, width, height, radius);
+    context.fill();
+    return;
+  }
+
+  context.fillRect(x, y, width, height);
 }
 
 export interface PcMinigameOverlayProps {
@@ -191,14 +215,18 @@ export function PcMinigameOverlay({
   const [lastRunWasPaid, setLastRunWasPaid] = useState(false);
   const [snakeState, setSnakeState] = useState<SnakeState>(() => createInitialSnakeState());
   const [stackerState, setStackerState] = useState<StackerState>(() => createInitialStackerState());
-  const [runnerState, setRunnerState] = useState<RunnerState>(() => createInitialRunnerState());
-  const nextRunnerObstacleIdRef = useRef(1);
+  const [pacmanStats, setPacmanStats] = useState<PcPacmanBoardStats>(() =>
+    createDefaultPacmanBoardStats()
+  );
+  const snakeCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const activeApp = appDefinitions.find((definition) => definition.id === activeAppId) ?? null;
   const paidToday = activeAppId ? Boolean(paidTodayByActivityId[activeAppId]) : false;
   const remainingSessionMs =
     status === "running" && sessionEndsAt !== null ? Math.max(0, sessionEndsAt - nowMs) : 0;
   const accuracy = hits + mistakes > 0 ? Math.round((hits / (hits + mistakes)) * 100) : 100;
+  const snakeBestScore = Math.max(progress.bestScore, score);
+  const snakeSpeedLabel = formatRetroSnakeSpeed(score);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -209,6 +237,94 @@ export function PcMinigameOverlay({
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeAppId !== "pc_snake") {
+      return;
+    }
+
+    const canvas = snakeCanvasRef.current;
+
+    if (!canvas) {
+      return;
+    }
+
+    if (typeof navigator !== "undefined" && /jsdom/i.test(navigator.userAgent)) {
+      return;
+    }
+
+    let context: CanvasRenderingContext2D | null = null;
+
+    try {
+      context = canvas.getContext("2d");
+    } catch {
+      return;
+    }
+
+    if (!context) {
+      return;
+    }
+
+    context.clearRect(0, 0, RETRO_SNAKE_CANVAS_SIZE, RETRO_SNAKE_CANVAS_SIZE);
+    context.fillStyle = RETRO_SNAKE_BACKGROUND_COLOR;
+    context.fillRect(0, 0, RETRO_SNAKE_CANVAS_SIZE, RETRO_SNAKE_CANVAS_SIZE);
+
+    context.strokeStyle = RETRO_SNAKE_GRID_COLOR;
+    context.lineWidth = 1;
+
+    for (let offset = RETRO_SNAKE_CELL_SIZE; offset < RETRO_SNAKE_CANVAS_SIZE; offset += RETRO_SNAKE_CELL_SIZE) {
+      context.beginPath();
+      context.moveTo(offset, 0);
+      context.lineTo(offset, RETRO_SNAKE_CANVAS_SIZE);
+      context.stroke();
+
+      context.beginPath();
+      context.moveTo(0, offset);
+      context.lineTo(RETRO_SNAKE_CANVAS_SIZE, offset);
+      context.stroke();
+    }
+
+    const foodInset = 3;
+    drawRoundedRect(
+      context,
+      snakeState.food.x * RETRO_SNAKE_CELL_SIZE + foodInset,
+      snakeState.food.y * RETRO_SNAKE_CELL_SIZE + foodInset,
+      RETRO_SNAKE_CELL_SIZE - foodInset * 2,
+      RETRO_SNAKE_CELL_SIZE - foodInset * 2,
+      6,
+      RETRO_SNAKE_APPLE_COLOR
+    );
+
+    for (let index = snakeState.snake.length - 1; index >= 1; index -= 1) {
+      const segment = snakeState.snake[index];
+      const inset = 2.5;
+      drawRoundedRect(
+        context,
+        segment.x * RETRO_SNAKE_CELL_SIZE + inset,
+        segment.y * RETRO_SNAKE_CELL_SIZE + inset,
+        RETRO_SNAKE_CELL_SIZE - inset * 2,
+        RETRO_SNAKE_CELL_SIZE - inset * 2,
+        6,
+        RETRO_SNAKE_BODY_COLORS[index % RETRO_SNAKE_BODY_COLORS.length]
+      );
+    }
+
+    const head = snakeState.snake[0];
+    const headInset = 2.5;
+    drawRoundedRect(
+      context,
+      head.x * RETRO_SNAKE_CELL_SIZE + headInset,
+      head.y * RETRO_SNAKE_CELL_SIZE + headInset,
+      RETRO_SNAKE_CELL_SIZE - headInset * 2,
+      RETRO_SNAKE_CELL_SIZE - headInset * 2,
+      6,
+      RETRO_SNAKE_HEAD_COLOR
+    );
+
+    context.strokeStyle = RETRO_SNAKE_BORDER_COLOR;
+    context.lineWidth = 2;
+    context.strokeRect(1, 1, RETRO_SNAKE_CANVAS_SIZE - 2, RETRO_SNAKE_CANVAS_SIZE - 2);
+  }, [activeAppId, snakeState]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -248,25 +364,20 @@ export function PcMinigameOverlay({
         return;
       }
 
-      if (activeAppId === "pc_runner") {
-        if (event.code === "Space" || event.key === "ArrowUp" || event.code === "KeyW") {
-          event.preventDefault();
-          handleRunnerJump();
-        }
-      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeAppId, onExit, runnerState, stackerState, status, snakeState.direction]);
+  }, [activeAppId, onExit, status]);
 
   useEffect(() => {
     if (status !== "running" || activeAppId !== "pc_snake") {
       return;
     }
 
+    const tickMs = Math.max(55, 1000 / getRetroSnakeSpeed(score));
     const intervalId = window.setInterval(() => {
-      let scoreDelta = 0;
+      let nextScore: number | null = null;
       let hitCount = 0;
       let mistakeCount = 0;
 
@@ -283,21 +394,22 @@ export function PcMinigameOverlay({
           nextHead.x >= SNAKE_GRID_SIZE ||
           nextHead.y < 0 ||
           nextHead.y >= SNAKE_GRID_SIZE;
-        const collidesWithSelf = currentState.snake.some((segment) => cellsEqual(segment, nextHead));
+        const ateFood = cellsEqual(nextHead, currentState.food);
+        const bodyToCheck = ateFood ? currentState.snake : currentState.snake.slice(0, -1);
+        const collidesWithSelf = bodyToCheck.some((segment) => cellsEqual(segment, nextHead));
 
         if (collidesWithWall || collidesWithSelf) {
-          scoreDelta = -2;
+          nextScore = 0;
           mistakeCount = 1;
           return createInitialSnakeState();
         }
 
-        const ateFood = cellsEqual(nextHead, currentState.food);
         const nextSnake = ateFood
           ? [nextHead, ...currentState.snake]
           : [nextHead, ...currentState.snake.slice(0, -1)];
 
         if (ateFood) {
-          scoreDelta = 3;
+          nextScore = nextSnake.length - 1;
           hitCount = 1;
         }
 
@@ -309,8 +421,8 @@ export function PcMinigameOverlay({
         };
       });
 
-      if (scoreDelta !== 0) {
-        setScore((currentScore) => Math.max(0, currentScore + scoreDelta));
+      if (nextScore !== null) {
+        setScore(nextScore);
       }
       if (hitCount > 0) {
         setHits((currentHits) => currentHits + hitCount);
@@ -318,12 +430,12 @@ export function PcMinigameOverlay({
       if (mistakeCount > 0) {
         setMistakes((currentMistakes) => currentMistakes + mistakeCount);
       }
-    }, SNAKE_TICK_MS);
+    }, tickMs);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [activeAppId, status]);
+  }, [activeAppId, score, status]);
 
   useEffect(() => {
     if (status !== "running" || activeAppId !== "pc_block_stacker") {
@@ -357,106 +469,7 @@ export function PcMinigameOverlay({
     };
   }, [activeAppId, status]);
 
-  useEffect(() => {
-    if (status !== "running" || activeAppId !== "pc_runner") {
-      return;
-    }
 
-    const intervalId = window.setInterval(() => {
-      let scoreDelta = 0;
-      let hitCount = 0;
-      let mistakeCount = 0;
-
-      setRunnerState((currentState) => {
-        const deltaSeconds = RUNNER_TICK_MS / 1000;
-        let velocityY = currentState.velocityY;
-        let runnerY = currentState.runnerY;
-
-        if (runnerY > 0 || velocityY > 0) {
-          velocityY -= RUNNER_GRAVITY * deltaSeconds;
-          runnerY = Math.max(0, runnerY + velocityY * deltaSeconds);
-          if (runnerY === 0 && velocityY < 0) {
-            velocityY = 0;
-          }
-        }
-
-        let spawnCooldownMs = currentState.spawnCooldownMs - RUNNER_TICK_MS;
-        let obstacles = currentState.obstacles
-          .map((obstacle) => ({ ...obstacle, x: obstacle.x - RUNNER_SPEED * deltaSeconds }))
-          .filter((obstacle) => obstacle.x + RUNNER_OBSTACLE_WIDTH > -0.08);
-        let collisionFlashMs = Math.max(0, currentState.collisionFlashMs - RUNNER_TICK_MS);
-
-        if (spawnCooldownMs <= 0) {
-          obstacles = [
-            ...obstacles,
-            {
-              id: nextRunnerObstacleIdRef.current,
-              x: 1.05,
-              height: Math.random() > 0.5 ? 0.2 : 0.26,
-              passed: false
-            }
-          ];
-          nextRunnerObstacleIdRef.current += 1;
-          spawnCooldownMs = 900 + Math.round(Math.random() * 550);
-        }
-
-        obstacles = obstacles.map((obstacle) => {
-          if (!obstacle.passed && obstacle.x + RUNNER_OBSTACLE_WIDTH < RUNNER_PLAYER_X) {
-            scoreDelta += 2;
-            hitCount += 1;
-            return {
-              ...obstacle,
-              passed: true
-            };
-          }
-
-          return obstacle;
-        });
-
-        const collided =
-          collisionFlashMs === 0 &&
-          obstacles.some(
-            (obstacle) =>
-              obstacle.x < RUNNER_PLAYER_X + 0.05 &&
-              obstacle.x + RUNNER_OBSTACLE_WIDTH > RUNNER_PLAYER_X - 0.04 &&
-              runnerY < obstacle.height + 0.02
-          );
-
-        if (collided) {
-          scoreDelta -= 2;
-          mistakeCount += 1;
-          obstacles = [];
-          spawnCooldownMs = 850;
-          velocityY = 0;
-          runnerY = 0;
-          collisionFlashMs = 420;
-        }
-
-        return {
-          runnerY,
-          velocityY,
-          obstacles,
-          spawnCooldownMs,
-          distance: currentState.distance + RUNNER_SPEED * deltaSeconds,
-          collisionFlashMs
-        };
-      });
-
-      if (scoreDelta !== 0) {
-        setScore((currentScore) => Math.max(0, currentScore + scoreDelta));
-      }
-      if (hitCount > 0) {
-        setHits((currentHits) => currentHits + hitCount);
-      }
-      if (mistakeCount > 0) {
-        setMistakes((currentMistakes) => currentMistakes + mistakeCount);
-      }
-    }, RUNNER_TICK_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [activeAppId, status]);
 
   useEffect(() => {
     if (status !== "running" || sessionEndsAt === null || remainingSessionMs > 0 || !activeAppId) {
@@ -478,11 +491,28 @@ export function PcMinigameOverlay({
     onComplete(runResult);
   }, [activeAppId, onComplete, paidToday, remainingSessionMs, score, sessionEndsAt, status]);
 
+  const handlePacmanStatsChange = useCallback((nextStats: PcPacmanBoardStats) => {
+    setPacmanStats((currentStats) =>
+      currentStats.score === nextStats.score &&
+      currentStats.hits === nextStats.hits &&
+      currentStats.mistakes === nextStats.mistakes &&
+      currentStats.lives === nextStats.lives &&
+      currentStats.pelletsRemaining === nextStats.pelletsRemaining &&
+      currentStats.frightenedActive === nextStats.frightenedActive
+        ? currentStats
+        : nextStats
+    );
+    setScore((currentScore) => (currentScore === nextStats.score ? currentScore : nextStats.score));
+    setHits((currentHits) => (currentHits === nextStats.hits ? currentHits : nextStats.hits));
+    setMistakes((currentMistakes) =>
+      currentMistakes === nextStats.mistakes ? currentMistakes : nextStats.mistakes
+    );
+  }, []);
+
   function resetMiniGames() {
     setSnakeState(createInitialSnakeState());
     setStackerState(createInitialStackerState());
-    setRunnerState(createInitialRunnerState());
-    nextRunnerObstacleIdRef.current = 1;
+    setPacmanStats(createDefaultPacmanBoardStats());
   }
 
   function handleLaunchApp(activityId: PcDeskActivityId) {
@@ -582,22 +612,6 @@ export function PcMinigameOverlay({
     setHits((currentHits) => currentHits + 1);
   }
 
-  function handleRunnerJump() {
-    if (status !== "running" || activeAppId !== "pc_runner") {
-      return;
-    }
-
-    setRunnerState((currentState) => {
-      if (currentState.runnerY > 0.02 || currentState.velocityY > 0) {
-        return currentState;
-      }
-
-      return {
-        ...currentState,
-        velocityY: RUNNER_JUMP_VELOCITY
-      };
-    });
-  }
 
   function handleBackToDesktop() {
     setActiveAppId(null);
@@ -613,27 +627,32 @@ export function PcMinigameOverlay({
     }
 
     const rulesByApp: Record<PcDeskActivityId, string> = {
-      pc_snake: "Use arrow keys or the D-pad to turn. Eat byte-fruit, and crashes reset the snake.",
+      pc_snake: "Retro canvas snake with accelerating speed. Use arrow keys or the D-pad, and crashes reset the board.",
       pc_block_stacker: "Time the moving row and drop it with Space, Enter, or the button. Clean overlaps keep the tower alive.",
-      pc_runner: "Jump with Space or Up. Clear each cactus to keep the evening run paying out."
+      pc_pacman: "Sweep the maze, eat the dots, and use power pellets to flip the chase."
     };
 
     return (
-      <div className="pc-minigame__card">
-        <h3 style={{ fontFamily: "inherit" }}>{activeApp.label}</h3>
-        <p>{activeApp.intro}</p>
+      <div className="pc-minigame__card pc-minigame__card--ready">
+        <div className="pc-minigame__card-copy">
+          <span className="pc-minigame__card-kicker">Launch app</span>
+          <h3>{activeApp.label}</h3>
+          <p>{activeApp.intro}</p>
+        </div>
         <div className="pc-minigame__result-row">
           <span>Payout</span>
           <strong>{paidToday ? "Practice only" : "Reward available"}</strong>
         </div>
         <div className="pc-minigame__result-row">
           <span>How it plays</span>
-          <strong style={{ maxWidth: 220, textAlign: "right" }}>{rulesByApp[activeApp.id]}</strong>
+          <strong className="pc-minigame__result-value pc-minigame__result-value--wrap">
+            {rulesByApp[activeApp.id]}
+          </strong>
         </div>
-        <button className="pc-minigame__primary" onClick={handleStartRun} type="button" style={{ fontFamily: "inherit" }}>
+        <button className="pc-minigame__primary" onClick={handleStartRun} type="button">
           Run app
         </button>
-        <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button" style={{ marginTop: 10, fontFamily: "inherit" }}>
+        <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button">
           Back to desktop
         </button>
       </div>
@@ -642,71 +661,53 @@ export function PcMinigameOverlay({
 
   function renderSnakeBoard() {
     return (
-      <div style={{ display: "grid", gap: 16, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", color: "#d9ffd9", fontFamily: "inherit" }}>
-          <span>Guide the snake into fruit and avoid the walls.</span>
+      <div className="pc-minigame__playfield">
+        <div className="pc-minigame__board-meta">
+          <span>Retro Snake on a canvas board, adapted into the desk PC shell.</span>
           <span>Length {snakeState.snake.length}</span>
         </div>
-        <div
-          aria-label="Snake grid"
-          style={{
-            width: "min(100%, 420px)",
-            margin: "0 auto",
-            display: "grid",
-            gridTemplateColumns: `repeat(${SNAKE_GRID_SIZE}, minmax(0, 1fr))`,
-            gap: 4,
-            aspectRatio: "1 / 1",
-            padding: 10,
-            background: "linear-gradient(180deg, #102312, #081008)",
-            border: "3px solid #172217",
-            boxShadow: "inset 0 0 0 2px rgba(120, 255, 148, 0.16)"
-          }}
-        >
-          {Array.from({ length: SNAKE_GRID_SIZE * SNAKE_GRID_SIZE }, (_, index) => {
-            const x = index % SNAKE_GRID_SIZE;
-            const y = Math.floor(index / SNAKE_GRID_SIZE);
-            const segmentIndex = snakeState.snake.findIndex((segment) => segment.x === x && segment.y === y);
-            const isHead = segmentIndex === 0;
-            const isBody = segmentIndex > 0;
-            const isFood = snakeState.food.x === x && snakeState.food.y === y;
-
-            return (
-              <div
-                key={`${x}-${y}`}
-                style={{
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 4,
-                  background: isHead
-                    ? "#b9ff73"
-                    : isBody
-                      ? "#4cc068"
-                      : isFood
-                        ? "#ffba70"
-                        : "rgba(255, 255, 255, 0.04)",
-                  color: isFood ? "#3a2100" : "#0a160a",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  minHeight: 0
-                }}
-              >
-                {isHead ? "@" : isBody ? "o" : isFood ? "*" : ""}
+        <div className="pc-retro-snake">
+          <div className="pc-retro-snake__header">
+            <div className="pc-retro-snake__brand">
+              <span className="pc-retro-snake__icon">S</span>
+              <div className="pc-retro-snake__brand-copy">
+                <strong>Retro Snake</strong>
+                <span>Canvas arcade mode</span>
               </div>
-            );
-          })}
+            </div>
+            <span className="pc-retro-snake__pill">{mistakes > 0 ? `Crashes ${mistakes}` : "Clean run"}</span>
+          </div>
+          <div className="pc-retro-snake__scoreboard">
+            <span>Best {snakeBestScore}</span>
+            <span>Score {score}</span>
+            <span>Speed {snakeSpeedLabel}</span>
+          </div>
+          <div className="pc-retro-snake__canvas-frame">
+            <canvas
+              ref={snakeCanvasRef}
+              aria-label="Snake grid"
+              className="pc-retro-snake__canvas"
+              height={RETRO_SNAKE_CANVAS_SIZE}
+              width={RETRO_SNAKE_CANVAS_SIZE}
+            />
+          </div>
         </div>
-        <div style={{ display: "grid", gap: 8, justifyContent: "center" }}>
-          <button className="pc-minigame__primary" onClick={() => handleSnakeTurn("up")} type="button" style={{ fontFamily: "inherit", minWidth: 110 }}>
+        <div className="pc-retro-snake__hint-row">
+          <span>Arrows or WASD steer the snake.</span>
+          <span>Each fruit speeds the board up.</span>
+        </div>
+        <div className="pc-minigame__control-pad">
+          <button className="pc-minigame__primary pc-minigame__primary--pad" onClick={() => handleSnakeTurn("up")} type="button">
             Up
           </button>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            <button className="pc-minigame__primary" onClick={() => handleSnakeTurn("left")} type="button" style={{ fontFamily: "inherit", minWidth: 110 }}>
+          <div className="pc-minigame__control-row">
+            <button className="pc-minigame__primary pc-minigame__primary--pad" onClick={() => handleSnakeTurn("left")} type="button">
               Left
             </button>
-            <button className="pc-minigame__primary" onClick={() => handleSnakeTurn("down")} type="button" style={{ fontFamily: "inherit", minWidth: 110 }}>
+            <button className="pc-minigame__primary pc-minigame__primary--pad" onClick={() => handleSnakeTurn("down")} type="button">
               Down
             </button>
-            <button className="pc-minigame__primary" onClick={() => handleSnakeTurn("right")} type="button" style={{ fontFamily: "inherit", minWidth: 110 }}>
+            <button className="pc-minigame__primary pc-minigame__primary--pad" onClick={() => handleSnakeTurn("right")} type="button">
               Right
             </button>
           </div>
@@ -714,73 +715,45 @@ export function PcMinigameOverlay({
       </div>
     );
   }
-
   function renderStackerBoard() {
     return (
-      <div style={{ display: "grid", gap: 16, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", color: "#fff0c2", fontFamily: "inherit" }}>
+      <div className="pc-minigame__playfield">
+        <div className="pc-minigame__board-meta">
           <span>Drop the moving row before it drifts out of alignment.</span>
           <span>Stack height {stackerState.settled.length}</span>
         </div>
-        <div
-          aria-label="Block Stacker board"
-          style={{
-            width: "min(100%, 420px)",
-            margin: "0 auto",
-            display: "grid",
-            gap: 6,
-            padding: 12,
-            background: "linear-gradient(180deg, #2a1e07, #110d03)",
-            border: "3px solid #2f2409",
-            boxShadow: "inset 0 0 0 2px rgba(255, 214, 138, 0.14)"
-          }}
-        >
-          {Array.from({ length: BLOCK_STACKER_ROWS }, (_, rowIndex) => {
-            const settledSlice = stackerState.settled.find((slice) => slice.row === rowIndex) ?? null;
-            const isActiveRow = rowIndex === stackerState.activeRow;
+        <div className="pc-minigame__grid-shell pc-minigame__grid-shell--stacker">
+          <div aria-label="Block Stacker board" className="pc-minigame__stacker-board">
+            {Array.from({ length: BLOCK_STACKER_ROWS }, (_, rowIndex) => {
+              const settledSlice = stackerState.settled.find((slice) => slice.row === rowIndex) ?? null;
+              const isActiveRow = rowIndex === stackerState.activeRow;
 
-            return (
-              <div
-                key={`row-${rowIndex}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${BLOCK_STACKER_COLUMNS}, minmax(0, 1fr))`,
-                  gap: 6
-                }}
-              >
-                {Array.from({ length: BLOCK_STACKER_COLUMNS }, (_, columnIndex) => {
-                  const isSettled =
-                    settledSlice !== null &&
-                    columnIndex >= settledSlice.start &&
-                    columnIndex < settledSlice.start + settledSlice.width;
-                  const isActive =
-                    isActiveRow &&
-                    columnIndex >= stackerState.cursorStart &&
-                    columnIndex < stackerState.cursorStart + stackerState.activeWidth;
+              return (
+                <div key={`row-${rowIndex}`} className="pc-minigame__stacker-row">
+                  {Array.from({ length: BLOCK_STACKER_COLUMNS }, (_, columnIndex) => {
+                    const isSettled =
+                      settledSlice !== null &&
+                      columnIndex >= settledSlice.start &&
+                      columnIndex < settledSlice.start + settledSlice.width;
+                    const isActive =
+                      isActiveRow &&
+                      columnIndex >= stackerState.cursorStart &&
+                      columnIndex < stackerState.cursorStart + stackerState.activeWidth;
+                    const cellClassName = isActive
+                      ? "pc-minigame__stacker-cell pc-minigame__stacker-cell--active"
+                      : isSettled
+                        ? "pc-minigame__stacker-cell pc-minigame__stacker-cell--settled"
+                        : "pc-minigame__stacker-cell";
 
-                  return (
-                    <div
-                      key={`row-${rowIndex}-column-${columnIndex}`}
-                      style={{
-                        aspectRatio: "1 / 1",
-                        borderRadius: 4,
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        background: isActive
-                          ? "#ffd06c"
-                          : isSettled
-                            ? "#f49d43"
-                            : "rgba(255, 255, 255, 0.05)",
-                        boxShadow: isActive ? "0 0 16px rgba(255, 208, 108, 0.45)" : "none"
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            );
-          })}
+                    return <div key={`row-${rowIndex}-column-${columnIndex}`} className={cellClassName} />;
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <button className="pc-minigame__primary" onClick={handleStackerDrop} type="button" style={{ fontFamily: "inherit", minWidth: 180 }}>
+        <div className="pc-minigame__action-row">
+          <button className="pc-minigame__primary pc-minigame__primary--wide" onClick={handleStackerDrop} type="button">
             Drop block
           </button>
         </div>
@@ -788,73 +761,8 @@ export function PcMinigameOverlay({
     );
   }
 
-  function renderRunnerBoard() {
-    return (
-      <div style={{ display: "grid", gap: 16, padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", color: "#d8f6ff", fontFamily: "inherit" }}>
-          <span>Jump the cacti and keep the sunset sprint rolling.</span>
-          <span>Distance {Math.floor(runnerState.distance * 10)}m</span>
-        </div>
-        <div
-          aria-label="Runner track"
-          style={{
-            position: "relative",
-            width: "min(100%, 460px)",
-            height: 240,
-            margin: "0 auto",
-            overflow: "hidden",
-            background:
-              runnerState.collisionFlashMs > 0
-                ? "linear-gradient(180deg, #3d1515, #170707)"
-                : "linear-gradient(180deg, #13374c, #08131d)",
-            border: "3px solid #173142",
-            boxShadow: "inset 0 0 0 2px rgba(125, 214, 255, 0.14)"
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: "auto 0 0 0",
-              height: 54,
-              background: "repeating-linear-gradient(90deg, #62411a 0, #62411a 28px, #4f3415 28px, #4f3415 56px)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              left: `${RUNNER_PLAYER_X * 100}%`,
-              bottom: `${54 + runnerState.runnerY * 90}px`,
-              width: 34,
-              height: 46,
-              marginLeft: -12,
-              border: "3px solid #dcebf0",
-              background: "#76d8ff",
-              boxShadow: "0 0 0 3px rgba(9, 15, 22, 0.45)"
-            }}
-          />
-          {runnerState.obstacles.map((obstacle) => (
-            <div
-              key={obstacle.id}
-              style={{
-                position: "absolute",
-                left: `${obstacle.x * 100}%`,
-                bottom: 54,
-                width: `${RUNNER_OBSTACLE_WIDTH * 100}%`,
-                maxWidth: 44,
-                height: `${80 + obstacle.height * 80}px`,
-                border: "3px solid #193523",
-                background: obstacle.passed ? "#49765a" : "#79bc7b"
-              }}
-            />
-          ))}
-        </div>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <button className="pc-minigame__primary" onClick={handleRunnerJump} type="button" style={{ fontFamily: "inherit", minWidth: 180 }}>
-            Jump
-          </button>
-        </div>
-      </div>
-    );
+  function renderPacmanBoard() {
+    return <PcPacmanBoard onStatsChange={handlePacmanStatsChange} />;
   }
 
   function renderRunningBoard() {
@@ -867,8 +775,8 @@ export function PcMinigameOverlay({
         return renderSnakeBoard();
       case "pc_block_stacker":
         return renderStackerBoard();
-      case "pc_runner":
-        return renderRunnerBoard();
+      case "pc_pacman":
+        return renderPacmanBoard();
       default:
         return null;
     }
@@ -876,12 +784,24 @@ export function PcMinigameOverlay({
 
   const activityStatusLabel =
     activeAppId === "pc_snake"
-      ? `Length ${snakeState.snake.length}`
+      ? `Speed ${snakeSpeedLabel}`
       : activeAppId === "pc_block_stacker"
         ? `Stack ${stackerState.settled.length}/${BLOCK_STACKER_ROWS}`
-        : activeAppId === "pc_runner"
-          ? `Distance ${Math.floor(runnerState.distance * 10)}m`
+        : activeAppId === "pc_pacman"
+          ? pacmanStats.frightenedActive
+            ? "Power mode"
+            : `Dots ${pacmanStats.pelletsRemaining}`
           : "Ready";
+  const desktopStatusLabel =
+    status === "desktop"
+      ? "Desktop ready"
+      : status === "running"
+        ? "Session live"
+        : status === "results"
+          ? "Run complete"
+          : activeApp
+            ? `${activeApp.label} ready`
+            : "Ready";
 
   return (
     <div className="pc-minigame">
@@ -890,36 +810,27 @@ export function PcMinigameOverlay({
         role="dialog"
         aria-modal="true"
         aria-label="Retro desk PC"
-        style={{
-          fontFamily: '"Courier New", "Lucida Console", monospace',
-          borderRadius: 10,
-          border: "3px solid #171717",
-          boxShadow: "0 0 0 3px #d6d1bf, 20px 20px 0 rgba(0, 0, 0, 0.35)",
-          background: "linear-gradient(180deg, #c8c4b8 0%, #b0ac9f 100%)",
-          color: "#111"
-        }}
       >
         <div className="pc-minigame__header">
-          <div>
-            <p className="pc-minigame__eyebrow" style={{ color: "#1e3155", fontFamily: "inherit" }}>
-              DESK PC
-            </p>
-            <h2 className="pc-minigame__title" style={{ color: "#111", fontFamily: "inherit", fontSize: 28 }}>
-              Cozy Desktop 95
-            </h2>
-            <p className="pc-minigame__subtitle" style={{ color: "#27303c", fontFamily: "inherit" }}>
-              Open an app, play a quick round, and keep the room feeling lived in.
+          <div className="pc-minigame__header-copy">
+            <p className="pc-minigame__eyebrow">Desk PC</p>
+            <h2 className="pc-minigame__title">Pixel Gigs</h2>
+            <p className="pc-minigame__subtitle">
+              Warm desk-night games styled to match the room clock, bottom dock, and drawer shell.
             </p>
           </div>
-          <button className="pc-minigame__close" onClick={onExit} type="button" style={{ fontFamily: "inherit" }}>
-            Exit PC
-          </button>
+          <div className="pc-minigame__header-actions">
+            <span className="pc-minigame__status-pill">{desktopStatusLabel}</span>
+            <button className="pc-minigame__close" onClick={onExit} type="button">
+              Exit PC
+            </button>
+          </div>
         </div>
 
         <div className="pc-minigame__stats">
           <div className="pc-minigame__stat">
             <span className="pc-minigame__stat-label">Wallet</span>
-            <strong>{currentCoins} coins</strong>
+            <strong>{currentCoins.toLocaleString()} Coins</strong>
           </div>
           <div className="pc-minigame__stat">
             <span className="pc-minigame__stat-label">Best run</span>
@@ -935,26 +846,30 @@ export function PcMinigameOverlay({
           </div>
         </div>
 
-        <div className="pc-minigame__monitor" style={{ borderRadius: 10, border: "3px solid #171717" }}>
+        <div className="pc-minigame__monitor">
           {status === "desktop" ? (
-            <div className="pc-minigame__board pc-minigame__board--desktop" style={{ padding: 24 }}>
-              <div className="pc-minigame__hud">
+            <div className="pc-minigame__board pc-minigame__board--desktop">
+              <div className="pc-minigame__desktop-bar">
                 <span>Desktop ready</span>
-                <span>Pick one app</span>
+                <span>{appDefinitions.length} apps loaded</span>
                 <span>Replay anytime</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+              <div className="pc-minigame__desktop-grid">
                 {appDefinitions.map((definition) => (
                   <button
                     key={definition.id}
-                    className="pc-minigame__card"
+                    className="pc-minigame__shortcut"
                     onClick={() => handleLaunchApp(definition.id)}
                     type="button"
-                    style={{ position: "relative", inset: "auto", transform: "none", width: "100%", fontFamily: "inherit" }}
                   >
-                    <h3 style={{ fontFamily: "inherit", fontSize: 20 }}>{DESKTOP_SHORTCUT_LABELS[definition.id]}</h3>
-                    <p>{definition.executableName}</p>
-                    <p>{definition.intro}</p>
+                    <span className="pc-minigame__shortcut-badge">
+                      {DESKTOP_SHORTCUT_BADGES[definition.id]}
+                    </span>
+                    <strong className="pc-minigame__shortcut-title">
+                      {DESKTOP_SHORTCUT_LABELS[definition.id]}
+                    </strong>
+                    <span className="pc-minigame__shortcut-exe">{definition.executableName}</span>
+                    <span className="pc-minigame__shortcut-copy">{definition.intro}</span>
                   </button>
                 ))}
               </div>
@@ -976,8 +891,8 @@ export function PcMinigameOverlay({
                 {status === "running" ? (
                   <div>
                     {renderRunningBoard()}
-                    <div style={{ display: "flex", justifyContent: "center", paddingBottom: 18 }}>
-                      <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button" style={{ fontFamily: "inherit" }}>
+                    <div className="pc-minigame__action-row pc-minigame__action-row--footer">
+                      <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button">
                         Back to desktop
                       </button>
                     </div>
@@ -985,8 +900,11 @@ export function PcMinigameOverlay({
                 ) : null}
 
                 {status === "results" && lastRun ? (
-                  <div className="pc-minigame__card">
-                    <h3 style={{ fontFamily: "inherit" }}>{activeApp.label} results</h3>
+                  <div className="pc-minigame__card pc-minigame__card--results">
+                    <div className="pc-minigame__card-copy">
+                      <span className="pc-minigame__card-kicker">Run summary</span>
+                      <h3>{activeApp.label} results</h3>
+                    </div>
                     <div className="pc-minigame__result-row">
                       <span>Status</span>
                       <strong>{lastRunWasPaid ? "Paid today" : "Practice run only"}</strong>
@@ -1015,10 +933,10 @@ export function PcMinigameOverlay({
                       <span>Together Days</span>
                       <strong>{streakCount}</strong>
                     </div>
-                    <button className="pc-minigame__primary" onClick={handleStartRun} type="button" style={{ fontFamily: "inherit" }}>
+                    <button className="pc-minigame__primary" onClick={handleStartRun} type="button">
                       Play again
                     </button>
-                    <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button" style={{ marginTop: 10, fontFamily: "inherit" }}>
+                    <button className="pc-minigame__close" onClick={handleBackToDesktop} type="button">
                       Back to desktop
                     </button>
                   </div>
@@ -1028,13 +946,19 @@ export function PcMinigameOverlay({
           ) : null}
         </div>
 
-        <p className="pc-minigame__footer" style={{ color: "#27303c", fontFamily: "inherit" }}>
+        <p className="pc-minigame__footer">
           Press <kbd>Esc</kbd> to close the computer. Rewards refresh by room day, but every app stays replayable.
         </p>
       </div>
     </div>
   );
 }
+
+
+
+
+
+
 
 
 

@@ -65,6 +65,7 @@ export interface SharedRoomRuntimeOptions {
   devBootstrapSharedCoins?: number;
   devBypassEnabled?: boolean;
   hostedFlowEnabled?: boolean;
+  legacySessionEnabled?: boolean;
   sharedAuthAdapter?: SharedAuthAdapter | null;
   sharedRoomOwnershipStore?: SharedRoomOwnershipStore | null;
   sharedRoomStore?: SharedRoomStore;

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { FurnitureType } from "../../lib/furnitureRegistry";
 import {
   loadPersistedWorldSettings,
-  savePersistedWorldSettings
+  savePersistedWorldSettings,
+  type PersistedWorldSettings
 } from "../../lib/devWorldSettings";
 import {
   getDefaultShellViewMode
@@ -13,8 +14,14 @@ import type {
   PreviewStudioMode
 } from "../types";
 
-export function useAppViewPreferences(isDev: boolean) {
-  const initialWorldSettings = useMemo(() => loadPersistedWorldSettings(), []);
+export function useAppViewPreferences(
+  isDev: boolean,
+  initialWorldSettingsSeed?: PersistedWorldSettings
+) {
+  const initialWorldSettings = useMemo(
+    () => loadPersistedWorldSettings(initialWorldSettingsSeed),
+    [initialWorldSettingsSeed]
+  );
   const [shellViewMode, setShellViewMode] = useState<AppShellViewMode>(() =>
     getDefaultShellViewMode(isDev, initialWorldSettings.shellViewMode)
   );
@@ -179,3 +186,4 @@ export function useAppViewPreferences(isDev: boolean) {
     showPlayerCollider
   };
 }
+

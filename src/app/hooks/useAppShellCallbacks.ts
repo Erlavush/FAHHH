@@ -1,5 +1,9 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { createDefaultSandboxState } from "../../lib/devLocalState";
+import {
+  clonePersistedSandboxState,
+  createDefaultSandboxState,
+  type PersistedSandboxState
+} from "../../lib/devLocalState";
 import type { FurnitureType } from "../../lib/furnitureRegistry";
 import type { PcMinigameProgress } from "../../lib/pcMinigame";
 import type { OwnedPet } from "../../lib/pets";
@@ -48,6 +52,7 @@ interface UseAppShellCallbacksInput {
   playerPositionRef: MutableRefObject<Vector3Tuple>;
   roomState: RoomState;
   roomStateRef: MutableRefObject<RoomState>;
+  sandboxResetState?: PersistedSandboxState;
   selectedMemoryFrameId: string | null;
   setBreakupResetDialogOpen: Dispatch<SetStateAction<boolean>>;
   setBreakupResetSaving: Dispatch<SetStateAction<boolean>>;
@@ -113,6 +118,7 @@ export function useAppShellCallbacks({
   playerPositionRef,
   roomState,
   roomStateRef,
+  sandboxResetState,
   selectedMemoryFrameId,
   setBreakupResetDialogOpen,
   setBreakupResetSaving,
@@ -328,7 +334,9 @@ export function useAppShellCallbacks({
       return;
     }
 
-    const nextSandbox = createDefaultSandboxState(DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION);
+    const nextSandbox = sandboxResetState
+      ? clonePersistedSandboxState(sandboxResetState)
+      : createDefaultSandboxState(DEFAULT_CAMERA_POSITION, DEFAULT_PLAYER_POSITION);
 
     cameraPositionRef.current = nextSandbox.cameraPosition;
     playerPositionRef.current = nextSandbox.playerPosition;
@@ -353,8 +361,8 @@ export function useAppShellCallbacks({
     setSpawnRequest(null);
     setSceneJumpRequest({
       requestId: nextSceneJumpRequestIdRef.current,
-      playerPosition: DEFAULT_PLAYER_POSITION,
-      cameraPosition: DEFAULT_CAMERA_POSITION,
+      playerPosition: nextSandbox.playerPosition,
+      cameraPosition: nextSandbox.cameraPosition,
       cameraTarget: ROOM_CAMERA_TARGET
     });
     nextSceneJumpRequestIdRef.current += 1;
@@ -363,7 +371,7 @@ export function useAppShellCallbacks({
     setGridSnapEnabled(true);
     setPlayerInteractionStatus(null);
     setCameraResetToken((current) => current + 1);
-  }, [cameraPositionRef, commitPlayerCoins, nextSceneJumpRequestIdRef, pendingSpawnOwnedFurnitureIdsRef, playerPositionRef, setBuildModeEnabled, setCameraPosition, setCameraResetToken, setCatalogOpen, setGridSnapEnabled, setLiveFurniturePlacements, setLocalPresenceSnapshot, setOwnedPets, setPcMinigameProgress, setPendingSpawnOwnedFurnitureIds, setPlayerInteractionStatus, setPlayerPosition, setRoomState, setSceneJumpRequest, setSharedPcResult, setSkinSrc, setSpawnRequest, sharedRoomActive, sharedRoomRuntime, soldOwnedFurnitureIdsRef]);
+  }, [cameraPositionRef, commitPlayerCoins, nextSceneJumpRequestIdRef, pendingSpawnOwnedFurnitureIdsRef, playerPositionRef, sandboxResetState, setBuildModeEnabled, setCameraPosition, setCameraResetToken, setCatalogOpen, setGridSnapEnabled, setLiveFurniturePlacements, setLocalPresenceSnapshot, setOwnedPets, setPcMinigameProgress, setPendingSpawnOwnedFurnitureIds, setPlayerInteractionStatus, setPlayerPosition, setRoomState, setSceneJumpRequest, setSharedPcResult, setSkinSrc, setSpawnRequest, sharedRoomActive, sharedRoomRuntime, soldOwnedFurnitureIdsRef]);
 
   const hasUncommittedRoomEdits =
     pendingSpawnOwnedFurnitureIds.length > 0 ||
@@ -490,6 +498,7 @@ export function useAppShellCallbacks({
         | "toggle_grid_snap"
         | "import_skin"
         | "breakup_reset"
+        | "reset_sandbox"
     ) => {
       switch (actionId) {
         case "refresh_room_state":
@@ -506,12 +515,15 @@ export function useAppShellCallbacks({
         case "import_skin":
           handleSkinImport();
           return;
+        case "reset_sandbox":
+          handleResetSandboxWithConfirmation();
+          return;
         case "copy_invite":
         default:
           return;
       }
     },
-    [handleRefreshRoomState, handleSkinImport, setBreakupResetDialogOpen, setGridSnapEnabled, setPlayerRoomDetailsOpen, setSelectedMemoryFrameId]
+    [handleRefreshRoomState, handleResetSandboxWithConfirmation, handleSkinImport, setBreakupResetDialogOpen, setGridSnapEnabled, setPlayerRoomDetailsOpen, setSelectedMemoryFrameId]
   );
 
   const handleBreakupResetConfirm = useCallback(async () => {
@@ -615,5 +627,7 @@ export function useAppShellCallbacks({
     openPreviewStudio
   };
 }
+
+
 
 

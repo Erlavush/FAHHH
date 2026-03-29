@@ -56,15 +56,19 @@ export interface SandboxWorldClockState {
   setContrast: (value: number) => void;
 }
 
-function loadLevaSettings(): LevaSettings {
-  return loadPersistedWorldSettings();
+function loadLevaSettings(
+  seedSettings?: PersistedWorldSettings
+): LevaSettings {
+  return loadPersistedWorldSettings(seedSettings);
 }
 
-export function useSandboxWorldClock(): SandboxWorldClockState {
+export function useSandboxWorldClock(
+  initialWorldSettingsSeed?: PersistedWorldSettings
+): SandboxWorldClockState {
   const savedSettingsRef = useRef<LevaSettings | null>(null);
 
   if (savedSettingsRef.current === null) {
-    savedSettingsRef.current = loadLevaSettings();
+    savedSettingsRef.current = loadLevaSettings(initialWorldSettingsSeed);
   }
 
   const savedSettings = savedSettingsRef.current;

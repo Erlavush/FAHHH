@@ -47,8 +47,8 @@ function getPcGameRewardReason(activityId: PcDeskActivityId): string {
   switch (activityId) {
     case "pc_block_stacker":
       return "pc_game_reward:pc_block_stacker";
-    case "pc_runner":
-      return "pc_game_reward:pc_runner";
+    case "pc_pacman":
+      return "pc_game_reward:pc_pacman";
     case "pc_snake":
     default:
       return "pc_game_reward:pc_snake";
@@ -694,3 +694,4 @@ export function useAppRoomActions({
     updatePendingSpawnOwnedFurnitureIds
   };
 }
+

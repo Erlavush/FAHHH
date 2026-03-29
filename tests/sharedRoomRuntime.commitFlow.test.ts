@@ -263,7 +263,7 @@ describe("shared room runtime commit flow", () => {
     const runs = [
       { activityId: "pc_snake" as const, rewardCoins: 8, score: 11 },
       { activityId: "pc_block_stacker" as const, rewardCoins: 9, score: 15 },
-      { activityId: "pc_runner" as const, rewardCoins: 7, score: 13 }
+      { activityId: "pc_pacman" as const, rewardCoins: 7, score: 13 }
     ];
 
     for (const run of runs) {
@@ -295,7 +295,7 @@ describe("shared room runtime commit flow", () => {
     expect(commitSharedRoomState.mock.calls.map((call) => call[0].reason)).toEqual([
       "pc_game_reward:pc_snake",
       "pc_game_reward:pc_block_stacker",
-      "pc_game_reward:pc_runner"
+      "pc_game_reward:pc_pacman"
     ]);
     expect(getLatestHookValue()?.runtimeSnapshot?.progression.players[profile.playerId]?.coins).toBe(94);
     expect(
@@ -308,7 +308,7 @@ describe("shared room runtime commit flow", () => {
     ).toBe(9);
     expect(
       getLatestHookValue()?.runtimeSnapshot?.progression.couple.activityClaimsByDayKey["2026-03-26"]
-        ?.pc_runner?.perPlayerClaimsByPlayerId[profile.playerId]?.rewardCoins
+        ?.pc_pacman?.perPlayerClaimsByPlayerId[profile.playerId]?.rewardCoins
     ).toBe(7);
   });
 

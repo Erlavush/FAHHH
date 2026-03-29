@@ -12,7 +12,7 @@ export const DAILY_RITUAL_BONUS_XP = 16;
 export const SHARED_ROOM_ACTIVITY_IDS = [
   "pc_snake",
   "pc_block_stacker",
-  "pc_runner",
+  "pc_pacman",
   "cozy_rest"
 ] as const satisfies readonly SharedRoomActivityId[];
 

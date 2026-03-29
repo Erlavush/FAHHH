@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Leva } from "leva";
 import { loadPersistedSandboxState } from "./lib/devLocalState";
 import { buildCatCareSummary } from "./lib/catCare";
+import { getAppRuntimeMode } from "./lib/appRuntimeConfig";
 import { PET_REGISTRY, SANDBOX_PET_CATALOG, type PetType } from "./lib/pets";
 import {
   cloneSharedPetLiveState,
@@ -52,21 +53,32 @@ import type {
   PreviewStudioMode
 } from "./app/types";
 import { InventoryPanel } from "./components/ui";
+import { BackgroundMusicPlayer } from "./components/ui/BackgroundMusicPlayer";
+import {
+  SHOWCASE_HUD_DAY_LABEL,
+  SHOWCASE_SANDBOX_SEED,
+  SHOWCASE_WORLD_SETTINGS_SEED
+} from "./lib/showcaseSeed";
 
 const SHOWCASE_IMPORTED_CAT_PRESET_ID = "better_cat_tabby_fluffy_tail_orange_eye_grey";
 
 function App() {
   const isDev = import.meta.env.DEV;
+  const showcaseMode = getAppRuntimeMode() === "showcase";
   const initialSandboxState = useMemo(
     () =>
       loadPersistedSandboxState(
         DEFAULT_CAMERA_POSITION,
         DEFAULT_PLAYER_POSITION,
-        createDefaultRoomState()
+        createDefaultRoomState(),
+        showcaseMode ? SHOWCASE_SANDBOX_SEED : undefined
       ),
-    []
+    [showcaseMode]
   );
-  const preferences = useAppViewPreferences(isDev);
+  const preferences = useAppViewPreferences(
+    isDev,
+    showcaseMode ? SHOWCASE_WORLD_SETTINGS_SEED : undefined
+  );
   const {
     skinSrc,
     setSkinSrc,
@@ -77,11 +89,14 @@ function App() {
   } = useSkinImport(initialSandboxState.skinSrc);
   const sharedRoomRuntime = useSharedRoomRuntime({
     devBootstrapRoomState: initialSandboxState.roomState,
-    devBootstrapSharedCoins: initialSandboxState.playerCoins
+    devBootstrapSharedCoins: initialSandboxState.playerCoins,
+    devBypassEnabled: showcaseMode ? false : undefined,
+    hostedFlowEnabled: showcaseMode ? false : undefined,
+    legacySessionEnabled: showcaseMode ? false : undefined
   });
-  const showcaseLocalRoomMode = sharedRoomRuntime.entryMode === "dev_fallback";
+  const devFallbackRoomMode = sharedRoomRuntime.entryMode === "dev_fallback";
   const sharedRoomActive =
-    sharedRoomRuntime.runtimeSnapshot !== null && !showcaseLocalRoomMode;
+    !showcaseMode && sharedRoomRuntime.runtimeSnapshot !== null && !devFallbackRoomMode;
   const roomSession = useLocalRoomSession({
     initialSandboxState,
     skinSrc,
@@ -126,7 +141,9 @@ function App() {
     setBrightness,
     setSaturation,
     setContrast
-  } = useSandboxWorldClock();
+  } = useSandboxWorldClock(
+    showcaseMode ? SHOWCASE_WORLD_SETTINGS_SEED : undefined
+  );
   const {
     buildModeEnabled,
     catalogOpen,
@@ -382,9 +399,9 @@ function App() {
             actorPlayerId: sharedRoomRuntime.session.playerId,
             nowIso: activityStatusNowIso
           }),
-          pc_runner: getSharedActivityClaimStatus({
+          pc_pacman: getSharedActivityClaimStatus({
             progression: sharedRoomRuntime.runtimeSnapshot.progression,
-            activityId: "pc_runner",
+            activityId: "pc_pacman",
             claimMode: "per_player",
             actorPlayerId: sharedRoomRuntime.session.playerId,
             nowIso: activityStatusNowIso
@@ -395,7 +412,7 @@ function App() {
     ? {
         pc_snake: !sharedPcClaimStatusByActivityId.pc_snake.payoutAvailable,
         pc_block_stacker: !sharedPcClaimStatusByActivityId.pc_block_stacker.payoutAvailable,
-        pc_runner: !sharedPcClaimStatusByActivityId.pc_runner.payoutAvailable
+        pc_pacman: !sharedPcClaimStatusByActivityId.pc_pacman.payoutAvailable
       }
     : undefined;
   const sharedPcReadyCount = sharedPcClaimStatusByActivityId
@@ -647,6 +664,7 @@ function App() {
     playerPositionRef,
     roomState,
     roomStateRef,
+    sandboxResetState: showcaseMode ? SHOWCASE_SANDBOX_SEED : undefined,
     selectedMemoryFrameId,
     setBreakupResetDialogOpen,
     setBreakupResetSaving,
@@ -691,6 +709,7 @@ function App() {
 
   const effectiveShellViewMode: AppShellViewMode = isDev ? shellViewMode : "player";
   const hostedEntryFlowActive =
+    !showcaseMode &&
     (sharedRoomRuntime.entryMode === "hosted" ||
       sharedRoomRuntime.entryMode === "hosted_unavailable") &&
     sharedRoomRuntime.bootstrapKind !== "room_ready";
@@ -714,7 +733,11 @@ function App() {
     presenceStatus: sharedRoomPresence.presenceStatus,
     ritualStatus,
     runtimeEntryMode: sharedRoomRuntime.entryMode,
-    showInviteCode: !sharedRoomRuntime.devBypassActive && partnerPlayerProgression === null,
+    showcaseMode,
+    showInviteCode:
+      !showcaseMode &&
+      !sharedRoomRuntime.devBypassActive &&
+      partnerPlayerProgression === null,
     statusMessage: sharedRoomRuntime.statusMessage,
     storedCatCount: storedCats.length,
     togetherDaysCount,
@@ -724,7 +747,7 @@ function App() {
     ? [
         { label: "Snake", value: sharedPcClaimStatusByActivityId.pc_snake.payoutAvailable ? "Ready now" : "Paid today" },
         { label: "Block Stacker", value: sharedPcClaimStatusByActivityId.pc_block_stacker.payoutAvailable ? "Ready now" : "Paid today" },
-        { label: "Runner", value: sharedPcClaimStatusByActivityId.pc_runner.payoutAvailable ? "Ready now" : "Paid today" },
+        { label: "Pacman", value: sharedPcClaimStatusByActivityId.pc_pacman.payoutAvailable ? "Ready now" : "Paid today" },
         { label: "Cozy Rest", value: cozyRestPaidToday ? "Paid today" : cozyRestReadyNow ? "Ready now" : "Lie down together" }
       ]
     : [
@@ -732,7 +755,14 @@ function App() {
         { label: "Stored Cats", value: playerCompanionCardState.storedCatCountLabel },
         { label: "Cat Care", value: playerCompanionCardState.catsNeedingCareLabel },
         { label: "Desk PC", value: "Ready now" },
-        { label: "Cozy Rest", value: sharedRoomActive ? "Lie down together" : "Shared room only" }
+        {
+          label: "Cozy Rest",
+          value: showcaseMode
+            ? "Shared-room feature"
+            : sharedRoomActive
+              ? "Lie down together"
+              : "Shared room only"
+        }
       ];
   const playerActionDockState = getPlayerActionDockState({
     buildModeEnabled,
@@ -748,6 +778,7 @@ function App() {
     memberCount,
     roomId,
     sharedRoomActive,
+    showcaseMode,
     togetherDaysCount,
     visitCompletedToday
   });
@@ -760,7 +791,7 @@ function App() {
     statusMessage: sharedRoomRuntime.statusMessage
   });
 
-  const sharedRoomEntryOverlayNode = (
+  const sharedRoomEntryOverlayNode = showcaseMode ? null : (
     <>
       {!sharedRoomActive && !sharedRoomRuntime.blockingState && !sharedRoomRuntime.devBypassActive ? (
         sharedRoomRuntime.entryMode === "hosted" ? (
@@ -799,7 +830,7 @@ function App() {
     </>
   );
 
-  const sharedRoomBlockingOverlayNode = sharedRoomRuntime.blockingState ? (
+  const sharedRoomBlockingOverlayNode = !showcaseMode && sharedRoomRuntime.blockingState ? (
     <SharedRoomBlockingOverlay
       body={sharedRoomRuntime.blockingState.body}
       onRetry={sharedRoomRuntime.blockingState.retryable ? () => { handleRefreshRoomState(); } : null}
@@ -1100,6 +1131,7 @@ function App() {
     onApplyTransforms: applyTransformChanges,
     onResetCamera: handleResetCamera,
     onResetSandbox: handleResetSandboxWithConfirmation,
+    onImportSkin: handleSkinImport,
     onUseMinecraftTimeChange: setUseMinecraftTime,
     onMinecraftTimeHoursCommit: setMinecraftTimeHours,
     onTimeLockedChange: setTimeLockedEnabled,
@@ -1163,9 +1195,10 @@ function App() {
             pcMinigameActive={pcMinigameActive}
             playerActionDockState={playerActionDockState}
             playerCompanionCardExpanded={playerCompanionCardExpanded}
+            playerDockMetricLabel={showcaseMode ? SHOWCASE_HUD_DAY_LABEL : undefined}
             playerCompanionCardState={playerCompanionCardState}
             playerLevel={playerLevel}
-            showPlayerCompanionCard={!showcaseLocalRoomMode && (sharedRoomActive || playerCompanionCardState.petCareActionLabel !== null)}
+            showPlayerCompanionCard={!devFallbackRoomMode && (showcaseMode || sharedRoomActive || playerCompanionCardState.petCareActionLabel !== null)}
             playerRoomDetailsOpen={playerRoomDetailsOpen}
             playerRoomDetailsState={playerRoomDetailsState}
             roomStageNode={roomStageNode}
@@ -1182,6 +1215,7 @@ function App() {
             modeSwitchNode={modeSwitchNode}
           />
         )}
+        <BackgroundMusicPlayer />
         <input ref={skinInputRef} type="file" accept=".png,image/png" className="hidden-input" onChange={handleSkinFileChange} />
       </div>
     </>
@@ -1189,6 +1223,11 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
 
 
 

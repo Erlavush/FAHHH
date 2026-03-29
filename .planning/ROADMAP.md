@@ -158,6 +158,8 @@ Showcase sequencing now continues as `5 -> 6 -> 06.1 -> 9 -> 10 -> 11`, with Pha
 
 Phase 11 shipped on 2026-03-28 as a user-requested shell-polish pass while Phase 10 still retains 10-02 and 10-03 Better Cats follow-up work.
 
+A public-demo showcase lane now also exists outside the numbered roadmap phases: `VITE_APP_MODE=showcase` boots a repo-owned sandbox snapshot and hard-disables hosted/dev shared-room bootstrap so static deployments can showcase the local cat sanctuary safely. Production bundles must read that flag through a static Vite env access so the showcase mode survives Vercel builds.
+
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 5. Online Backend and Couple Ownership | v1.1 | 3/3 | Complete | 2026-03-27 |
@@ -168,5 +170,6 @@ Phase 11 shipped on 2026-03-28 as a user-requested shell-polish pass while Phase
 | 9. Showcase Cat Sanctuary | v1.1 | 3/3 | Complete | 2026-03-27 |
 | 10. Better Cats Variant Import | v1.1 | 1/3 | In progress | - |
 | 11. Player Shell Inventory, Shop, and Pet Care Overhaul | v1.1 | 3/3 | Complete | 2026-03-28 |
+
 
 

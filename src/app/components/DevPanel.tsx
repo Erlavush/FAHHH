@@ -95,6 +95,7 @@ export type DevPanelProps = {
   onApplyTransforms: () => void;
   onResetCamera: () => void;
   onResetSandbox: () => void;
+  onImportSkin?: () => void;
   onUseMinecraftTimeChange: (value: boolean) => void;
   onMinecraftTimeHoursCommit: (value: number) => void;
   onTimeLockedChange: (value: boolean) => void;
@@ -430,6 +431,7 @@ export function DevPanel({
   onApplyTransforms,
   onResetCamera,
   onResetSandbox,
+  onImportSkin = () => {},
   onUseMinecraftTimeChange,
   onMinecraftTimeHoursCommit,
   onTimeLockedChange,
@@ -664,8 +666,15 @@ export function DevPanel({
           <button className="dev-panel__action-button" type="button" onClick={onResetSandbox}>
             Reset Sandbox
           </button>
+          <button className="dev-panel__action-button" type="button" onClick={onImportSkin}>
+            Import Minecraft Skin
+          </button>
         </div>
       </Section>
     </aside>
   );
 }
+
+
+
+

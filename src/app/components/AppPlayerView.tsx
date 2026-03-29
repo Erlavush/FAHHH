@@ -29,7 +29,7 @@ interface AppPlayerViewProps {
   handlePcMinigameComplete: (result: PcMinigameResult) => void;
   handlePlayerDockAction: (actionId: "build" | "inventory" | "interaction" | "cozy_rest") => void;
   handlePlayerRoomDetailsAction: (
-    actionId: "copy_invite" | "refresh_room_state" | "toggle_grid_snap" | "import_skin" | "breakup_reset"
+    actionId: "copy_invite" | "refresh_room_state" | "toggle_grid_snap" | "import_skin" | "breakup_reset" | "reset_sandbox"
   ) => void;
   hostedEntryFlowActive: boolean;
   inventoryPanelNode: ReactNode;
@@ -37,6 +37,7 @@ interface AppPlayerViewProps {
   pcMinigameActive: boolean;
   playerActionDockState: PlayerActionDockState;
   playerCompanionCardExpanded: boolean;
+  playerDockMetricLabel?: string;
   playerCompanionCardState: PlayerCompanionCardState;
   playerLevel: number;
   showPlayerCompanionCard: boolean;
@@ -79,6 +80,7 @@ export function AppPlayerView({
   pcMinigameActive,
   playerActionDockState,
   playerCompanionCardExpanded,
+  playerDockMetricLabel,
   playerCompanionCardState,
   playerLevel,
   showPlayerCompanionCard,
@@ -106,6 +108,7 @@ export function AppPlayerView({
             statusLabel={playerActionDockState.statusLabel}
             coins={displayedPlayerCoins}
             level={playerLevel}
+            metricLabel={playerDockMetricLabel}
             togetherDays={togetherDaysCount}
           />
         )
@@ -174,3 +177,4 @@ export function AppPlayerView({
     />
   );
 }
+

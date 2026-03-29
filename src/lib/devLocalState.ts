@@ -381,13 +381,56 @@ export function createDefaultSandboxState(
   };
 }
 
+export function clonePersistedSandboxState(
+  state: PersistedSandboxState
+): PersistedSandboxState {
+  return {
+    version: 6,
+    skinSrc: state.skinSrc,
+    cameraPosition: [...state.cameraPosition] as PersistedVector3,
+    playerPosition: [...state.playerPosition] as PersistedVector3,
+    playerCoins: Math.max(0, Math.floor(state.playerCoins)),
+    roomState: ensureRoomStateOwnership(cloneRoomState(state.roomState)),
+    pcMinigame: {
+      bestScore: Math.max(0, Math.floor(state.pcMinigame.bestScore)),
+      lastScore: Math.max(0, Math.floor(state.pcMinigame.lastScore)),
+      gamesPlayed: Math.max(0, Math.floor(state.pcMinigame.gamesPlayed)),
+      totalCoinsEarned: Math.max(0, Math.floor(state.pcMinigame.totalCoinsEarned)),
+      lastRewardCoins: Math.max(0, Math.floor(state.pcMinigame.lastRewardCoins)),
+      lastCompletedAt: state.pcMinigame.lastCompletedAt
+    },
+    pets: cloneOwnedPets(state.pets.filter(isValidOwnedPet))
+  };
+}
+
+function resolveFallbackSandboxState(
+  fallbackCameraPosition: PersistedVector3,
+  fallbackPlayerPosition: PersistedVector3,
+  fallbackRoomState: RoomState,
+  seedState?: PersistedSandboxState
+): PersistedSandboxState {
+  return seedState
+    ? clonePersistedSandboxState(seedState)
+    : createDefaultSandboxState(
+        fallbackCameraPosition,
+        fallbackPlayerPosition,
+        fallbackRoomState
+      );
+}
+
 export function loadPersistedSandboxState(
   fallbackCameraPosition: PersistedVector3,
   fallbackPlayerPosition: PersistedVector3,
-  fallbackRoomState = createDefaultRoomState()
+  fallbackRoomState = createDefaultRoomState(),
+  seedState?: PersistedSandboxState
 ): PersistedSandboxState {
   if (!canUseLocalStorage()) {
-    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, fallbackRoomState);
+    return resolveFallbackSandboxState(
+      fallbackCameraPosition,
+      fallbackPlayerPosition,
+      fallbackRoomState,
+      seedState
+    );
   }
 
   const defaultRoomState = loadPersistedDefaultRoomState(fallbackRoomState);
@@ -398,7 +441,12 @@ export function loadPersistedSandboxState(
       window.localStorage.getItem(LEGACY_SANDBOX_STATE_KEY);
 
     if (!storedValue) {
-      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
+      return resolveFallbackSandboxState(
+        fallbackCameraPosition,
+        fallbackPlayerPosition,
+        defaultRoomState,
+        seedState
+      );
     }
 
     const parsedValue = JSON.parse(storedValue) as unknown;
@@ -417,7 +465,12 @@ export function loadPersistedSandboxState(
       !isValidVector3(parsedValue.playerPosition) ||
       !isValidRoomState(parsedValue.roomState)
     ) {
-      return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
+      return resolveFallbackSandboxState(
+        fallbackCameraPosition,
+        fallbackPlayerPosition,
+        defaultRoomState,
+        seedState
+      );
     }
 
     const petsNowIso = new Date().toISOString();
@@ -434,30 +487,43 @@ export function loadPersistedSandboxState(
       savePersistedDefaultRoomState(parsedValue.roomState);
     }
 
-    if (shouldResetToFallbackRoomState(parsedValue.roomState, defaultRoomState, parsedValue.version)) {
-      return {
-        version: 6,
-        skinSrc: parsedValue.skinSrc,
-        cameraPosition: [...fallbackCameraPosition],
-        playerPosition: [...fallbackPlayerPosition],
-        playerCoins:
-          "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
-            ? Math.floor(parsedValue.playerCoins)
-            : DEFAULT_STARTING_COINS,
-        roomState: cloneRoomState(defaultRoomState),
-        pcMinigame:
-          "pcMinigame" in parsedValue && isValidPcMinigameProgress(parsedValue.pcMinigame)
-            ? {
-                bestScore: Math.floor(parsedValue.pcMinigame.bestScore),
-                lastScore: Math.floor(parsedValue.pcMinigame.lastScore),
-                gamesPlayed: Math.floor(parsedValue.pcMinigame.gamesPlayed),
-                totalCoinsEarned: Math.floor(parsedValue.pcMinigame.totalCoinsEarned),
-                lastRewardCoins: Math.floor(parsedValue.pcMinigame.lastRewardCoins),
-                lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
-              }
-            : createDefaultPcMinigameProgress(),
-        pets: parsedPets
-      };
+    if (
+      shouldResetToFallbackRoomState(
+        parsedValue.roomState,
+        defaultRoomState,
+        parsedValue.version
+      )
+    ) {
+      return seedState
+        ? clonePersistedSandboxState(seedState)
+        : {
+            version: 6,
+            skinSrc: parsedValue.skinSrc,
+            cameraPosition: [...fallbackCameraPosition],
+            playerPosition: [...fallbackPlayerPosition],
+            playerCoins:
+              "playerCoins" in parsedValue && isValidPlayerCoins(parsedValue.playerCoins)
+                ? Math.floor(parsedValue.playerCoins)
+                : DEFAULT_STARTING_COINS,
+            roomState: cloneRoomState(defaultRoomState),
+            pcMinigame:
+              "pcMinigame" in parsedValue &&
+              isValidPcMinigameProgress(parsedValue.pcMinigame)
+                ? {
+                    bestScore: Math.floor(parsedValue.pcMinigame.bestScore),
+                    lastScore: Math.floor(parsedValue.pcMinigame.lastScore),
+                    gamesPlayed: Math.floor(parsedValue.pcMinigame.gamesPlayed),
+                    totalCoinsEarned: Math.floor(
+                      parsedValue.pcMinigame.totalCoinsEarned
+                    ),
+                    lastRewardCoins: Math.floor(
+                      parsedValue.pcMinigame.lastRewardCoins
+                    ),
+                    lastCompletedAt: parsedValue.pcMinigame.lastCompletedAt
+                  }
+                : createDefaultPcMinigameProgress(),
+            pets: parsedPets
+          };
     }
 
     return {
@@ -492,7 +558,12 @@ export function loadPersistedSandboxState(
       pets: parsedPets
     };
   } catch {
-    return createDefaultSandboxState(fallbackCameraPosition, fallbackPlayerPosition, defaultRoomState);
+    return resolveFallbackSandboxState(
+      fallbackCameraPosition,
+      fallbackPlayerPosition,
+      defaultRoomState,
+      seedState
+    );
   }
 }
 
@@ -542,5 +613,6 @@ export function loadPersistedSkin(): string | null {
     return null;
   }
 }
+
 
 

@@ -100,6 +100,7 @@ export function useSharedRoomRuntime({
   devBootstrapSharedCoins = 0,
   devBypassEnabled = import.meta.env.DEV,
   hostedFlowEnabled,
+  legacySessionEnabled = true,
   sharedAuthAdapter,
   sharedRoomOwnershipStore,
   sharedRoomStore = sharedRoomClient
@@ -150,7 +151,7 @@ export function useSharedRoomRuntime({
       return "hosted_unavailable";
     }
 
-    if (hostedFlowActive || session || devBypassActive) {
+    if (hostedFlowActive || (legacySessionEnabled && session) || devBypassActive) {
       return "loading_room";
     }
 
@@ -165,7 +166,7 @@ export function useSharedRoomRuntime({
       return createBlockingState(HOSTED_LOADING_TITLE, "Checking your couple room.");
     }
 
-    if (session) {
+    if (legacySessionEnabled && session) {
       return createBlockingState(
         "Loading shared room...",
         "Fetching the latest shared room state."
@@ -402,6 +403,12 @@ export function useSharedRoomRuntime({
       return;
     }
 
+    if (!legacySessionEnabled) {
+      setBlockingState(null);
+      setBootstrapKind("legacy");
+      return;
+    }
+
     const sessionRoomId = session?.roomId ?? null;
 
     if (!sessionRoomId) {
@@ -418,6 +425,7 @@ export function useSharedRoomRuntime({
   }, [
     hostedFlowActive,
     hostedFlowUnavailable,
+    legacySessionEnabled,
     loadLegacyRoom,
     roomDocument?.roomId,
     session?.roomId

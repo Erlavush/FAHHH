@@ -29,13 +29,9 @@ export type PlayerCompanionCardState = {
   deskActivityStatus: string;
   inviteCode: string;
   partnerBody: string;
-  partnerTitle:
-    | "Waiting for partner"
-    | "Together now"
-    | "Partner reconnecting"
-    | "Partner away";
+  partnerTitle: string;
   ritualBody: string;
-  ritualTitle: "Room-day visit open" | "Room-day visit complete" | "Visit saved" | "Partner visited";
+  ritualTitle: string;
   roomModeLabel: string | null;
   roomSyncStatus: string | null;
   petCareActionLabel: "Open Pet Care" | null;
@@ -59,7 +55,8 @@ export type PlayerRoomDetailsAction = {
     | "refresh_room_state"
     | "toggle_grid_snap"
     | "import_skin"
-    | "breakup_reset";
+    | "breakup_reset"
+    | "reset_sandbox";
   label: string;
 };
 
@@ -68,6 +65,7 @@ export type PlayerRoomDetailsState = {
   dangerAction: PlayerRoomDetailsAction | null;
   inviteCode: string;
   inviteCodeVisible: boolean;
+  primaryMetricTitle: string;
   roomId: string | null;
   secondaryActions: PlayerRoomDetailsAction[];
   subtitle: string;
@@ -129,8 +127,17 @@ const DEVELOPER_WORKSPACE_TABS: readonly DeveloperWorkspaceTabDefinition[] = [
 
 function mapPresenceStatus(
   presenceStatus: SharedPresenceStatus | null,
-  memberCount: number
+  memberCount: number,
+  showcaseMode: boolean
 ): Pick<PlayerCompanionCardState, "partnerBody" | "partnerTitle" | "tone"> {
+  if (showcaseMode) {
+    return {
+      partnerTitle: "Solo showcase",
+      partnerBody: "This public build opens straight into your local cat sanctuary snapshot and keeps progress inside this browser.",
+      tone: "success"
+    };
+  }
+
   if (!presenceStatus || memberCount < 2) {
     return {
       partnerTitle: "Waiting for partner",
@@ -162,7 +169,14 @@ function mapPresenceStatus(
   };
 }
 
-function getRoomModeLabel(runtimeEntryMode: SharedRoomRuntimeEntryMode): string | null {
+function getRoomModeLabel(
+  runtimeEntryMode: SharedRoomRuntimeEntryMode,
+  showcaseMode: boolean
+): string | null {
+  if (showcaseMode) {
+    return "Showcase room";
+  }
+
   switch (runtimeEntryMode) {
     case "hosted":
       return "Hosted couple room";
@@ -177,8 +191,16 @@ function getRoomModeLabel(runtimeEntryMode: SharedRoomRuntimeEntryMode): string 
 }
 
 function mapRitualStatus(
-  ritualStatus: SharedRitualStatusView
+  ritualStatus: SharedRitualStatusView,
+  showcaseMode: boolean
 ): Pick<PlayerCompanionCardState, "ritualBody" | "ritualTitle"> {
+  if (showcaseMode) {
+    return {
+      ritualTitle: "Sandbox progress",
+      ritualBody: "Desk PC payouts, furniture changes, and cat care rewards stay local to this browser in showcase mode."
+    };
+  }
+
   if (ritualStatus.ritualComplete) {
     return {
       ritualTitle: "Room-day visit complete",
@@ -206,7 +228,14 @@ function mapRitualStatus(
   };
 }
 
-function getVisitStatusLabel(visitCompletedToday: boolean): string {
+function getVisitStatusLabel(
+  visitCompletedToday: boolean,
+  showcaseMode: boolean
+): string {
+  if (showcaseMode) {
+    return "Local save active";
+  }
+
   return visitCompletedToday ? "Visited today" : "Visit the room today";
 }
 
@@ -223,8 +252,13 @@ function getDeskActivityStatus(
 
 function getCozyRestStatus(
   cozyRestReadyNow: boolean,
-  cozyRestPaidToday: boolean
+  cozyRestPaidToday: boolean,
+  showcaseMode: boolean
 ): string {
+  if (showcaseMode) {
+    return "Shared-room feature";
+  }
+
   if (cozyRestPaidToday && !cozyRestReadyNow) {
     return "Paid today";
   }
@@ -354,6 +388,7 @@ export function getPlayerCompanionCardState({
   presenceStatus,
   ritualStatus,
   runtimeEntryMode,
+  showcaseMode = false,
   showInviteCode,
   statusMessage,
   storedCatCount,
@@ -371,6 +406,7 @@ export function getPlayerCompanionCardState({
   presenceStatus: SharedPresenceStatus | null;
   ritualStatus: SharedRitualStatusView;
   runtimeEntryMode: SharedRoomRuntimeEntryMode;
+  showcaseMode?: boolean;
   showInviteCode: boolean;
   statusMessage: string | null;
   storedCatCount: number;
@@ -381,17 +417,19 @@ export function getPlayerCompanionCardState({
     activeCatCountLabel: formatCatCountLabel(activeCatCount, "active cat", "active cats"),
     catsNeedingCareLabel: getCatsNeedingCareLabel(catsNeedingCareCount),
     inviteCode,
-    roomModeLabel: getRoomModeLabel(runtimeEntryMode),
-    roomSyncStatus: statusMessage,
+    roomModeLabel: getRoomModeLabel(runtimeEntryMode, showcaseMode),
+    roomSyncStatus: showcaseMode ? null : statusMessage,
     petCareActionLabel: catsNeedingCareCount > 0 ? "Open Pet Care" : null,
-    showInviteCode,
+    showInviteCode: showcaseMode ? false : showInviteCode,
     storedCatCountLabel: formatCatCountLabel(storedCatCount, "stored cat", "stored cats"),
-    togetherDaysLabel: `Together Days ${togetherDaysCount}`,
-    visitStatusLabel: getVisitStatusLabel(visitCompletedToday),
-    deskActivityStatus: getDeskActivityStatus(deskActivityReadyNow, deskActivityPaidToday),
-    cozyRestStatus: getCozyRestStatus(cozyRestReadyNow, cozyRestPaidToday),
-    ...mapPresenceStatus(presenceStatus, memberCount),
-    ...mapRitualStatus(ritualStatus)
+    togetherDaysLabel: showcaseMode ? "Showcase room" : `Together Days ${togetherDaysCount}`,
+    visitStatusLabel: getVisitStatusLabel(visitCompletedToday, showcaseMode),
+    deskActivityStatus: showcaseMode
+      ? "Ready now"
+      : getDeskActivityStatus(deskActivityReadyNow, deskActivityPaidToday),
+    cozyRestStatus: getCozyRestStatus(cozyRestReadyNow, cozyRestPaidToday, showcaseMode),
+    ...mapPresenceStatus(presenceStatus, memberCount, showcaseMode),
+    ...mapRitualStatus(ritualStatus, showcaseMode)
   };
 }
 
@@ -465,6 +503,7 @@ export function getPlayerRoomDetailsState({
   memberCount,
   roomId,
   sharedRoomActive,
+  showcaseMode = false,
   togetherDaysCount,
   visitCompletedToday
 }: {
@@ -474,6 +513,7 @@ export function getPlayerRoomDetailsState({
   memberCount: number;
   roomId: string | null;
   sharedRoomActive: boolean;
+  showcaseMode?: boolean;
   togetherDaysCount: number;
   visitCompletedToday: boolean;
 }): PlayerRoomDetailsState {
@@ -488,7 +528,7 @@ export function getPlayerRoomDetailsState({
     }
   ];
 
-  if (memberCount < 2 && inviteCode) {
+  if (!showcaseMode && memberCount < 2 && inviteCode) {
     secondaryActions.unshift({
       id: "copy_invite",
       label: "Copy invite code"
@@ -502,12 +542,21 @@ export function getPlayerRoomDetailsState({
     });
   }
 
+  if (showcaseMode) {
+    secondaryActions.push({
+      id: "reset_sandbox",
+      label: "Reset showcase room"
+    });
+  }
+
   return {
     activityRows,
     title: "Room details",
-    subtitle: sharedRoomActive
-      ? "Canonical room actions, visit state, and today's activity payouts."
-      : "Build settings and local room profile actions.",
+    subtitle: showcaseMode
+      ? "Local showcase actions and browser-saved room state."
+      : sharedRoomActive
+        ? "Canonical room actions, visit state, and today's activity payouts."
+        : "Build settings and local room profile actions.",
     dangerAction: sharedRoomActive
       ? {
           id: "breakup_reset",
@@ -515,11 +564,12 @@ export function getPlayerRoomDetailsState({
         }
       : null,
     inviteCode,
-    inviteCodeVisible: memberCount < 2 && inviteCode.length > 0,
-    roomId,
+    inviteCodeVisible: !showcaseMode && memberCount < 2 && inviteCode.length > 0,
+    primaryMetricTitle: showcaseMode ? "Mode" : "Together Days",
+    roomId: showcaseMode ? null : roomId,
     secondaryActions,
-    togetherDaysLabel: `Together Days ${togetherDaysCount}`,
-    visitStatusLabel: getVisitStatusLabel(visitCompletedToday)
+    togetherDaysLabel: showcaseMode ? "Showcase room" : `Together Days ${togetherDaysCount}`,
+    visitStatusLabel: getVisitStatusLabel(visitCompletedToday, showcaseMode)
   };
 }
 
@@ -575,6 +625,9 @@ export function getPreviewStudioTab(
 ): DeveloperWorkspaceTab {
   return mode === "mob_lab" ? "mob_lab" : "preview_studio";
 }
+
+
+
 
 
 
