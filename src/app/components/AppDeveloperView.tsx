@@ -77,19 +77,18 @@ export function AppDeveloperView({
         <DeveloperWorkspaceRail
           onSelectTab={handleSelectDeveloperWorkspaceTab}
           tabs={developerWorkspaceTabs}
-        />
+        >
+          <div className="developer-workspace-shell__utility-stack">
+            <DeveloperSessionPanel
+              onRefreshRoomState={sharedRoomActive ? handleRefreshRoomState : null}
+              state={developerSessionPanelState}
+            />
+            <PerformanceMonitor />
+            {skinError ? <div className="scene-note scene-note--inline">{skinError}</div> : null}
+          </div>
+        </DeveloperWorkspaceRail>
       }
       stage={developerStageNode}
-      utility={
-        <div className="developer-workspace-shell__utility-stack">
-          <DeveloperSessionPanel
-            onRefreshRoomState={sharedRoomActive ? handleRefreshRoomState : null}
-            state={developerSessionPanelState}
-          />
-          <PerformanceMonitor />
-          {skinError ? <div className="scene-note scene-note--inline">{skinError}</div> : null}
-        </div>
-      }
     />
   );
 }

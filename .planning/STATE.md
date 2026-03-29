@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-28)
 
 ## Current Position
 
-Phase: 13 (In Progress - Responsive UI Complete)
-Plan: Plan 13-01 Implementation Complete
-Status: Phase 13 Responsive UI is implemented. I created a shared `useUiScale` hook and applied it to the Bottom Dock, Minecraft Clock, and Companion Card. The UI now dynamically scales based on screen width/zoom, ensuring the "perfect" layout persists proportionally on mobile and small viewports.
-Last activity: 2026-03-29 -- Implemented Dynamic UI Scaling for HUD components.
+Phase: 13 (In Progress - Developer Workspace Refined)
+Plan: Plan 13-02 Layout Ergonomics Complete
+Status: Overhauled the Developer Workspace for better ergonomics. Implemented resizable panels (Rail, Inspector, Utility) and a modular "Island" layout for Mob Lab. Fixed the "stretching viewport" issue in the 3D Stage by enforcing a strict vertical lock with `minmax(0, 1fr)` and internal island scrollbars. The 3D world is now perfectly framed and "locked" within the screen at 100% zoom.
+Last activity: 2026-03-29 -- Refined Developer Workspace layout and fixed Mob Lab viewport overflow.
 
 Progress: [##########] 100%
 

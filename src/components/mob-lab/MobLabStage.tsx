@@ -64,7 +64,7 @@ function MobLabScene({
         far={100}
         position={preset.stage.cameraPosition}
         onUpdate={(camera) => {
-          camera.lookAt(stageTarget[0], stageTarget[1], stageTarget[2]);
+          camera.lookAt(stageTarget[0], 0, stageTarget[2]);
           camera.updateProjectionMatrix();
         }}
       />
@@ -86,7 +86,7 @@ function MobLabScene({
         maxPolarAngle={Math.PI / 2.05}
         minDistance={2.2}
         minPolarAngle={Math.PI / 5}
-        target={stageTarget}
+        target={[stageTarget[0], 0, stageTarget[2]]}
       />
     </>
   );
