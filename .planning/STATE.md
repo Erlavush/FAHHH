@@ -73,6 +73,7 @@ Progress: [##########] 100%
 | 260329-jyj | Document Synchronization (v1.1) | Updated public and internal documentation to accurately reflect the Firebase foundation, Phase 11 UI overhauls, and Pacman integration. |
 | QT-14 | HUD Layout Hardcoding | Hardcoded the user's specific ideal HUD layout as the new application default in PlayerActionDock.tsx. |
 | QT-15 | Favicon 404 Fix | Injected an SVG house icon into index.html to resolve console errors. |
+| QT-16 | Perfect Responsive HUD Scaling | Overhauled dynamic scaling and layout positioning for all HUD components to ensure readability and correct stacking on all screen sizes. |
 
 ## Milestone Archive
 
