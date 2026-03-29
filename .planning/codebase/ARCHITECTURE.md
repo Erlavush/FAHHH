@@ -18,7 +18,7 @@
 
 **Shell Layer:**
 - Purpose: own global UI state, shared-room bootstrap, and wire gameplay surfaces together
-- Contains: toolbar, inventory, debug panel, shared-room entry/status/overlay UI, preview-studio toggles, persistence hooks
+- Contains: toolbar, Phase 11 drawer navigation (Inventory, Shop, Pet Care), debug panel, shared-room entry/status/overlay UI, preview-studio toggles, persistence hooks
 - Key files: `src/App.tsx`, `src/app/components/*`, `src/app/hooks/*`, `src/app/types.ts`
 - Depends on: domain layer and live room / preview surfaces
 - Used by: browser entry point `src/main.tsx`
@@ -49,10 +49,16 @@
 **Shared Room Runtime Flow:**
 1. Browser mounts `src/main.tsx`
 2. `src/App.tsx` loads safe local fallback sandbox state via `src/lib/devLocalState.ts`, world settings via `src/lib/devWorldSettings.ts`, and shared-room bootstrap state through `src/app/hooks/useSharedRoomRuntime.ts`
-3. If no shared-room session exists, the app renders `SharedRoomEntryShell`; if a session exists but canonical room state is still loading, the app renders `SharedRoomBlockingOverlay`
-4. Create, join, load, and commit requests flow through `src/lib/sharedRoomClient.ts` into the Phase 1 Vite middleware and file-backed shared-room store
-5. Once the canonical room document arrives, `src/App.tsx` adopts the shared `RoomState` and shared coins while keeping transient drag state, camera state, player state, and authoring persistence local
-6. `src/components/RoomView.tsx` continues to compose room-view hooks and scene layers, but only committed placement changes route back through the shared-room store
+3. If `VITE_APP_MODE=showcase` is set, the app boots into a special showcase path that seeds the local sandbox from a snapshot and disables hosted/dev shared-room bootstrap.
+4. If no shared-room session exists, the app renders `SharedRoomEntryShell`; if a session exists but canonical room state is still loading, the app renders `SharedRoomBlockingOverlay`
+5. Create, join, load, and commit requests flow through `src/lib/sharedRoomClient.ts` into the Firebase/Firestore/RTDB backend.
+6. Once the canonical room document arrives, `src/App.tsx` adopts the shared `RoomState` and shared coins while keeping transient drag state, camera state, player state, and authoring persistence local
+7. `src/components/RoomView.tsx` continues to compose room-view hooks and scene layers, but only committed placement changes route back through the shared-room store
+
+**Minigame Integration:**
+1. Desk PC interactions trigger the minigame shell
+2. QT-13 replaced the legacy PC Runner with a Pacman integration
+3. Legacy `pc_runner` progression is automatically migrated to the new `pacman` schema
 
 **Preview Studio / Mob Lab Flow:**
 1. `src/App.tsx` lazy-loads `src/components/FurniturePreviewStudio.tsx`

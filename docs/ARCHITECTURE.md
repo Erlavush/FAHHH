@@ -335,10 +335,14 @@ This is now part of the architecture, not just incidental build config.
 
 ## Future Boundary
 
-The repo no longer carries an active Firebase/auth/pairing implementation as a parallel runtime path.
+The repo now carries an active Firebase/auth/pairing implementation as the primary runtime path.
+
+The shared-room runtime is bootstrapped through `src/app/hooks/useSharedRoomRuntime.ts`, which orchestrates:
+- Firebase Auth for player identity
+- Firestore for canonical room and memory persistence
+- Realtime Database (RTDB) for ephemeral partner presence and edit locks
 
 Future shared-room work should:
-
 - extend the current registry-driven room model
 - preserve `ownedFurniture`, pets, and sandbox progression concepts
 - add backend sync around confirmed room edits rather than replacing the local schema wholesale

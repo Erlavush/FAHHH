@@ -4,24 +4,24 @@ A browser-first cozy couple-room sandbox and authoring playground built with Rea
 
 ## What This Repo Is Right Now
 
-The active product in this repository is a `local solo sandbox` plus an in-app content studio.
-
-It is not the full paired multiplayer game yet.
+The active product in this repository is an `online hosted foundation` for the shared-room experience.
 
 What already works in the current runtime:
 
 - a single-room 3D sandbox with Minecraft-skin-compatible avatars
+- **pairing into one shared room** with Firebase-backed sync and partner presence
+- **Phase 11 drawer navigation** (Inventory, Shop, and Pet Care)
 - build mode with floor, wall, and surface placement
 - inventory ownership with stored-vs-placed furniture
 - coin-based furniture buying and selling
 - four-wall wall decor and window placement
-- drag-across-wall editing for wall decor
-- confirm / cancel / store editing flow with stable gizmo controls
-- a desk PC minigame earn loop
+- **editable couple-photo frames** for shared memories
+- **breakup reset gameplay** for relationship stakes
+- **Desk PC Pacman integration** (replaces PC Runner) with progression migration
 - a real-time world clock with sun/moon lighting and post-processing
-- a temporary Pet Store plus live in-room raccoon and cat pets
+- **Shared Cats and Better Cats variant support** with care rewards
 - a dual-mode Preview Studio for furniture captures and Mob Lab look-dev
-- browser-local persistence for room data, world settings, and Mob Lab state
+- browser-local and cloud-backed persistence
 - a small performance monitor HUD for runtime FPS feedback
 
 ## Final Game Direction
@@ -100,13 +100,14 @@ cmd /c npm run build
 
 ## Current Persistence Boundary
 
-The active runtime is browser-local on purpose:
+The active runtime is an online-hosted foundation:
 
-- room/runtime data lives in `devLocalState.ts`
-- world settings and UI state live in `devWorldSettings.ts`
-- Mob Lab authoring state lives in `mobLabState.ts`
+- **Firebase Auth** owns canonical player identity
+- **Firestore** owns canonical room data and memories
+- **Realtime Database** owns ephemeral partner presence and edit locks
+- **Local Persistence** remains for world settings, UI state, and authoring data (Mob Lab)
 
-The shared-room backend, pairing, and multiplayer sync layer are future work. They are not the active runtime path in this repo.
+The shared-room backend and multiplayer sync layer are now part of the active runtime path.
 
 Known current concern:
 

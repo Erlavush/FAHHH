@@ -44,10 +44,14 @@ The intended final game is not only a room decorator. It is a shared couple-spac
 
 ## Current Product Status
 
-The repo has moved well beyond the empty-room prototype, but it is still a `local foundation`, not the complete shared-room game.
+The repo has moved well beyond the empty-room prototype and now serves as an `online hosted foundation` for the shared-room experience.
 
 ### Implemented now
 
+- pairing into one shared room
+- shared room sync and partner presence
+- editable couple-photo frames
+- breakup reset gameplay
 - local sandbox room runtime
 - build-mode editing for floor, wall, and surface items
 - registry-driven furniture system
@@ -63,13 +67,9 @@ The repo has moved well beyond the empty-room prototype, but it is still a `loca
 
 ### Still missing from the full game
 
-- pairing into one shared room
-- shared room sync and partner presence
 - level and couple streak
 - daily quests and additional minigame earn loops
-- editable couple-photo frames
 - advanced pet gameplay loops
-- breakup reset gameplay
 
 ## Game Jam MVP
 

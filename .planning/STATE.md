@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: online-foundation
 status: in_progress
 stopped_at: Phase 11 executed and verified; Phase 10 10-02 remains next for execution
-last_updated: "2026-03-28T05:08:48.5964329+08:00"
-last_activity: 2026-03-28 -- Executed and verified Phase 11 player shell inventory, shop, and pet care overhaul
+last_updated: "2026-03-29T14:30:00+08:00"
+last_activity: 2026-03-29 -- Synchronized public and internal documentation with the latest v1.1 features (online foundation, drawer navigation, Pacman integration)
 progress:
   total_phases: 8
   completed_phases: 5
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-03-28)
 
 Phase: 10
 Plan: 10-02 ready
-Status: Phase 10 Better Cats variant import remains in progress; Phase 11 player-shell inventory/shop/pet-care overhaul is complete and verified.
-Last activity: 2026-03-28 -- Executed and verified Phase 11 player shell inventory, shop, and pet care overhaul
+Status: Phase 10 Better Cats variant import remains in progress; quick task QT-13 replaced the desk PC Runner app with a Pacman desktop integration while preserving legacy progression compatibility.
+Last activity: 2026-03-29 -- Synchronized public and internal documentation with the latest v1.1 features (online foundation, drawer navigation, Pacman integration)
 
 Progress: [#######---] 67%
 
@@ -79,6 +79,10 @@ Progress: [#######---] 67%
 | QT-08 | Showcase Cat Sanctuary Loop | Added a multi-cat local roster, smarter cat behaviors, care rewards, and player-shell summaries for the March 28 demo build. |
 | QT-09 | Clock-Themed Bottom HUD Overhaul | Rebuilt the bottom player HUD around the warm pixel-art clock theme using the supplied framed container and action/stat icons. |
 | QT-10 | Performance Audit and Runtime Optimization Pass | Reduced clock-driven rerenders, localized room-stage updates, shared pet obstacle computation, and throttled heavy render quality in dense showcase scenes. |
+| QT-11 | Deployable Showcase Runtime Mode | Added an explicit VITE_APP_MODE=showcase build path that seeds the local sandbox from the current localhost Chrome snapshot and disables hosted/dev shared-room entry for public demos. |
+| QT-12 | Showcase Vercel Production Fix | Switched runtime mode detection to a static Vite env access so production bundles keep VITE_APP_MODE=showcase and no longer fall back to the local dev room flow. |
+| QT-13 | Desk PC Pacman Integration | Replaced the desktop Runner app with a Pacman app, added legacy `pc_runner` progression migration, and verified the updated minigame shell with tests plus a production build. |
+| 260329-jyj | Document Synchronization (v1.1) | Updated public and internal documentation to accurately reflect the Firebase foundation, Phase 11 UI overhauls, and Pacman integration. |
 
 ## Milestone Archive
 
@@ -129,6 +133,7 @@ Recent decisions affecting current work:
 - [Phase 11]: Player-facing inventory, shop, and pet-care surfaces should share the warm clock/HUD language while separating commerce, owned inventory, and care actions inside one drawer contract.
 - [Phase 11]: The player shell should route drawer navigation through explicit `Inventory`, `Shop`, and `Pet Care` modes rather than adding extra always-visible HUD buttons.
 - [Phase 11]: Shared-room Pet Care remains informational inside the drawer while the sandbox local-cat roster keeps direct care controls.
+- [Showcase Deploy]: Public demo builds use an explicit `VITE_APP_MODE=showcase` path that seeds the sandbox from a repo-owned snapshot and hard-disables hosted/dev shared-room bootstrap work.
 
 ### Roadmap Evolution
 
@@ -182,5 +187,7 @@ Recent decisions affecting current work:
 Last session: 2026-03-28T05:08:48.5964329+08:00
 Stopped at: Phase 11 executed and verified; execute 10-02 next
 Resume file: .planning/phases/10-better-cats-variant-import/10-02-PLAN.md
+
+
 
 
