@@ -1,6 +1,7 @@
 import { type ThreeEvent } from "@react-three/fiber";
 import { useMemo } from "react";
 import { mixColor, mixNumber } from "../../lib/worldLighting";
+import { getThemeDefinition } from "../../lib/themeRegistry";
 import {
   GRID_SIZE,
   HALF_FLOOR_SIZE,
@@ -9,6 +10,7 @@ import {
 import { createWoodFloorTexture } from "./helpers";
 
 interface FloorStageProps {
+  roomTheme: string;
   targetPosition: [number, number, number];
   onFloorMoveCommand: (event: ThreeEvent<MouseEvent>) => void;
   onFloorPointerMove: (event: ThreeEvent<PointerEvent>) => void;
@@ -21,6 +23,7 @@ interface FloorStageProps {
 }
 
 export function FloorStage({
+  roomTheme,
   targetPosition,
   onFloorMoveCommand,
   onFloorPointerMove,
@@ -31,10 +34,13 @@ export function FloorStage({
   floorSecondaryColor,
   shadowsEnabled
 }: FloorStageProps) {
+  const theme = getThemeDefinition(roomTheme);
+  const { colors } = theme;
+
   const woodTexture = useMemo(() => createWoodFloorTexture(), []);
-  const platformColor = mixColor("#1f1714", "#34261f", surfaceLightAmount);
-  const floorEdgeColor = mixColor("#825f42", "#d6a56d", surfaceLightAmount);
-  const floorLipColor = mixColor("#33241a", "#7a4a2d", surfaceLightAmount);
+  const platformColor = mixColor(colors.floorPlatform[0], colors.floorPlatform[1], surfaceLightAmount);
+  const floorEdgeColor = mixColor(colors.floorEdge[0], colors.floorEdge[1], surfaceLightAmount);
+  const floorLipColor = mixColor(colors.floorLip[0], colors.floorLip[1], surfaceLightAmount);
   const tiles = useMemo(() => {
     const nextTiles = [];
 
@@ -75,7 +81,7 @@ export function FloorStage({
         <mesh position={[0, -0.5, 0]} receiveShadow={shadowsEnabled} castShadow={shadowsEnabled}>
           <boxGeometry args={[GRID_SIZE, 1, GRID_SIZE]} />
           <meshStandardMaterial
-            color={mixColor("#70472f", "#8f5f3f", surfaceLightAmount)}
+            color={mixColor(colors.floorWood[0], colors.floorWood[1], surfaceLightAmount)}
             map={woodTexture}
             roughness={mixNumber(0.88, 0.72, surfaceLightAmount)}
             metalness={0.03}

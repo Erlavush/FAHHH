@@ -1,3 +1,4 @@
+import { useUiScale } from "../../app/hooks/useUiScale";
 import "./minecraft-clock.css";
 
 type MinecraftClockProps = {
@@ -6,6 +7,7 @@ type MinecraftClockProps = {
 };
 
 export function MinecraftClock({ label, ampm }: MinecraftClockProps) {
+  const uiScale = useUiScale();
   const detailedLabel = label.length > 5;
   const timeTextClassName = detailedLabel
     ? "minecraft-clock__time-text minecraft-clock__time-text--detailed"
@@ -15,7 +17,11 @@ export function MinecraftClock({ label, ampm }: MinecraftClockProps) {
     : "minecraft-clock__label";
 
   return (
-    <div className="minecraft-clock" aria-label={`Clock showing ${label} ${ampm}`}>
+    <div
+      className="minecraft-clock"
+      aria-label={`Clock showing ${label} ${ampm}`}
+      style={{ ["--ui-scale" as string]: uiScale.toString() }}
+    >
       <div className="minecraft-clock__frame">
         <img
           src="/icons/clock-game.png"

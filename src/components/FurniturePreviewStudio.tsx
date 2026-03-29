@@ -102,7 +102,10 @@ const PREVIEW_MODEL_FRAMES: Record<
   books: { width: 0.58, height: 0.32, depth: 0.38, targetY: 0.16 },
   poster: { width: 1.94, height: 1.54, depth: 0.06, targetY: 0 },
   wall_frame: { width: 1.46, height: 1.1, depth: 0.06, targetY: 0 },
-  rug: { width: 3.8, height: 0.06, depth: 2.6, targetY: 0.02 }
+  rug: { width: 3.8, height: 0.06, depth: 2.6, targetY: 0.02 },
+  beanbag_chair: { width: 1, height: 0.8, depth: 1, targetY: 0.4 },
+  midnight_chair: { width: 1, height: 1.18, depth: 1, targetY: 0.64 },
+  midnight_desk: { width: 2.85, height: 1.45, depth: 0.95, targetY: 0.72 }
 };
 
 function getPreviewFileName(type: FurnitureType): string {
@@ -167,6 +170,8 @@ function renderPreviewFurnitureModel(type: FurnitureType) {
     case "desk":
       return <DeskModel {...commonProps} />;
     case "chair":
+    case "beanbag_chair":
+    case "midnight_chair":
       return <ChairModel {...commonProps} />;
     case "small_table":
       return <SmallTableModel {...commonProps} />;
@@ -175,6 +180,7 @@ function renderPreviewFurnitureModel(type: FurnitureType) {
     case "wardrobe":
       return <OfficeWardrobeModel {...commonProps} />;
     case "office_desk":
+    case "midnight_desk":
       return <OfficeDeskModel {...commonProps} />;
     case "office_chair":
       return <OfficeChairModel {...commonProps} />;

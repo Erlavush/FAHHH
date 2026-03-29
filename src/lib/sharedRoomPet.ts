@@ -1,4 +1,9 @@
-import { createOwnedPetCareState, type OwnedPet } from "./pets";
+import {
+  createOwnedPetCareState,
+  type OwnedPet,
+  type PetBehaviorProfileId,
+  type OwnedPetCareState
+} from "./pets";
 import type { SharedPetLiveState } from "./sharedPresenceTypes";
 import type { Vector3Tuple } from "./roomState";
 import type { SharedRoomPetRecord } from "./sharedRoomTypes";
@@ -6,15 +11,25 @@ import type { SharedRoomPetRecord } from "./sharedRoomTypes";
 export function createSharedRoomPetRecord(
   spawnPosition: Vector3Tuple,
   actorPlayerId: string,
-  nowIso: string
+  nowIso: string,
+  options?: {
+    id?: string;
+    presetId?: string;
+    displayName?: string;
+    behaviorProfileId?: PetBehaviorProfileId;
+    care?: OwnedPetCareState;
+  }
 ): SharedRoomPetRecord {
   return {
-    id: "shared-pet-minecraft_cat",
+    id: options?.id ?? "shared-pet-minecraft_cat",
     type: "minecraft_cat",
-    presetId: "better_cat_glb",
+    presetId: options?.presetId ?? "better_cat_variant_tabby",
+    displayName: options?.displayName ?? "Shared Cat",
+    behaviorProfileId: options?.behaviorProfileId ?? "curious",
     spawnPosition: [...spawnPosition] as Vector3Tuple,
     adoptedAt: nowIso,
-    adoptedByPlayerId: actorPlayerId
+    adoptedByPlayerId: actorPlayerId,
+    care: options?.care ?? createOwnedPetCareState(nowIso)
   };
 }
 
@@ -23,7 +38,10 @@ export function cloneSharedRoomPetRecord(
 ): SharedRoomPetRecord {
   return {
     ...sharedPet,
-    spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple
+    spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple,
+    care: {
+      ...sharedPet.care
+    }
   };
 }
 
@@ -59,6 +77,29 @@ export function cloneSharedPetLiveState(
   };
 }
 
+export function migrateLegacySharedPetRecord(
+  rawPet: any,
+  nowIso: string
+): SharedRoomPetRecord {
+  const spawnPosition = (rawPet.spawnPosition || [0, 0, 0]) as Vector3Tuple;
+  let presetId = (rawPet.presetId || "better_cat_variant_tabby") as string;
+  if (presetId === "better_cat_glb") {
+    presetId = "better_cat_variant_tabby";
+  }
+
+  return {
+    id: rawPet.id || `shared-pet-minecraft_cat-${crypto.randomUUID()}`,
+    type: "minecraft_cat",
+    presetId,
+    displayName: rawPet.displayName || "Shared Cat",
+    behaviorProfileId: rawPet.behaviorProfileId || "curious",
+    spawnPosition: [...spawnPosition] as Vector3Tuple,
+    adoptedAt: rawPet.adoptedAt || nowIso,
+    adoptedByPlayerId: rawPet.adoptedByPlayerId || "legacy-system",
+    care: rawPet.care ? { ...rawPet.care } : createOwnedPetCareState(nowIso)
+  };
+}
+
 export function toRuntimeOwnedPet(sharedPet: SharedRoomPetRecord): OwnedPet {
   return {
     id: sharedPet.id,
@@ -66,9 +107,11 @@ export function toRuntimeOwnedPet(sharedPet: SharedRoomPetRecord): OwnedPet {
     presetId: sharedPet.presetId,
     acquiredFrom: "pet_shop",
     spawnPosition: [...sharedPet.spawnPosition] as Vector3Tuple,
-    displayName: "Shared Cat",
+    displayName: sharedPet.displayName,
     status: "active_room",
-    behaviorProfileId: "curious",
-    care: createOwnedPetCareState(sharedPet.adoptedAt)
+    behaviorProfileId: sharedPet.behaviorProfileId,
+    care: {
+      ...sharedPet.care
+    }
   };
 }

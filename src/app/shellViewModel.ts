@@ -114,6 +114,11 @@ const DEVELOPER_WORKSPACE_TABS: readonly DeveloperWorkspaceTabDefinition[] = [
     description: "Imported mob rig, animation, and collider authoring."
   },
   {
+    value: "content_engine",
+    label: "Content Engine",
+    description: "Visual registry editor for managing game data directly to disk."
+  },
+  {
     value: "world",
     label: "World",
     description: "Clock, lighting, camera, and world debug controls."

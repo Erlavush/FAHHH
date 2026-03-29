@@ -1,6 +1,6 @@
 import { cloneRoomState } from "../../../lib/roomState";
 import { cloneSharedRoomFrameMemories } from "../../../lib/sharedRoomMemories";
-import { cloneSharedRoomPetRecord } from "../../../lib/sharedRoomPet";
+import { cloneSharedRoomPetRecord, migrateLegacySharedPetRecord } from "../../../lib/sharedRoomPet";
 import { advanceRitualDayIfNeeded } from "../../../lib/sharedProgression";
 import type { SharedRoomDocument, SharedRoomSession } from "../../../lib/sharedRoomTypes";
 import type { SharedRoomRuntimeSnapshot } from "./runtimeTypes";
@@ -24,6 +24,16 @@ export function createSharedRoomSessionFromDocument(
 export function createSharedRoomRuntimeSnapshot(
   roomDocument: SharedRoomDocument
 ): SharedRoomRuntimeSnapshot {
+  const nowIso = new Date().toISOString();
+
+  // Migration: Legacy rooms had a single sharedPet field.
+  const rawSharedPet = (roomDocument as any).sharedPet;
+  const sharedPets = Array.isArray(roomDocument.sharedPets)
+    ? roomDocument.sharedPets.map(cloneSharedRoomPetRecord)
+    : rawSharedPet
+      ? [migrateLegacySharedPetRecord(rawSharedPet, nowIso)]
+      : [];
+
   return {
     roomId: roomDocument.roomId,
     inviteCode: roomDocument.inviteCode,
@@ -34,13 +44,11 @@ export function createSharedRoomRuntimeSnapshot(
       roomDocument.progression,
       roomDocument.memberIds,
       roomDocument.members,
-      new Date().toISOString()
+      nowIso
     ),
     roomState: cloneRoomState(roomDocument.roomState),
     frameMemories: cloneSharedRoomFrameMemories(roomDocument.frameMemories),
-    sharedPet: roomDocument.sharedPet
-      ? cloneSharedRoomPetRecord(roomDocument.sharedPet)
-      : null
+    sharedPets
   };
 }
 

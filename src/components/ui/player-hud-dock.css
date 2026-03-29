@@ -1,6 +1,6 @@
 .player-hud-dock {
-  --dock-stage-width: min(1240px, calc(100vw - 24px));
-  --dock-frame-width: min(840px, calc(100vw - 320px));
+  --dock-stage-width: 1240px;
+  --dock-frame-width: 840px;
   --dock-stage-min-height: 340px;
   --dock-frame-shadow: drop-shadow(0 14px 24px rgba(54, 28, 10, 0.42));
   display: grid;
@@ -10,6 +10,8 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  width: 1240px;
+  overflow: visible;
 }
 
 .player-hud-dock * {
@@ -23,6 +25,9 @@
   width: var(--dock-stage-width);
   min-height: var(--dock-stage-min-height);
   pointer-events: none;
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: center bottom;
+  will-change: transform;
 }
 
 .player-hud-dock--edit-mode .player-hud-dock__stage,
@@ -313,22 +318,22 @@
 }
 
 .player-hud-dock__stage-piece--build-icon {
-  left: 52px;
+  left: calc(50% - 568px); /* Equivalent to left: 52px of 1240px stage */
   bottom: 104px;
 }
 
 .player-hud-dock__stage-piece--build-plaque {
-  left: 44px;
+  left: calc(50% - 576px); /* Equivalent to left: 44px */
   bottom: 29px;
 }
 
 .player-hud-dock__stage-piece--inventory-icon {
-  right: 56px;
+  left: calc(50% + 432px); /* Calc: (1240-56-132)-620 = 432px */
   bottom: 92px;
 }
 
 .player-hud-dock__stage-piece--inventory-plaque {
-  right: 28px;
+  left: calc(50% + 442px); /* Calc: (1240-28-150)-620 = 442px */
   bottom: 29px;
 }
 
@@ -614,25 +619,7 @@
 }
 
 @media (max-width: 980px) {
-  .player-hud-dock {
-    --dock-stage-width: min(100%, calc(100vw - 16px));
-    --dock-frame-width: min(100%, calc(100vw - 16px));
-    --dock-stage-min-height: 380px;
-  }
-
-  .player-hud-dock--edit-mode .player-hud-dock__stage,
-.player-hud-dock--edit-mode .player-hud-dock__frame-wrap,
-.player-hud-dock--edit-mode .player-hud-dock__piece,
-.player-hud-dock--edit-mode .player-hud-dock__piece-center,
-.player-hud-dock--edit-mode .player-hud-dock__stage-piece,
-.player-hud-dock--edit-mode .player-hud-dock__editor-toolbar,
-.player-hud-dock--edit-mode .player-hud-dock__editor-button,
-.player-hud-dock--edit-mode .player-hud-dock__editor-select,
-.player-hud-dock--edit-mode .player-hud-dock__editor-select-control,
-.player-hud-dock--edit-mode .player-hud-dock__resize-handle {
-  pointer-events: auto;
-}
-.player-hud-dock__editor-toolbar {
+  .player-hud-dock__editor-toolbar {
     position: static;
     transform: none;
     margin-bottom: 12px;
@@ -640,19 +627,7 @@
 }
 
 @media (max-width: 640px) {
-  .player-hud-dock--edit-mode .player-hud-dock__stage,
-.player-hud-dock--edit-mode .player-hud-dock__frame-wrap,
-.player-hud-dock--edit-mode .player-hud-dock__piece,
-.player-hud-dock--edit-mode .player-hud-dock__piece-center,
-.player-hud-dock--edit-mode .player-hud-dock__stage-piece,
-.player-hud-dock--edit-mode .player-hud-dock__editor-toolbar,
-.player-hud-dock--edit-mode .player-hud-dock__editor-button,
-.player-hud-dock--edit-mode .player-hud-dock__editor-select,
-.player-hud-dock--edit-mode .player-hud-dock__editor-select-control,
-.player-hud-dock--edit-mode .player-hud-dock__resize-handle {
-  pointer-events: auto;
-}
-.player-hud-dock__editor-toolbar {
+  .player-hud-dock__editor-toolbar {
     gap: 6px;
   }
 

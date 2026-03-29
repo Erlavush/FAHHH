@@ -158,7 +158,7 @@ export async function commitRoomState({
       roomState: nextRoomState,
       progression,
       frameMemories: roomDocument.frameMemories,
-      sharedPet: roomDocument.sharedPet,
+      sharedPets: roomDocument.sharedPets,
       reason
     });
 
@@ -209,7 +209,7 @@ export async function commitRoomMutation({
       roomState: mutationResult.roomState,
       progression: mutationResult.progression,
       frameMemories: mutationResult.frameMemories,
-      sharedPet: mutationResult.sharedPet,
+      sharedPets: mutationResult.sharedPets,
       reason
     });
   }

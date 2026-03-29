@@ -9,6 +9,7 @@ type PlayerRoomShellProps = {
   topLeft?: ReactNode;
   topCenter?: ReactNode;
   topRight?: ReactNode;
+  bottomRight?: ReactNode;
   viewSwitch?: ReactNode;
 };
 
@@ -21,6 +22,7 @@ export function PlayerRoomShell({
   topLeft,
   topCenter,
   topRight,
+  bottomRight,
   viewSwitch
 }: PlayerRoomShellProps) {
   return (
@@ -33,6 +35,7 @@ export function PlayerRoomShell({
         {topRight ? <div className="player-room-shell__top-right">{topRight}</div> : null}
         {bottomLeft ? <div className="player-room-shell__bottom-left">{bottomLeft}</div> : null}
         {bottomCenter ? <div className="player-room-shell__bottom-center">{bottomCenter}</div> : null}
+        {bottomRight ? <div className="player-room-shell__bottom-right">{bottomRight}</div> : null}
         {drawer ? <div className="player-room-shell__drawer">{drawer}</div> : null}
       </div>
       {overlays ? <div className="player-room-shell__overlay-stack">{overlays}</div> : null}

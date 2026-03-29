@@ -21,6 +21,7 @@ export type DeveloperWorkspaceTab =
   | "inventory"
   | "preview_studio"
   | "mob_lab"
+  | "content_engine"
   | "world"
   | "session";
 

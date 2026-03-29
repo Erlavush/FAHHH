@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { sharedRoomDevPlugin } from "./scripts/sharedRoomDevPlugin.mjs";
+import { inAppEditorPlugin } from "./scripts/inAppEditorPlugin.mjs";
 
 function matchesPath(id, segment) {
   const windowsSegment = segment.split("/").join("\\");
@@ -8,7 +9,7 @@ function matchesPath(id, segment) {
 }
 
 export default defineConfig({
-  plugins: [react(), sharedRoomDevPlugin()],
+  plugins: [react(), sharedRoomDevPlugin(), inAppEditorPlugin()],
   resolve: {
     preserveSymlinks: true
   },

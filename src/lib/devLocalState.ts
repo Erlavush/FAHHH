@@ -123,6 +123,13 @@ function normalizeOwnedPet(value: unknown, nowIso: string): OwnedPet | null {
   }
 
   const petType = rawPet.type as PetType;
+  let presetId = rawPet.presetId as string;
+
+  // Normalize legacy Better Cats cats to the curated tabby variant baseline.
+  if (presetId === "better_cat_glb") {
+    presetId = "better_cat_variant_tabby";
+  }
+
   const rawSpawnPosition = rawPet.spawnPosition;
   const rawCare = rawPet.care;
   const care = isValidOwnedPetCareState(rawCare)
@@ -142,7 +149,7 @@ function normalizeOwnedPet(value: unknown, nowIso: string): OwnedPet | null {
   return {
     id: rawPet.id,
     type: petType,
-    presetId: rawPet.presetId,
+    presetId: presetId,
     acquiredFrom: "pet_shop",
     spawnPosition: [
       clampCoordinate(rawSpawnPosition[0]),

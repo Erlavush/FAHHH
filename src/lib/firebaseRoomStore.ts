@@ -70,7 +70,7 @@ function buildCommittedRoomDocument(
       }
     },
     frameMemories: input.frameMemories,
-    sharedPet: input.sharedPet
+    sharedPets: input.sharedPets
   });
 }
 

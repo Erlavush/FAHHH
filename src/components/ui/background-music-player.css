@@ -21,6 +21,9 @@
     inset 0 -1px 0 rgba(0, 0, 0, 0.26);
   backdrop-filter: blur(18px);
   pointer-events: auto;
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: bottom right;
+  will-change: transform;
 }
 
 .background-music-player__body {
@@ -301,46 +304,7 @@
   from {
     transform: rotate(0deg);
   }
-
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 900px) {
-  .background-music-player {
-    right: 12px;
-    bottom: 132px;
-    width: min(320px, calc(100vw - 24px));
-    gap: 12px;
-    padding: 14px;
-  }
-
-  .background-music-player__disc-button {
-    width: 82px;
-  }
-
-  .background-music-player__disc-core {
-    inset: 24px;
-  }
-}
-
-@media (max-width: 560px) {
-  .background-music-player {
-    width: min(296px, calc(100vw - 24px));
-    bottom: 118px;
-    grid-template-columns: 1fr;
-  }
-
-  .background-music-player__disc-button {
-    justify-self: end;
-  }
-
-  .background-music-player__title {
-    font-size: 16px;
-  }
-
-  .background-music-player__meta {
-    flex-wrap: wrap;
   }
 }

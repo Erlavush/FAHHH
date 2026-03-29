@@ -14,18 +14,36 @@
 - Added shared wall-frame memories, one canonical shared cat, and an explicit breakup-reset flow.
 
 **Stats:**
-- 141 files changed
-- 19,258 insertions and 1,763 deletions across the milestone git range
 - 5 phases, 15 plans, 45 task-sized execution steps
 - 2 calendar days from start to ship (2026-03-26 -> 2026-03-27)
-
-**Git range:** `feat(01-01)` -> `feat(04)`
 
 **Known gaps accepted at ship:**
 - The milestone audit remained `gaps_found` because Phases `2`, `3.1`, and `4` lacked `VERIFICATION.md`.
 - Production backend/auth is still deferred; the shipped MVP runs on the dev file-backed shared-room store.
-- Legacy sandbox validation for `wall_front` / `wall_right` remains stale, and the build still warns about large vendor chunks.
-
-**What's next:** Define the next milestone around production backend/auth, richer rituals and content, and closing the verification/process debt carried out of v1.0.
 
 ---
+
+## v1.1 Online Foundation (Shipped: 2026-03-29)
+
+**Delivered:** A multi-player online foundation with real authentication, hosted persistence, deep personalization systems, and a polished player shell.
+
+**Phases completed:** 5, 6, 6.1, 7, 8, 9, 10, 11 (24 plans total)
+
+**Key accomplishments:**
+- Moved from dev-only files to a real Firebase foundation (Google Auth, Firestore sync, Realtime Database presence).
+- Modularized the codebase, reducing critical monoliths under the 1000-line guardrail.
+- Expanded personalization from single items to multi-entry rosters (multi-cat pets, memory albums).
+- Established a coin-based economy driven by rituals (desk-PC apps) and pet care.
+- Shipped a centralized theme registry and per-room content unlock system.
+- Completely overhauled the player drawer into distinct, warm, clock-themed sections for Inventory, Shop, and Pet Care.
+- Provided a dedicated showcase build path for public static-deployment demos.
+
+**Stats:**
+- 8 phases, 24 plans, 72+ task-sized execution steps
+- 100% verification rate (all 8 phases have `VERIFICATION.md`)
+- 3 calendar days from start to ship (2026-03-27 -> 2026-03-29)
+
+**Known gaps accepted at ship:**
+- None. v1.1 satisfied all intended requirements and audit guardrails.
+
+**What's next:** Milestone v2.0 - Surface & Content Depth (Global material customization, Ceiling/Rooftop placement, and bulk asset imports).

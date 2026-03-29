@@ -1,3 +1,4 @@
+import { useUiScale } from "../../app/hooks/useUiScale";
 import {
   useEffect,
   useMemo,
@@ -110,10 +111,27 @@ function getDefaultPartState(partId: DockPartId): DockPartState {
   };
 }
 
-const DEFAULT_DOCK_LAYOUT = DOCK_PART_IDS.reduce((nextLayout, partId) => {
-  nextLayout[partId] = getDefaultPartState(partId);
-  return nextLayout;
-}, {} as DockLayout);
+const DEFAULT_DOCK_LAYOUT: DockLayout = {
+  frame: { x: 12, y: 112, scale: 1, locked: true },
+  titleLeft: { x: 124, y: 8, scale: 0.9, locked: false },
+  titleRight: { x: -112, y: 8, scale: 1.05, locked: false },
+  playerPortrait: { x: 124, y: 4, scale: 0.9, locked: false },
+  playerLabel: { x: 124, y: -8, scale: 0.95, locked: false },
+  kittyPortrait: { x: 80, y: 4, scale: 0.8, locked: false },
+  kittyLabel: { x: 76, y: -8, scale: 0.9, locked: false },
+  pupPortrait: { x: 48, y: 0, scale: 0.85, locked: false },
+  pupLabel: { x: 40, y: -8, scale: 0.95, locked: false },
+  levelIcon: { x: -12, y: 0, scale: 0.9, locked: false },
+  levelLabel: { x: -16, y: -8, scale: 1.15, locked: false },
+  coinIcon: { x: -32, y: -16, scale: 0.9, locked: false },
+  coinLabel: { x: -120, y: 64, scale: 1, locked: false },
+  statusBanner: { x: -20, y: 12, scale: 1, locked: false },
+  togetherDays: { x: 0, y: 0, scale: 1, locked: false },
+  buildIcon: { x: 180, y: -12, scale: 1.2, locked: false },
+  buildPlaque: { x: 196, y: 12, scale: 0.9, locked: false },
+  inventoryIcon: { x: -216, y: -56, scale: 1.75, locked: false },
+  inventoryPlaque: { x: -172, y: 8, scale: 0.9, locked: false }
+};
 
 function getActionCaption(action: PlayerActionDockAction | undefined, fallback: string) {
   if (!action) {
@@ -253,6 +271,8 @@ export function PlayerActionDock({
   );
 
   const [editMode, setEditMode] = useState(false);
+  const uiScale = useUiScale();
+
   const effectiveEditMode = editorVisible && editMode;
   const [selectedPartId, setSelectedPartId] = useState<DockPartId>("frame");
   const [layout, setLayout] = useState<DockLayout>(() => loadDockLayout());
@@ -468,6 +488,9 @@ export function PlayerActionDock({
     <section
       className={`player-hud-dock${effectiveEditMode ? " player-hud-dock--edit-mode" : ""}`}
       aria-label="HUD primary actions"
+      style={{
+        ["--ui-scale" as string]: uiScale.toString()
+      } as CSSProperties}
     >
       <div className="player-hud-dock__stage">
         {editorVisible ? (

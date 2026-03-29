@@ -86,7 +86,7 @@ describe("sharedRoomStore", () => {
     });
 
     expect(roomDocument.memberIds).toEqual(["player-1", "player-2"]);
-    expect(roomDocument.sharedPet).toMatchObject({
+    expect(roomDocument.sharedPets[0]).toMatchObject({
       type: "minecraft_cat"
     });
   });
@@ -117,7 +117,7 @@ describe("sharedRoomStore", () => {
       xp: 0
     });
     expect(secondJoin.frameMemories).toEqual({});
-    expect(secondJoin.sharedPet).toBeNull();
+    expect(secondJoin.sharedPets).toEqual([]);
   });
 
   it("rejects a third distinct dev profile after two partners join", () => {
@@ -298,20 +298,22 @@ describe("sharedRoomStore", () => {
           updatedByPlayerId: creatorProfile.playerId
         }
       },
-      sharedPet: createSharedRoomPetRecord(
-        [0.5, 0, 1.25],
-        creatorProfile.playerId,
-        "2026-03-26T15:00:00.000Z"
-      ),
+      sharedPets: [
+        createSharedRoomPetRecord(
+          [0.5, 0, 1.25],
+          creatorProfile.playerId,
+          "2026-03-26T15:00:00.000Z"
+        )
+      ],
       reason: "memory_and_pet"
     });
 
     expect(committedRoom.frameMemories["starter-wall-frame"]).toMatchObject({
       caption: "Our room"
     });
-    expect(committedRoom.sharedPet).toMatchObject({
+    expect(committedRoom.sharedPets[0]).toMatchObject({
       type: "minecraft_cat",
-      presetId: "better_cat_glb"
+      presetId: "better_cat_variant_tabby"
     });
   });
 });

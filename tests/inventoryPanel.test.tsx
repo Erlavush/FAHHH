@@ -113,6 +113,8 @@ function createHarnessProps(overrides: Partial<InventoryPanelHarnessProps> = {})
     onSellStoredFurniture: vi.fn(),
     onStorePet: vi.fn(),
     onToggleFurnitureInfo: vi.fn(),
+    onUnlockTheme: vi.fn(),
+    onUnlockFurniture: vi.fn(),
     openFurnitureInfoKey: null,
     ownedPetPresetIds: new Set<string>(),
     ownedPetTypes: new Set<PetType>(),
@@ -123,6 +125,8 @@ function createHarnessProps(overrides: Partial<InventoryPanelHarnessProps> = {})
     showPetCatalog: true,
     storedCats: overrides.petCatalogMode === "shared_room" ? [] : [createOwnedPet("pet-stored", "stored_roster")],
     storedInventorySections,
+    unlockedThemeIds: new Set(["starter-cozy"]),
+    unlockedFurnitureIds: new Set<FurnitureType>(["fridge", "vase"]),
     walletLabel: "Coins"
   };
 }

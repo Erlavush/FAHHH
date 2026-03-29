@@ -197,7 +197,7 @@ export function createSharedRoomInDatabase(database, input) {
     updatedAt: timestamp,
     roomState: createSharedRoomSeed(roomId, input?.sourceRoomState),
     frameMemories: {},
-    sharedPet: null
+    sharedPets: []
   });
 
   database.rooms[roomId] = roomDocument;
@@ -243,7 +243,7 @@ export function bootstrapDevSharedRoomInDatabase(database, input) {
       updatedAt: timestamp,
       roomState: createSharedRoomSeed(DEV_SHARED_ROOM_ID, input?.sourceRoomState),
       frameMemories: {},
-      sharedPet: null
+      sharedPets: []
     });
 
     database.rooms[DEV_SHARED_ROOM_ID] = roomDocument;
@@ -372,8 +372,8 @@ export function commitSharedRoomStateInDatabase(database, input) {
       }
     },
     frameMemories: input?.frameMemories ?? roomDocument.frameMemories,
-    sharedPet:
-      input?.sharedPet === undefined ? roomDocument.sharedPet : input.sharedPet
+    sharedPets:
+      input?.sharedPets === undefined ? roomDocument.sharedPets : input.sharedPets
   });
 
   database.rooms[roomDocument.roomId] = nextRoomDocument;

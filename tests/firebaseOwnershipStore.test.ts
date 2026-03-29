@@ -104,7 +104,7 @@ describe("firebaseOwnershipStore", () => {
 
     expect(roomDocument.progression.players["player-1"]).toBeTruthy();
     expect(roomDocument.progression.players["player-2"]).toBeTruthy();
-    expect(roomDocument.sharedPet).toMatchObject({
+    expect(roomDocument.sharedPets[0]).toMatchObject({
       type: "minecraft_cat",
       adoptedByPlayerId: "player-2"
     });

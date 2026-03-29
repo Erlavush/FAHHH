@@ -1,4 +1,5 @@
 import type { Vector3Tuple } from "./roomState";
+import { BETTER_CAT_VARIANTS } from "./catVariants";
 
 export type PetType = "minecraft_cat";
 export type OwnedPetSource = "pet_shop";
@@ -43,41 +44,19 @@ export const PET_REGISTRY: Record<PetType, PetDefinition> = {
     label: "Cat",
     price: 0,
     description: "A high-fidelity animated cat model using the Better Cats resource pack.",
-    presetId: "better_cat_glb"
+    presetId: "better_cat_variant_tabby"
   }
 };
 
+export const BETTER_CATS_CATALOG: PetDefinition[] = BETTER_CAT_VARIANTS.map((variant) => ({
+  ...PET_REGISTRY.minecraft_cat,
+  label: variant.label,
+  description: `A curated Better Cats variant: ${variant.label}.`,
+  presetId: variant.presetId
+}));
+
 export const SANDBOX_PET_CATALOG: PetDefinition[] = [
-  {
-    ...PET_REGISTRY.minecraft_cat,
-    label: "Classic Cat",
-    description: "The original Better Cats room companion.",
-    presetId: "better_cat_glb"
-  },
-  {
-    ...PET_REGISTRY.minecraft_cat,
-    label: "Fluffy Tabby Cat",
-    description: "Showcase Better Cats import with a fluffy body, bent ears, and a fluffy tail.",
-    presetId: "better_cat_tabby_fluffy_tail_orange_eye_grey"
-  },
-  {
-    ...PET_REGISTRY.minecraft_cat,
-    label: "Base-Ears Bobtail Cat",
-    description: "Better Cats export with a base body, base ears, and a bobtail.",
-    presetId: "better_cat_base_body_base_ears_bobtail"
-  },
-  {
-    ...PET_REGISTRY.minecraft_cat,
-    label: "Fluffy Base-Ears Cat",
-    description: "Better Cats export with a fluffy body, base ears, and a fluffy tail.",
-    presetId: "better_cat_fluffy_body_base_ears_flufftail"
-  },
-  {
-    ...PET_REGISTRY.minecraft_cat,
-    label: "Big-Ears Bobtail Cat",
-    description: "Better Cats export with a fluffy body, big ears, and a bobtail.",
-    presetId: "better_cat_fluffy_body_big_ears_bobtail"
-  }
+  ...BETTER_CATS_CATALOG
 ];
 
 export const ALL_PET_TYPES = Object.keys(PET_REGISTRY) as PetType[];

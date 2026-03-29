@@ -21,6 +21,7 @@ import type { SharedRoomFrameMemory } from "../lib/sharedRoomTypes";
 import type { OwnedPet } from "../lib/pets";
 import type {
   RoomFurniturePlacement,
+  RoomMetadata,
   Vector3Tuple
 } from "../lib/roomState";
 import { ROOM_CAMERA_TARGET } from "../lib/sceneTargets";
@@ -97,6 +98,7 @@ interface RoomViewProps {
   sceneJumpRequest: SceneJumpRequest | null;
   sharedPetAuthorityActive: boolean;
   sharedPetLiveState: SharedPetLiveState | null;
+  roomMetadata: RoomMetadata;
 }
 
 export function RoomView({
@@ -143,7 +145,8 @@ export function RoomView({
   renewEditLock,
   sceneJumpRequest,
   sharedPetAuthorityActive,
-  sharedPetLiveState
+  sharedPetLiveState,
+  roomMetadata
 }: RoomViewProps) {
   const initialCameraPositionRef = useRef(initialCameraPosition);
   const initialSceneTarget = ROOM_CAMERA_TARGET;
@@ -501,6 +504,7 @@ export function RoomView({
         />
         <WallOcclusionController onVisibilityChange={setWallVisibility} />
         <RoomShell
+          roomTheme={roomMetadata.roomTheme}
           surfaceLightAmount={roomSurfaceLightAmount}
           furniture={furniture}
           wallVisibility={wallVisibility}
@@ -513,6 +517,7 @@ export function RoomView({
           onCeilingPointerUp={handleSurfacePointerUp}
         />
         <FloorStage
+          roomTheme={roomMetadata.roomTheme}
           targetPosition={targetPosition}
           onFloorMoveCommand={handleFloorMoveCommand}
           onFloorPointerMove={handleSurfacePointerMove}

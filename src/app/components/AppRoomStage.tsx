@@ -16,6 +16,11 @@ const FurniturePreviewStudio = lazy(async () => {
   return { default: module.FurniturePreviewStudio };
 });
 
+const ContentManager = lazy(async () => {
+  const module = await import("../../components/ui/ContentManager");
+  return { default: module.ContentManager };
+});
+
 interface AppRoomStageProps {
   inventoryPanelNode: ReactNode;
   previewStudioProps: FurniturePreviewStudioProps;
@@ -37,6 +42,16 @@ export const AppRoomStage = memo(function AppRoomStage({
 
   if (workspaceTab === "inventory") {
     return <div className="developer-workspace-shell__panel-stage">{inventoryPanelNode}</div>;
+  }
+
+  if (workspaceTab === "content_engine") {
+    return (
+      <div className="developer-workspace-shell__panel-stage">
+        <Suspense fallback={<div className="preview-studio preview-studio--loading">Loading Engine...</div>}>
+          <ContentManager />
+        </Suspense>
+      </div>
+    );
   }
 
   if (workspaceTab === "preview_studio" || workspaceTab === "mob_lab") {

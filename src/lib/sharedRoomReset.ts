@@ -25,6 +25,6 @@ export function createBreakupResetMutation(
       nowIso
     ),
     frameMemories: {},
-    sharedPet: null
+    sharedPets: []
   };
 }

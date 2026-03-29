@@ -257,11 +257,9 @@ function App() {
   const displayedPets = useMemo(
     () =>
       sharedRoomActive
-        ? sharedRoomRuntime.runtimeSnapshot?.sharedPet
-          ? [toRuntimeOwnedPet(sharedRoomRuntime.runtimeSnapshot.sharedPet)]
-          : []
+        ? (sharedRoomRuntime.runtimeSnapshot?.sharedPets ?? []).map(toRuntimeOwnedPet)
         : ownedPets.filter((pet) => pet.status === "active_room"),
-    [ownedPets, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.sharedPet]
+    [ownedPets, sharedRoomActive, sharedRoomRuntime.runtimeSnapshot?.sharedPets]
   );
   const activePetCatalogEntries = useMemo(
     () =>
@@ -287,6 +285,14 @@ function App() {
     () => new Set(catsNeedingCare.map((pet) => pet.id)),
     [catsNeedingCare]
   );
+  const unlockedThemeIds = useMemo(
+    () => new Set(roomState.metadata.unlockedThemes),
+    [roomState.metadata.unlockedThemes]
+  );
+  const unlockedFurnitureIds = useMemo(
+    () => new Set(roomState.metadata.unlockedFurniture),
+    [roomState.metadata.unlockedFurniture]
+  );
   const runtimeFrameMemories = sharedRoomRuntime.runtimeSnapshot?.frameMemories ?? {};
   const selectedMemoryFrame = selectedMemoryFrameId
     ? runtimeFrameMemories[selectedMemoryFrameId] ?? null
@@ -307,7 +313,7 @@ function App() {
   });
   const sharedPetAuthorityActive =
     sharedRoomActive &&
-    Boolean(sharedRoomRuntime.runtimeSnapshot?.sharedPet) &&
+    (sharedRoomRuntime.runtimeSnapshot?.sharedPets.length ?? 0) > 0 &&
     (sharedRoomPresence.remotePresence === null ||
       sharedRoomRuntime.profile.playerId.localeCompare(
         sharedRoomRuntime.session?.partnerId ?? sharedRoomRuntime.profile.playerId
@@ -315,7 +321,7 @@ function App() {
   const effectiveSharedPetLiveState = sharedPetAuthorityActive
     ? localSharedPetState ?? sharedRoomPresence.sharedPetState
     : sharedRoomPresence.sharedPetState;
-  const sharedRuntimePetRecord = sharedRoomRuntime.runtimeSnapshot?.sharedPet ?? null;
+  const sharedRuntimePetRecord = (sharedRoomRuntime.runtimeSnapshot?.sharedPets ?? [])[0] ?? null;
 
   useEffect(() => {
     if (!sharedRoomActive || !sharedRuntimePetRecord) {
@@ -594,6 +600,9 @@ function App() {
     handleRemovePet,
     handleSellStoredFurniture,
     handleStorePet,
+    handleUnlockTheme,
+    handleUnlockFurniture,
+    handleSetTheme,
     updatePendingSpawnOwnedFurnitureIds
   } = useAppRoomActions({
     activePlayerProgression,
@@ -873,6 +882,8 @@ function App() {
         onSellStoredFurniture={handleSellStoredFurniture}
         onStorePet={handleStorePet}
         onToggleFurnitureInfo={handleToggleFurnitureInfo}
+        onUnlockTheme={handleUnlockTheme}
+        onUnlockFurniture={handleUnlockFurniture}
         openFurnitureInfoKey={openFurnitureInfoKey}
         ownedPetPresetIds={ownedPetPresetIds}
         ownedPetTypes={ownedPetTypes}
@@ -882,6 +893,8 @@ function App() {
         storedCats={sharedRoomActive ? [] : storedCats}
         showAuthoringActions={developerSurfaceVisible}
         showPetCatalog
+        unlockedThemeIds={unlockedThemeIds}
+        unlockedFurnitureIds={unlockedFurnitureIds}
         walletLabel={walletLabel}
         storedInventorySections={storedInventorySections}
       />
@@ -904,6 +917,8 @@ function App() {
       handleSellStoredFurniture,
       handleStorePet,
       handleToggleFurnitureInfo,
+      handleUnlockTheme,
+      handleUnlockFurniture,
       hoverPreviewEnabled,
       playerDrawerMode,
       inventoryByType,
@@ -915,6 +930,8 @@ function App() {
       sharedRoomActive,
       storedCats,
       storedInventorySections,
+      unlockedThemeIds,
+      unlockedFurnitureIds,
       walletLabel
     ]
   );
@@ -966,7 +983,8 @@ function App() {
       renewEditLock: sharedRoomActive ? sharedRoomPresence.renewEditLock : undefined,
       sceneJumpRequest,
       sharedPetAuthorityActive,
-      sharedPetLiveState: effectiveSharedPetLiveState
+      sharedPetLiveState: effectiveSharedPetLiveState,
+      roomMetadata: roomState.metadata
     }),
     [
       ambientMultiplier,
@@ -989,6 +1007,7 @@ function App() {
       buildModeSource,
       playerPosition,
       roomState.furniture,
+      roomState.metadata,
       runtimeFrameMemories,
       saturation,
       sceneJumpRequest,
@@ -1182,6 +1201,7 @@ function App() {
             breakupResetDialogOpen={breakupResetDialogOpen}
             breakupResetSaving={breakupResetSaving}
             catalogOpen={catalogOpen}
+            currentThemeId={roomState.metadata.roomTheme}
             displayedPcMinigameProgress={displayedPcMinigameProgress}
             displayedPlayerCoins={displayedPlayerCoins}
             handleBreakupResetConfirm={handleBreakupResetConfirm}
@@ -1190,6 +1210,7 @@ function App() {
             handlePcMinigameComplete={handlePcMinigameComplete}
             handlePlayerDockAction={handlePlayerDockAction}
             handlePlayerRoomDetailsAction={handlePlayerRoomDetailsAction}
+            handleSetTheme={handleSetTheme}
             hostedEntryFlowActive={hostedEntryFlowActive}
             inventoryPanelNode={inventoryPanelNode}
             pcMinigameActive={pcMinigameActive}
@@ -1211,11 +1232,12 @@ function App() {
             sharedRoomEntryOverlayNode={sharedRoomEntryOverlayNode}
             sharedRoomModalNode={sharedRoomModalNode}
             togetherDaysCount={togetherDaysCount}
+            unlockedThemeIds={unlockedThemeIds}
             worldTimeLabel12h={worldTimeLabel12h}
             modeSwitchNode={modeSwitchNode}
+            musicPlayerNode={<BackgroundMusicPlayer />}
           />
         )}
-        <BackgroundMusicPlayer />
         <input ref={skinInputRef} type="file" accept=".png,image/png" className="hidden-input" onChange={handleSkinFileChange} />
       </div>
     </>

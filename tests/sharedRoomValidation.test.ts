@@ -52,17 +52,21 @@ function createSharedRoomDocument() {
       }
     ],
     revision: 1,
-    sharedCoins: 50,
     seedKind: "dev-current-room" as const,
     createdAt: "2026-03-26T13:00:00.000Z",
     updatedAt: "2026-03-26T13:00:00.000Z",
-    roomState
+    roomState,
+    frameMemories: {},
+    sharedPets: []
   };
 }
 
 describe("sharedRoomValidation", () => {
   it("accepts wall_front and wall_right placements", () => {
-    const sharedRoomDocument = validateSharedRoomDocument(createSharedRoomDocument());
+    const sharedRoomDocument = validateSharedRoomDocument({
+      ...createSharedRoomDocument(),
+      sharedCoins: 50
+    });
 
     expect(sharedRoomDocument.roomState.furniture).toEqual(
       expect.arrayContaining([
@@ -113,7 +117,10 @@ describe("sharedRoomValidation", () => {
   });
 
   it("upgrades a legacy sharedCoins document into progression", () => {
-    const sharedRoomDocument = validateSharedRoomDocument(createSharedRoomDocument());
+    const sharedRoomDocument = validateSharedRoomDocument({
+      ...createSharedRoomDocument(),
+      sharedCoins: 50
+    });
 
     expect(sharedRoomDocument.progression.players["player-1"]).toMatchObject({
       coins: 50,
@@ -123,11 +130,24 @@ describe("sharedRoomValidation", () => {
     expect(sharedRoomDocument.progression.migratedFromSharedCoins).toBe(50);
   });
 
-  it("defaults missing frame memories and shared pet state", () => {
+  it("defaults missing frame memories, shared pet state, and unlocked themes", () => {
     const sharedRoomDocument = validateSharedRoomDocument(createSharedRoomDocument());
 
     expect(sharedRoomDocument.frameMemories).toEqual({});
-    expect(sharedRoomDocument.sharedPet).toBeNull();
+    expect(sharedRoomDocument.sharedPets).toEqual([]);
+    expect(sharedRoomDocument.roomState.metadata.unlockedThemes).toEqual(["starter-cozy"]);
+  });
+
+  it("preserves existing unlocked themes", () => {
+    const document = createSharedRoomDocument();
+    document.roomState.metadata.unlockedThemes = ["starter-cozy", "midnight-modern"];
+
+    const sharedRoomDocument = validateSharedRoomDocument(document);
+
+    expect(sharedRoomDocument.roomState.metadata.unlockedThemes).toEqual([
+      "starter-cozy",
+      "midnight-modern"
+    ]);
   });
 
   it("prunes memories that no longer point at a wall frame", () => {

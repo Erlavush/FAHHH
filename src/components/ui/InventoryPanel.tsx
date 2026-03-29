@@ -33,6 +33,8 @@ export type InventoryPanelProps = {
   onSellStoredFurniture: (type: FurnitureType) => void;
   onStorePet?: (petId: string) => void;
   onToggleFurnitureInfo: (key: string) => void;
+  onUnlockTheme: (themeId: string) => void;
+  onUnlockFurniture: (type: FurnitureType) => void;
   openFurnitureInfoKey: string | null;
   ownedPetPresetIds: Set<string>;
   ownedPetTypes: Set<PetType>;
@@ -43,6 +45,8 @@ export type InventoryPanelProps = {
   showPetCatalog?: boolean;
   storedCats?: OwnedPet[];
   storedInventorySections: readonly (readonly [FurnitureCatalogCategory, FurnitureDefinition[]])[];
+  unlockedThemeIds: Set<string>;
+  unlockedFurnitureIds: Set<FurnitureType>;
   walletLabel?: string;
 };
 
@@ -68,6 +72,8 @@ export function InventoryPanel({
   onSellStoredFurniture,
   onStorePet,
   onToggleFurnitureInfo,
+  onUnlockTheme,
+  onUnlockFurniture,
   openFurnitureInfoKey,
   ownedPetPresetIds,
   ownedPetTypes,
@@ -78,6 +84,8 @@ export function InventoryPanel({
   showPetCatalog = true,
   storedCats = [],
   storedInventorySections,
+  unlockedThemeIds,
+  unlockedFurnitureIds,
   walletLabel = "Coins"
 }: InventoryPanelProps) {
   const sharedPetMode = petCatalogMode === "shared_room";
@@ -121,6 +129,8 @@ export function InventoryPanel({
             onOpenMobStudio={onOpenMobStudio}
             onOpenStudio={onOpenStudio}
             onToggleFurnitureInfo={onToggleFurnitureInfo}
+            onUnlockTheme={onUnlockTheme}
+            onUnlockFurniture={onUnlockFurniture}
             openFurnitureInfoKey={openFurnitureInfoKey}
             ownedPetPresetIds={ownedPetPresetIds}
             ownedPetTypes={ownedPetTypes}
@@ -129,7 +139,10 @@ export function InventoryPanel({
             playerCoins={playerCoins}
             showAuthoringActions={showAuthoringActions}
             showPetCatalog={showPetCatalog}
-          />
+            unlockedThemeIds={unlockedThemeIds}
+            unlockedFurnitureIds={unlockedFurnitureIds}
+            />
+
         ) : null}
         {activeMode === "pet_care" ? (
           <PlayerPetCareSection

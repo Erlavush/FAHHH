@@ -421,7 +421,7 @@ export function useAppShellCallbacks({
               updatedAt: new Date().toISOString(),
               updatedByPlayerId: sharedRoomPlayerId
             }),
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           })
         );
 
@@ -452,7 +452,7 @@ export function useAppShellCallbacks({
             roomState: snapshot.roomState,
             progression: snapshot.progression,
             frameMemories: nextFrameMemories,
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           };
         }
       );

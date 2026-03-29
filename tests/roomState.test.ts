@@ -75,7 +75,8 @@ describe("roomState", () => {
         roomId: "legacy-room",
         roomTheme: "starter-cozy",
         layoutVersion: DEFAULT_ROOM_LAYOUT_VERSION,
-        unlockedFurniture: ["desk", "chair"]
+        unlockedFurniture: ["desk", "chair"],
+        unlockedThemes: ["starter-cozy"]
       },
       furniture: [
         {

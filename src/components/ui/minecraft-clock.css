@@ -13,7 +13,9 @@
   align-items: center;
   gap: 0;
   padding-top: 6px;
-  transform: translateY(-18px);
+  transform: translateY(-18px) scale(var(--ui-scale, 1));
+  transform-origin: top center;
+  will-change: transform;
 }
 
 .minecraft-clock__frame {
@@ -89,32 +91,4 @@
     0 1px 0 rgba(61, 31, 12, 0.9),
     0 0 8px rgba(255, 203, 120, 0.45),
     0 0 14px rgba(255, 167, 64, 0.22);
-}
-
-@media (max-width: 600px) {
-  .minecraft-clock__image {
-    width: 130px;
-  }
-
-  .minecraft-clock__time-text {
-    min-width: 84px;
-    gap: 4px;
-  }
-
-  .minecraft-clock__time-text--detailed {
-    min-width: 104px;
-  }
-
-  .minecraft-clock__label {
-    font-size: 1.08rem;
-  }
-
-  .minecraft-clock__label--detailed {
-    font-size: 0.92rem;
-    letter-spacing: 0.03em;
-  }
-
-  .minecraft-clock__ampm {
-    font-size: 0.4rem;
-  }
 }

@@ -108,4 +108,29 @@ describe("mobLabState", () => {
 
     expect(loadedState.presets[customPreset.id].label).toBe("Custom Cat Test");
   });
+
+  it("persists and restores variantId for Better Cats presets", () => {
+    const state = createDefaultMobLabState();
+    const customPreset = JSON.parse(JSON.stringify(state.presets.better_cat_glb)) as ImportedMobPreset;
+    const customPartId = customPreset.parts[0]?.id ?? "body";
+    customPreset.id = "custom_tabby";
+    customPreset.variantId = "tabby";
+
+    const persistedState = {
+      version: 4,
+      activeMobId: customPreset.id,
+      selectedPartByMobId: {
+        [customPreset.id]: customPartId
+      },
+      presets: {
+        [customPreset.id]: customPreset
+      }
+    };
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+
+    const loadedState = loadPersistedMobLabState();
+
+    expect(loadedState.presets[customPreset.id].variantId).toBe("tabby");
+  });
 });

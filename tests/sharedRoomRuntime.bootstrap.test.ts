@@ -80,11 +80,13 @@ describe("shared room runtime bootstrap helpers", () => {
           updatedByPlayerId: "player-1"
         }
       },
-      sharedPet: createSharedRoomPetRecord(
-        [0.5, 0, 1.25],
-        "player-1",
-        "2026-03-26T00:01:30.000Z"
-      )
+      sharedPets: [
+        createSharedRoomPetRecord(
+          [0.5, 0, 1.25],
+          "player-1",
+          "2026-03-26T00:01:30.000Z"
+        )
+      ]
     });
     const runtimeSnapshot = createSharedRoomRuntimeSnapshot(roomDocument);
 
@@ -97,9 +99,34 @@ describe("shared room runtime bootstrap helpers", () => {
     expect(runtimeSnapshot.frameMemories["starter-wall-frame"]).toMatchObject({
       caption: "Together"
     });
-    expect(runtimeSnapshot.sharedPet).toMatchObject({
+    expect(runtimeSnapshot.sharedPets[0]).toMatchObject({
       type: "minecraft_cat"
     });
+  });
+
+  it("migrates legacy shared-room documents with single sharedPet to roster", () => {
+    const legacyDocument = {
+      ...createSharedRoomDocument("player-1"),
+      sharedPet: {
+        id: "legacy-cat",
+        type: "minecraft_cat",
+        presetId: "better_cat_glb",
+        spawnPosition: [1, 0, 1],
+        adoptedAt: "2026-03-26T00:00:00.000Z",
+        adoptedByPlayerId: "player-1"
+      }
+    };
+    delete (legacyDocument as any).sharedPets;
+
+    const runtimeSnapshot = createSharedRoomRuntimeSnapshot(legacyDocument as any);
+
+    expect(runtimeSnapshot.sharedPets).toHaveLength(1);
+    expect(runtimeSnapshot.sharedPets[0]).toMatchObject({
+      id: "legacy-cat",
+      presetId: "better_cat_variant_tabby",
+      displayName: "Shared Cat"
+    });
+    expect(runtimeSnapshot.sharedPets[0].care).toBeDefined();
   });
 
   it("reconnect reload discards unconfirmed local edits by adopting the canonical room", () => {
@@ -196,15 +223,17 @@ describe("shared room runtime bootstrap helpers", () => {
     });
     const initialRoomDocument = createSharedRoomDocument(profile.playerId, {
       revision: 1,
-      sharedPet: null
+      sharedPets: []
     });
     const adoptedRoomDocument = createSharedRoomDocument(profile.playerId, {
       revision: 2,
-      sharedPet: createSharedRoomPetRecord(
-        [0.5, 0, 1.5],
-        "player-2",
-        "2026-03-26T00:02:00.000Z"
-      )
+      sharedPets: [
+        createSharedRoomPetRecord(
+          [0.5, 0, 1.5],
+          "player-2",
+          "2026-03-26T00:02:00.000Z"
+        )
+      ]
     });
     const loadSharedRoom = vi
       .fn<SharedRoomStore["loadSharedRoom"]>()
@@ -229,7 +258,7 @@ describe("shared room runtime bootstrap helpers", () => {
     await mountHookHarness({ sharedRoomStore });
     await flushHookEffects();
 
-    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPet).toBeNull();
+    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPets).toHaveLength(0);
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
@@ -238,7 +267,7 @@ describe("shared room runtime bootstrap helpers", () => {
     await flushHookEffects();
 
     expect(loadSharedRoom).toHaveBeenCalledTimes(2);
-    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPet).toMatchObject({
+    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPets[0]).toMatchObject({
       id: "shared-pet-minecraft_cat"
     });
     expect(getLatestHookValue()?.runtimeSnapshot?.revision).toBe(2);

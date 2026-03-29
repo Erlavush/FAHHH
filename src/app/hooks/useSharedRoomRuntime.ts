@@ -590,7 +590,7 @@ export function useSharedRoomRuntime({
       bootstrapKind !== "room_ready" ||
       !session?.roomId ||
       !roomDocument ||
-      roomDocument.sharedPet
+      roomDocument.sharedPets.length > 0
     ) {
       return;
     }
@@ -609,7 +609,7 @@ export function useSharedRoomRuntime({
 
         if (
           nextRoomDocument.revision > roomDocument.revision ||
-          (roomDocument.sharedPet === null && nextRoomDocument.sharedPet !== null)
+          (roomDocument.sharedPets.length === 0 && nextRoomDocument.sharedPets.length > 0)
         ) {
           applyRoomDocument(nextRoomDocument);
         }

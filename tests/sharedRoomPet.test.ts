@@ -3,6 +3,7 @@ import {
   cloneSharedPetLiveState,
   createSharedRoomPetRecord,
   createSharedPetLiveState,
+  migrateLegacySharedPetRecord,
   toRuntimeOwnedPet
 } from "../src/lib/sharedRoomPet";
 import {
@@ -15,16 +16,26 @@ describe("sharedRoomPet", () => {
     const sharedPet = createSharedRoomPetRecord(
       [1.25, 0, -0.5],
       "player-1",
-      "2026-03-26T13:00:00.000Z"
+      "2026-03-26T13:00:00.000Z",
+      { presetId: "variant-a", displayName: "Miso", behaviorProfileId: "lazy" }
     );
 
     expect(sharedPet).toEqual({
       id: "shared-pet-minecraft_cat",
       type: "minecraft_cat",
-      presetId: "better_cat_glb",
+      presetId: "variant-a",
+      displayName: "Miso",
+      behaviorProfileId: "lazy",
       spawnPosition: [1.25, 0, -0.5],
       adoptedAt: "2026-03-26T13:00:00.000Z",
-      adoptedByPlayerId: "player-1"
+      adoptedByPlayerId: "player-1",
+      care: {
+        hunger: 75,
+        affection: 75,
+        energy: 75,
+        lastUpdatedAt: "2026-03-26T13:00:00.000Z",
+        lastCareActionAt: null
+      }
     });
   });
 
@@ -34,18 +45,19 @@ describe("sharedRoomPet", () => {
         createSharedRoomPetRecord(
           [0.5, 0, 1.5],
           "player-2",
-          "2026-03-26T13:00:00.000Z"
+          "2026-03-26T13:00:00.000Z",
+          { displayName: "Tofu", behaviorProfileId: "zoomies" }
         )
       )
     ).toEqual({
       id: "shared-pet-minecraft_cat",
       type: "minecraft_cat",
-      presetId: "better_cat_glb",
+      presetId: "better_cat_variant_tabby",
       acquiredFrom: "pet_shop",
       spawnPosition: [0.5, 0, 1.5],
-      displayName: "Shared Cat",
+      displayName: "Tofu",
       status: "active_room",
-      behaviorProfileId: "curious",
+      behaviorProfileId: "zoomies",
       care: {
         hunger: 75,
         affection: 75,
@@ -54,6 +66,28 @@ describe("sharedRoomPet", () => {
         lastCareActionAt: null
       }
     });
+  });
+
+  it("migrates legacy shared pet records to the new richer schema", () => {
+    const legacyPet = {
+      id: "shared-pet-minecraft_cat",
+      type: "minecraft_cat",
+      presetId: "better_cat_glb",
+      spawnPosition: [1.25, 0, -0.5],
+      adoptedAt: "2026-03-26T13:00:00.000Z",
+      adoptedByPlayerId: "player-1"
+    };
+
+    const migrated = migrateLegacySharedPetRecord(legacyPet, "2026-03-29T10:00:00Z");
+
+    expect(migrated).toMatchObject({
+      id: "shared-pet-minecraft_cat",
+      presetId: "better_cat_variant_tabby",
+      displayName: "Shared Cat",
+      behaviorProfileId: "curious"
+    });
+    expect(migrated.care.hunger).toBe(75);
+    expect(migrated.care.lastUpdatedAt).toBe("2026-03-29T10:00:00Z");
   });
 
   it("creates shared live motion state without mutating canonical pet records", () => {

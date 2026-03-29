@@ -68,6 +68,6 @@ describe("sharedRoomReset", () => {
       )
     );
     expect(mutation.frameMemories).toEqual({});
-    expect(mutation.sharedPet).toBeNull();
+    expect(mutation.sharedPets).toHaveLength(0);
   });
 });

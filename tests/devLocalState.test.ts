@@ -73,7 +73,7 @@ describe("devLocalState", () => {
     expect(loadedState.pets[0]).toMatchObject({
       id: "legacy-cat-1",
       type: "minecraft_cat",
-      presetId: "better_cat_glb",
+      presetId: "better_cat_variant_tabby",
       acquiredFrom: "pet_shop",
       spawnPosition: [0.5, 0, 1.5],
       displayName: "Cat",

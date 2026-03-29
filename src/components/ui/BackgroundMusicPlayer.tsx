@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
+import { useUiScale } from "../../app/hooks/useUiScale";
 import "./background-music-player.css";
 
 const TRACK_SOURCE = "/audio/bruno-mars-risk-it-all.mp3";
@@ -30,6 +31,7 @@ export function BackgroundMusicPlayer() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [requiresInteraction, setRequiresInteraction] = useState(false);
+  const uiScale = useUiScale();
 
   const attemptPlayback = useCallback(async () => {
     const audio = audioRef.current;
@@ -199,7 +201,11 @@ export function BackgroundMusicPlayer() {
         : "background-music-player__status--paused";
 
   return (
-    <div className="background-music-player" aria-label="Background music player">
+    <div
+      className="background-music-player"
+      aria-label="Background music player"
+      style={{ ["--ui-scale" as string]: uiScale.toString() } as CSSProperties}
+    >
       <audio ref={audioRef} src={TRACK_SOURCE} loop preload="auto" />
       <div className="background-music-player__body">
         <div className="background-music-player__copy">

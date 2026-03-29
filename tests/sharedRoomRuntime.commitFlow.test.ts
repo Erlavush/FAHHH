@@ -124,7 +124,7 @@ describe("shared room runtime commit flow", () => {
           roomState: snapshot.roomState,
           progression: nextProgression.progression,
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         };
       });
     });
@@ -217,7 +217,7 @@ describe("shared room runtime commit flow", () => {
           roomState: snapshot.roomState,
           progression: nextProgression.progression,
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         };
       });
     });
@@ -285,7 +285,7 @@ describe("shared room runtime commit flow", () => {
             roomState: snapshot.roomState,
             progression: nextProgression.progression,
             frameMemories: snapshot.frameMemories,
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           };
         });
       });
@@ -360,7 +360,7 @@ describe("shared room runtime commit flow", () => {
           roomState: snapshot.roomState,
           progression: nextProgression.progression,
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         };
       });
     });
@@ -384,7 +384,7 @@ describe("shared room runtime commit flow", () => {
           roomState: snapshot.roomState,
           progression: nextProgression.progression,
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         };
       });
     });
@@ -509,7 +509,7 @@ describe("shared room runtime commit flow", () => {
           roomState: snapshot.roomState,
           progression: nextProgression.progression,
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         };
       });
     });
@@ -577,7 +577,7 @@ describe("shared room runtime commit flow", () => {
             roomState: snapshot.roomState,
             progression: nextProgression.progression,
             frameMemories: snapshot.frameMemories,
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           };
         });
       });
@@ -717,11 +717,13 @@ describe("shared room runtime commit flow", () => {
           updatedByPlayerId: profile.playerId
         }
       },
-      sharedPet: createSharedRoomPetRecord(
-        [0.5, 0, 1.5],
-        profile.playerId,
-        "2026-03-26T05:00:00.000Z"
-      )
+      sharedPets: [
+        createSharedRoomPetRecord(
+          [0.5, 0, 1.5],
+          profile.playerId,
+          "2026-03-26T05:00:00.000Z"
+        )
+      ]
     });
     const latestRoomDocument = createSharedRoomDocument(profile.playerId, {
       revision: 4,
@@ -734,11 +736,13 @@ describe("shared room runtime commit flow", () => {
           updatedByPlayerId: "player-2"
         }
       },
-      sharedPet: createSharedRoomPetRecord(
-        [1.25, 0, -0.5],
-        "player-2",
-        "2026-03-26T05:05:00.000Z"
-      )
+      sharedPets: [
+        createSharedRoomPetRecord(
+          [1.25, 0, -0.5],
+          "player-2",
+          "2026-03-26T05:05:00.000Z"
+        )
+      ]
     });
     const resetMutation = createBreakupResetMutation(
       latestRoomDocument,
@@ -793,6 +797,6 @@ describe("shared room runtime commit flow", () => {
     expect(getLatestHookValue()?.runtimeSnapshot?.revision).toBe(5);
     expect(getLatestHookValue()?.runtimeSnapshot?.roomId).toBe(initialRoomDocument.roomId);
     expect(getLatestHookValue()?.runtimeSnapshot?.frameMemories).toEqual({});
-    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPet).toBeNull();
+    expect(getLatestHookValue()?.runtimeSnapshot?.sharedPets).toHaveLength(0);
   });
 });

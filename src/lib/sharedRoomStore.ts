@@ -36,7 +36,7 @@ export interface CommitSharedRoomStateInput {
   roomState: RoomState;
   progression: SharedRoomProgressionState;
   frameMemories: Record<string, SharedRoomFrameMemory>;
-  sharedPet: SharedRoomPetRecord | null;
+  sharedPets: SharedRoomPetRecord[];
   reason: string;
 }
 

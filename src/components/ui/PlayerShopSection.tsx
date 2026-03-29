@@ -4,6 +4,7 @@ import type {
   FurnitureDefinition,
   FurnitureType
 } from "../../lib/furnitureRegistry";
+import { THEME_REGISTRY } from "../../lib/themeRegistry";
 import type { PetDefinition, PetType } from "../../lib/pets";
 import { FurnitureInfoControl } from "./FurnitureInfoControl";
 import { FurniturePreviewThumb } from "./FurniturePreviewThumb";
@@ -19,6 +20,8 @@ type PlayerShopSectionProps = {
   onOpenMobStudio: (presetId: string) => void;
   onOpenStudio: (type: FurnitureType) => void;
   onToggleFurnitureInfo: (key: string) => void;
+  onUnlockTheme: (themeId: string) => void;
+  onUnlockFurniture: (type: FurnitureType) => void;
   openFurnitureInfoKey: string | null;
   ownedPetPresetIds: Set<string>;
   ownedPetTypes: Set<PetType>;
@@ -27,6 +30,8 @@ type PlayerShopSectionProps = {
   playerCoins: number;
   showAuthoringActions: boolean;
   showPetCatalog: boolean;
+  unlockedThemeIds: Set<string>;
+  unlockedFurnitureIds: Set<FurnitureType>;
 };
 
 export function PlayerShopSection({
@@ -40,6 +45,8 @@ export function PlayerShopSection({
   onOpenMobStudio,
   onOpenStudio,
   onToggleFurnitureInfo,
+  onUnlockTheme,
+  onUnlockFurniture,
   openFurnitureInfoKey,
   ownedPetPresetIds,
   ownedPetTypes,
@@ -47,7 +54,9 @@ export function PlayerShopSection({
   petCatalogMode,
   playerCoins,
   showAuthoringActions,
-  showPetCatalog
+  showPetCatalog,
+  unlockedThemeIds,
+  unlockedFurnitureIds
 }: PlayerShopSectionProps) {
   const sharedPetMode = petCatalogMode === "shared_room";
 
@@ -133,12 +142,68 @@ export function PlayerShopSection({
       ) : null}
 
       <section className="spawn-subsection">
+        <span className="spawn-subsection__title">Room Themes</span>
+        <div className="spawn-grid">
+          {Object.values(THEME_REGISTRY).map((theme) => {
+            const alreadyUnlocked = unlockedThemeIds.has(theme.id);
+            const canAffordPurchase = playerCoins >= theme.price;
+
+            return (
+              <div key={`theme-${theme.id}`} className="spawn-card">
+                <div
+                  className="spawn-card__preview spawn-card__preview--theme"
+                  style={{
+                    "--theme-dark": theme.colors.wall[0],
+                    "--theme-light": theme.colors.wall[1]
+                  } as React.CSSProperties}
+                >
+                  <div className="spawn-card__preview-fallback">
+                    <span style={{ color: "white", textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+                      {theme.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="spawn-card__content">
+                  <div className="spawn-card__header-row">
+                    <strong>{theme.label}</strong>
+                    <span className="spawn-card__price">{theme.price} coins</span>
+                  </div>
+                  <div className="spawn-card__stats">
+                    <span className="spawn-card__stat">
+                      {alreadyUnlocked ? "Unlocked" : "Available"}
+                    </span>
+                  </div>
+                  <span className="spawn-card__hint">{theme.shortDescription}</span>
+                  <div className="spawn-card__actions">
+                    <button
+                      className="spawn-card__button"
+                      disabled={alreadyUnlocked || !canAffordPurchase}
+                      onClick={() => onUnlockTheme(theme.id)}
+                      type="button"
+                    >
+                      {alreadyUnlocked
+                        ? "Already unlocked"
+                        : canAffordPurchase
+                          ? `Unlock for ${theme.price}`
+                          : `Need ${theme.price - playerCoins} more`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="spawn-subsection">
         <span className="spawn-subsection__title">Furniture Shop</span>
         <div className="spawn-grid">
           {catalogSections.flatMap(([sectionName, entries]) =>
             entries.map((entry) => {
+              const alreadyUnlocked = unlockedFurnitureIds.has(entry.type);
+              const buyPrice = alreadyUnlocked ? entry.price : entry.price * 2;
               const inventoryStats = inventoryByType.get(entry.type);
-              const canAffordPurchase = playerCoins >= entry.price;
+              const canAfford = playerCoins >= buyPrice;
 
               return (
                 <div key={`${sectionName}-${entry.type}`} className="spawn-card">
@@ -152,25 +217,33 @@ export function PlayerShopSection({
                   <div className="spawn-card__content">
                     <div className="spawn-card__header-row">
                       <strong>{entry.label}</strong>
-                      <span className="spawn-card__price">{entry.price} coins</span>
+                      <span className="spawn-card__price">{buyPrice} coins</span>
                     </div>
                     <div className="spawn-card__stats">
-                      <span className="spawn-card__stat">{sectionName}</span>
+                      <span className="spawn-card__stat">
+                        {alreadyUnlocked ? "Unlocked" : "Available"}
+                      </span>
                       <span className="spawn-card__stat">{inventoryStats?.storedCount ?? 0} stored</span>
                     </div>
                     <span className="spawn-card__hint">
-                      Costs {entry.price} coins. Purchased copies refund their full price for now.
+                      {alreadyUnlocked
+                        ? `Costs ${buyPrice} coins. Purchased copies refund their full price for now.`
+                        : `One-time unlock for ${buyPrice} coins. Requires level ${Math.max(1, Math.floor(buyPrice / 10))}.`}
                     </span>
                     <div className="spawn-card__actions">
                       <button
                         className="spawn-card__button"
-                        disabled={!canAffordPurchase}
-                        onClick={() => onBuyFurniture(entry.type)}
+                        disabled={!canAfford}
+                        onClick={() =>
+                          alreadyUnlocked ? onBuyFurniture(entry.type) : onUnlockFurniture(entry.type)
+                        }
                         type="button"
                       >
-                        {canAffordPurchase
-                          ? `Buy for ${entry.price}`
-                          : `Need ${entry.price - playerCoins} more`}
+                        {!canAfford
+                          ? `Need ${buyPrice - playerCoins} more`
+                          : alreadyUnlocked
+                            ? `Buy for ${buyPrice}`
+                            : `Unlock for ${buyPrice}`}
                       </button>
                       <FurnitureInfoControl
                         entry={entry}

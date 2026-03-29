@@ -20,7 +20,7 @@ export interface SharedRoomRuntimeSnapshot {
   progression: SharedRoomProgressionState;
   roomState: RoomState;
   frameMemories: Record<string, SharedRoomFrameMemory>;
-  sharedPet: SharedRoomPetRecord | null;
+  sharedPets: SharedRoomPetRecord[];
 }
 
 export interface SharedRoomBlockingState {
@@ -57,7 +57,7 @@ export type SharedRoomMutation = (
   roomState: RoomState;
   progression: SharedRoomProgressionState;
   frameMemories: Record<string, SharedRoomFrameMemory>;
-  sharedPet: SharedRoomPetRecord | null;
+  sharedPets: SharedRoomPetRecord[];
 };
 
 export interface SharedRoomRuntimeOptions {

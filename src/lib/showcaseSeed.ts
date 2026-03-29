@@ -38,7 +38,8 @@ export const SHOWCASE_SANDBOX_SEED: PersistedSandboxState = {
         "wall_frame",
         "rug",
         "floor_lamp"
-      ]
+      ],
+      "unlockedThemes": ["starter-cozy"]
     },
     "furniture": [
       {

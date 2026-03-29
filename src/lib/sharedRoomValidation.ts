@@ -18,7 +18,10 @@ import {
   pruneSharedRoomFrameMemories,
   sanitizeMemoryFrameCaption
 } from "./sharedRoomMemories";
-import { cloneSharedRoomPetRecord } from "./sharedRoomPet";
+import {
+  cloneSharedRoomPetRecord,
+  migrateLegacySharedPetRecord
+} from "./sharedRoomPet";
 import type {
   SharedPlayerProfile,
   SharedPendingPairLink,
@@ -99,6 +102,9 @@ function isValidRoomState(value: unknown): value is RoomState {
     value.metadata.unlockedFurniture.every(
       (entry) => typeof entry === "string" && entry in FURNITURE_REGISTRY
     ) &&
+    (!("unlockedThemes" in value.metadata) ||
+      (Array.isArray(value.metadata.unlockedThemes) &&
+        value.metadata.unlockedThemes.every((entry) => typeof entry === "string"))) &&
     Array.isArray(value.furniture) &&
     value.furniture.every(isValidFurniturePlacement) &&
     Array.isArray(value.ownedFurniture) &&
@@ -125,7 +131,10 @@ function isValidSharedRoomPetRecord(value: unknown): value is SharedRoomPetRecor
     isRecord(value) &&
     typeof value.id === "string" &&
     value.type === "minecraft_cat" &&
-    value.presetId === "better_cat_glb" &&
+    typeof value.presetId === "string" &&
+    typeof value.displayName === "string" &&
+    typeof value.behaviorProfileId === "string" &&
+    isRecord(value.care) &&
     Array.isArray(value.spawnPosition) &&
     value.spawnPosition.length === 3 &&
     value.spawnPosition.every((entry) => typeof entry === "number") &&
@@ -251,7 +260,8 @@ export function isValidSharedRoomDocument(value: unknown): value is SharedRoomDo
     Object.entries(value.frameMemories as Record<string, SharedRoomFrameMemory>).every(
       ([furnitureId, memory]) => memory.furnitureId === furnitureId
     ) &&
-    (value.sharedPet === null || isValidSharedRoomPetRecord(value.sharedPet)) &&
+    Array.isArray(value.sharedPets) &&
+    value.sharedPets.every(isValidSharedRoomPetRecord) &&
     memberIds.length === members.length &&
     members.every((member) => memberIds.includes(member.playerId))
   );
@@ -325,12 +335,23 @@ function normalizeSharedRoomFrameMemories(
   return pruneSharedRoomFrameMemories(normalizedFrameMemories, roomState);
 }
 
-function normalizeSharedRoomPetRecord(
-  value: Record<string, unknown>
-): SharedRoomPetRecord | null {
-  return isValidSharedRoomPetRecord(value.sharedPet)
-    ? cloneSharedRoomPetRecord(value.sharedPet)
-    : null;
+function normalizeSharedRoomPetRoster(
+  value: Record<string, unknown>,
+  nowIso: string
+): SharedRoomPetRecord[] {
+  if (Array.isArray(value.sharedPets)) {
+    return value.sharedPets
+      .filter(isValidSharedRoomPetRecord)
+      .map(cloneSharedRoomPetRecord);
+  }
+
+  // Migration: Legacy rooms had a single sharedPet field.
+  const rawSharedPet = value.sharedPet;
+  if (isRecord(rawSharedPet)) {
+    return [migrateLegacySharedPetRecord(rawSharedPet, nowIso)];
+  }
+
+  return [];
 }
 
 export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
@@ -379,7 +400,7 @@ export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
     document,
     normalizedRoomState
   );
-  const normalizedSharedPet = normalizeSharedRoomPetRecord(document);
+  const normalizedSharedPets = normalizeSharedRoomPetRoster(document, value.updatedAt);
 
   return {
     roomId: value.roomId,
@@ -393,7 +414,7 @@ export function validateSharedRoomDocument(value: unknown): SharedRoomDocument {
     updatedAt: value.updatedAt,
     roomState: normalizedRoomState,
     frameMemories: normalizedFrameMemories,
-    sharedPet: normalizedSharedPet
+    sharedPets: normalizedSharedPets
   };
 }
 

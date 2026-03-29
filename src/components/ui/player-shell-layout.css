@@ -47,6 +47,7 @@
 .player-room-shell__top-right,
 .player-room-shell__bottom-left,
 .player-room-shell__bottom-center,
+.player-room-shell__bottom-right,
 .player-room-shell__drawer {
   position: absolute;
   pointer-events: auto;
@@ -92,7 +93,10 @@
   transform: translateX(-50%);
   pointer-events: none;
 }
-
+.player-room-shell__bottom-right {
+  right: 24px;
+  bottom: 24px;
+}
 .player-room-shell__drawer {
   top: 104px;
   left: 24px;
@@ -162,11 +166,12 @@
     bottom: 132px;
   }
 
-  .player-room-shell__bottom-center {
-    left: 16px;
+  .player-room-shell__bottom-right {
     right: 16px;
-    bottom: 14px;
-    transform: none;
+    bottom: 140px;
+    left: 16px;
+    display: flex;
+    justify-content: flex-end;
   }
 
   .player-room-shell__drawer {
@@ -182,12 +187,6 @@
 @media (max-width: 640px) {
   .player-room-shell__bottom-left {
     bottom: 120px;
-  }
-
-  .player-room-shell__bottom-center {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
   }
 }
 

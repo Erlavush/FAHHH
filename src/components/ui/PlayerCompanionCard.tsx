@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUiScale } from "../../app/hooks/useUiScale";
 import type { PlayerCompanionCardState } from "../../app/shellViewModel";
 
 type PlayerCompanionCardProps = {
@@ -17,9 +18,13 @@ export function PlayerCompanionCard({
   state
 }: PlayerCompanionCardProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const uiScale = useUiScale();
 
   return (
-    <div className={`player-companion-card-shell${collapsed ? " player-companion-card-shell--collapsed" : ""}`}>
+    <div
+      className={`player-companion-card-shell${collapsed ? " player-companion-card-shell--collapsed" : ""}`}
+      style={{ ["--ui-scale" as string]: uiScale.toString() }}
+    >
       <button
         aria-label={collapsed ? "Show companion panel" : "Hide companion panel"}
         className="player-companion-card-shell__toggle"

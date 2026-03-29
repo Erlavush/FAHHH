@@ -1,5 +1,6 @@
 import {
   ALL_FURNITURE_TYPES,
+  FURNITURE_REGISTRY,
   getDefaultPlacementSurface,
   getSurfaceRotationY,
   type FurniturePlacementSurface,
@@ -35,6 +36,7 @@ export interface RoomMetadata {
   roomTheme: string;
   layoutVersion: number;
   unlockedFurniture: FurnitureType[];
+  unlockedThemes: string[];
 }
 
 export interface RoomState {
@@ -176,7 +178,10 @@ export const DEFAULT_ROOM_STATE: RoomState = {
     roomId: "local-sandbox-room",
     roomTheme: "starter-cozy",
     layoutVersion: DEFAULT_ROOM_LAYOUT_VERSION,
-    unlockedFurniture: [...ALL_FURNITURE_TYPES]
+    unlockedFurniture: ALL_FURNITURE_TYPES.filter(
+      (type) => FURNITURE_REGISTRY[type].starterUnlocked
+    ),
+    unlockedThemes: ["starter-cozy"]
   },
   furniture: STARTER_FURNITURE,
   ownedFurniture: STARTER_OWNED_FURNITURE
@@ -214,7 +219,8 @@ export function cloneRoomState(roomState: RoomState): RoomState {
   return {
     metadata: {
       ...roomState.metadata,
-      unlockedFurniture: [...roomState.metadata.unlockedFurniture]
+      unlockedFurniture: [...roomState.metadata.unlockedFurniture],
+      unlockedThemes: [...(roomState.metadata.unlockedThemes || ["starter-cozy"])]
     },
     furniture: cloneFurniturePlacements(roomState.furniture),
     ownedFurniture: cloneOwnedFurnitureItems(roomState.ownedFurniture)
@@ -271,7 +277,8 @@ export function ensureRoomStateOwnership(roomState: RoomState): RoomState {
   return {
     metadata: {
       ...roomState.metadata,
-      unlockedFurniture: [...roomState.metadata.unlockedFurniture]
+      unlockedFurniture: [...roomState.metadata.unlockedFurniture],
+      unlockedThemes: [...(roomState.metadata.unlockedThemes || ["starter-cozy"])]
     },
     furniture: normalizedPlacements,
     ownedFurniture: Array.from(ownedFurnitureMap.values()).map(cloneOwnedFurnitureItem)

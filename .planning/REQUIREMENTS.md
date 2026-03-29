@@ -30,15 +30,15 @@
 
 ### Personalization
 
-- [ ] **MEMR-02**: Couple can maintain a richer memory collection beyond a single frame or object.
-- [ ] **PETS-02**: Shared-room pet has deeper behavior such as needs, moods, or interactions that matter during room visits.
+- [x] **MEMR-02**: Couple can maintain a richer memory collection beyond a single frame or object.
+- [x] **PETS-02**: Shared-room pet has deeper behavior such as needs, moods, or interactions that matter during room visits.
 - [x] **PETS-03**: Player can adopt, keep active, and store multiple cats in one room without breaking pet persistence or room runtime.
 - [x] **PETS-04**: Cats exhibit readable room-life behavior through improved movement, mood or needs state, and sit / lick / sleep presentation.
-- [ ] **PETS-05**: Player can adopt curated Better Cats visual variants in the local room while reusing the current cat behavior/runtime and preserving persistence.
+- [x] **PETS-05**: Player can adopt curated Better Cats visual variants in the local room while reusing the current cat behavior/runtime and preserving persistence.
 
 ### Content
 
-- [ ] **CONT-01**: Room themes, decor sets, and cosmetic variants expand after the first shared loop is stable.
+- [x] **CONT-01**: Room themes, decor sets, and cosmetic variants expand after the first shared loop is stable.
 
 ### Delivery
 
@@ -50,13 +50,16 @@
 
 ## v2 Requirements
 
-### Room Architecture
+### Developer Engine
+- [ENG-01] **Visual Developer Engine**: The developer workspace must provide a UI for directly mutating game registries like furniture values and variants without code-editor intervention.
+- [ENG-02] **Local File Persistence**: Engine mutations must write directly to the local source code (e.g. `src/lib/furnitureRegistry.ts`) via Vite dev server so hot-reloading works instantly.
+- [UI-10] **UI State Persistence & Defaults**: Core developer-configurable UI layouts (windows, docks) must persist their placement, and a tool must exist to codify customized layouts into permanent application defaults.
 
+### Room Architecture
 - **ROOM-06**: Couple can place decor on ceiling and rooftop surfaces.
 - **SURF-01**: Couple can customize global room materials and colors.
 
 ### Content
-
 - **CONT-02**: Couple can access a broader library of imported furniture, decor, and pet variants without hand-curating each milestone.
 
 ## Out of Scope
@@ -80,12 +83,12 @@
 | ACTV-01 | Phase 6 | Complete |
 | ACTV-02 | Phase 9 | Complete |
 | SHELL-01 | Phase 11 | Complete |
-| MEMR-02 | Phase 7 | Pending |
-| PETS-02 | Phase 7 | Pending |
+| MEMR-02 | Phase 7 | Complete |
+| PETS-02 | Phase 7 | Complete |
 | PETS-03 | Phase 9 | Complete |
 | PETS-04 | Phase 9 | Complete |
-| PETS-05 | Phase 10 | Pending |
-| CONT-01 | Phase 8 | Pending |
+| PETS-05 | Phase 10 | Complete |
+| CONT-01 | Phase 8 | Complete |
 | CODE-01 | Phase 06.1 | Complete |
 | SHOW-01 | Phase 9 | Complete |
 
@@ -96,6 +99,6 @@
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-28 after fixing the Vercel showcase runtime env lookup for public demo builds*
+*Last updated: 2026-03-29 after completing Phase 08 Themes and Content Expansion*
 
 

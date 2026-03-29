@@ -1,4 +1,4 @@
-﻿.player-clock-chip,
+.player-clock-chip,
 .player-progress-stack__card,
 .player-room-details-sheet,
 .player-companion-card {
@@ -48,10 +48,13 @@
   position: relative;
   width: 100%;
   transition: transform 220ms ease;
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: top right;
+  will-change: transform;
 }
 
 .player-companion-card-shell--collapsed {
-  transform: translateX(calc(100% - 36px));
+  transform: translateX(calc(100% - 36px)) scale(var(--ui-scale, 1));
 }
 
 .player-companion-card-shell__toggle {
@@ -248,6 +251,37 @@
   gap: 10px;
 }
 
+.player-room-details-sheet__themes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-room-details-sheet__theme-toggle {
+  padding: 6px 12px;
+  border: 1px solid var(--player-shell-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--player-shell-ink-soft);
+  font: 700 11px/1 "Orbitron", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.player-room-details-sheet__theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--player-shell-ink);
+}
+
+.player-room-details-sheet__theme-toggle--active {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--player-shell-ink);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+}
+
 .player-room-details-sheet__danger-zone {
   display: grid;
   gap: 10px;
@@ -260,7 +294,7 @@
 
 @media (max-width: 900px) {
   .player-companion-card-shell--collapsed {
-    transform: translateX(calc(100% - 32px));
+    transform: translateX(calc(100% - 32px)) scale(var(--ui-scale, 1));
   }
 
   .player-companion-card-shell__toggle {

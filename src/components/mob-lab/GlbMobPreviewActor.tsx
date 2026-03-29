@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF, useAnimations } from "@react-three/drei";
+import { useGLTF, useAnimations, useTexture } from "@react-three/drei";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import type { AnimationAction, Group, Object3D } from "three";
+import { AnimationAction, Color, Group, NearestFilter, Object3D, SRGBColorSpace } from "three";
 import type { MobExternalMotionState } from "./MobPreviewActor";
 import {
   DEFAULT_BETTER_CAT_GLB_VARIANT,
   getBetterCatHiddenMeshNames,
   type BetterCatGlbVariantSelection
 } from "../../lib/betterCatGlb";
+import { BETTER_CAT_VARIANTS } from "../../lib/catVariants";
 import type { ImportedMobPreset } from "../../lib/mobLab";
 
 const SPECIAL_ACTION_FADE_SECONDS = 0.18;
+const TRANSPARENT_PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 type AnimationActionMap = Record<string, AnimationAction | null | undefined>;
 
@@ -151,6 +153,37 @@ export function GlbMobPreviewActor({
 
   const { actions } = useAnimations(animations, clonedScene);
   const activeActionRef = useRef<AnimationAction | null>(null);
+
+  const variant = useMemo(() => {
+    if (!preset.variantId) {
+      return null;
+    }
+    return BETTER_CAT_VARIANTS.find((v) => v.id === preset.variantId);
+  }, [preset.variantId]);
+
+  const isRealTexture = useMemo(() => {
+    return preset.textureSrc && preset.textureSrc !== "placeholder";
+  }, [preset.textureSrc]);
+
+  const textures = useTexture({
+    coat: isRealTexture ? variant?.coatTextureSrc ?? preset.textureSrc : TRANSPARENT_PIXEL,
+    eyes: variant?.eyeOverlayTextureSrc ?? TRANSPARENT_PIXEL,
+    eyesEmissive: variant?.eyeEmissiveTextureSrc ?? TRANSPARENT_PIXEL,
+    whiskers: variant?.whiskersTextureSrc ?? TRANSPARENT_PIXEL
+  });
+
+  useEffect(() => {
+    Object.values(textures).forEach((texture) => {
+      if (texture) {
+        texture.magFilter = NearestFilter;
+        texture.minFilter = NearestFilter;
+        texture.colorSpace = SRGBColorSpace;
+        texture.flipY = false;
+        texture.needsUpdate = true;
+      }
+    });
+  }, [textures]);
+
   const betterCatVariant = useMemo<BetterCatGlbVariantSelection | null>(() => {
     if (preset.betterCatVariant) {
       return preset.betterCatVariant;
@@ -192,6 +225,29 @@ export function GlbMobPreviewActor({
 
         if (hiddenBetterCatMeshNames) {
           node.visible = !hiddenBetterCatMeshNames.has(name);
+        }
+
+        if (betterCatVariant && node.material && (node.material as any).isMeshStandardMaterial) {
+          if (isRealTexture) {
+            const material = node.material.clone();
+
+            if (name.includes("eye")) {
+              material.map = textures.eyes;
+              material.emissiveMap = textures.eyesEmissive;
+              material.emissive = new Color(0xffffff);
+              material.emissiveIntensity = 1.0;
+              material.transparent = true;
+            } else if (name.includes("whisker")) {
+              material.map = textures.whiskers;
+              material.transparent = true;
+              material.alphaTest = 0.5;
+            } else {
+              material.map = textures.coat;
+            }
+
+            material.needsUpdate = true;
+            node.material = material;
+          }
         }
       }
     });

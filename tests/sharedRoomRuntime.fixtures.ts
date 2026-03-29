@@ -164,7 +164,7 @@ export function createSharedRoomDocument(
     updatedAt: overrides.updatedAt ?? "2026-03-26T00:01:30.000Z",
     roomState: overrides.roomState ?? roomState,
     frameMemories: overrides.frameMemories ?? {},
-    sharedPet: overrides.sharedPet ?? null
+    sharedPets: overrides.sharedPets ?? []
   };
 }
 

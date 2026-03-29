@@ -2,6 +2,7 @@ import { type ThreeEvent } from "@react-three/fiber";
 import { DoubleSide } from "three";
 import { useMemo } from "react";
 import { getFurnitureDefinition } from "../../lib/furnitureRegistry";
+import { getThemeDefinition } from "../../lib/themeRegistry";
 import type { RoomFurniturePlacement } from "../../lib/roomState";
 import { createWallOpeningLayout } from "../../lib/wallOpenings";
 import { mixColor } from "../../lib/worldLighting";
@@ -326,6 +327,7 @@ function SingleWall({
 }
 
 export function RoomShell({
+  roomTheme,
   surfaceLightAmount,
   furniture,
   wallVisibility,
@@ -337,6 +339,7 @@ export function RoomShell({
   onCeilingPointerMove,
   onCeilingPointerUp
 }: {
+  roomTheme: string;
   surfaceLightAmount: number;
   furniture: RoomFurniturePlacement[];
   wallVisibility: Record<string, boolean>;
@@ -348,13 +351,16 @@ export function RoomShell({
   onCeilingPointerMove: (event: ThreeEvent<PointerEvent>) => void;
   onCeilingPointerUp: () => void;
 }) {
-  const wallColor = mixColor("#28201c", "#eee6db", surfaceLightAmount);
-  const baseboardColor = mixColor("#775b46", "#8b6345", surfaceLightAmount);
-  const trimColor = mixColor("#725a48", "#f5eee3", surfaceLightAmount);
-  const wallRailColor = mixColor("#856652", "#a17856", surfaceLightAmount);
-  const cornerTrimColor = mixColor("#6d5443", "#e8dfd2", surfaceLightAmount);
-  const ceilingColor = mixColor("#43342c", "#f4efe8", surfaceLightAmount);
-  const ceilingTrimColor = mixColor("#5d493d", "#d9ccb9", surfaceLightAmount);
+  const theme = getThemeDefinition(roomTheme);
+  const { colors } = theme;
+
+  const wallColor = mixColor(colors.wall[0], colors.wall[1], surfaceLightAmount);
+  const baseboardColor = mixColor(colors.baseboard[0], colors.baseboard[1], surfaceLightAmount);
+  const trimColor = mixColor(colors.trim[0], colors.trim[1], surfaceLightAmount);
+  const wallRailColor = mixColor(colors.wallRail[0], colors.wallRail[1], surfaceLightAmount);
+  const cornerTrimColor = mixColor(colors.cornerTrim[0], colors.cornerTrim[1], surfaceLightAmount);
+  const ceilingColor = mixColor(colors.ceiling[0], colors.ceiling[1], surfaceLightAmount);
+  const ceilingTrimColor = mixColor(colors.ceilingTrim[0], colors.ceilingTrim[1], surfaceLightAmount);
 
   const walls: ("wall_back" | "wall_left" | "wall_front" | "wall_right")[] = [
     "wall_back",

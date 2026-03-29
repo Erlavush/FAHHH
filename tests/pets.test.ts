@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BETTER_CATS_CATALOG,
   cloneOwnedPet,
   countOwnedPetsByPresetId,
   countOwnedPetsByStatus,
@@ -13,19 +14,38 @@ import {
 describe("pet registry", () => {
   it("only includes cat presets for the showcase pet system", () => {
     expect(Object.keys(PET_REGISTRY)).toEqual(["minecraft_cat"]);
-    expect(PET_REGISTRY.minecraft_cat.presetId).toBe("better_cat_glb");
+    expect(PET_REGISTRY.minecraft_cat.presetId).toBe("better_cat_variant_tabby");
     expect(PET_REGISTRY.minecraft_cat.price).toBe(0);
   });
 
   it("exposes the local sandbox catalog with the checked-in Better Cats presets", () => {
     expect(SANDBOX_PET_CATALOG.map((pet) => pet.presetId)).toEqual([
-      "better_cat_glb",
-      "better_cat_tabby_fluffy_tail_orange_eye_grey",
-      "better_cat_base_body_base_ears_bobtail",
-      "better_cat_fluffy_body_base_ears_flufftail",
-      "better_cat_fluffy_body_big_ears_bobtail"
+      "better_cat_variant_tabby",
+      "better_cat_variant_red",
+      "better_cat_variant_calico",
+      "better_cat_variant_siamese",
+      "better_cat_variant_british_shorthair",
+      "better_cat_variant_ragdoll",
+      "better_cat_variant_black",
+      "better_cat_variant_white"
     ]);
     expect(SANDBOX_PET_CATALOG.every((pet) => pet.type === "minecraft_cat")).toBe(true);
+  });
+
+  it("exposes the curated Better Cats catalog for the adoption loop", () => {
+    const curatedIds = [
+      "better_cat_variant_tabby",
+      "better_cat_variant_red",
+      "better_cat_variant_calico",
+      "better_cat_variant_siamese",
+      "better_cat_variant_british_shorthair",
+      "better_cat_variant_ragdoll",
+      "better_cat_variant_black",
+      "better_cat_variant_white"
+    ];
+    expect(BETTER_CATS_CATALOG.map((p) => p.presetId)).toEqual(curatedIds);
+    expect(BETTER_CATS_CATALOG.every((p) => p.type === "minecraft_cat")).toBe(true);
+    expect(BETTER_CATS_CATALOG.every((p) => p.description.includes("A curated Better Cats variant"))).toBe(true);
   });
 
   it("creates roster-ready cat records with default care state", () => {
@@ -40,7 +60,7 @@ describe("pet registry", () => {
     expect(pet).toEqual({
       id: "pet-minecraft_cat-1",
       type: "minecraft_cat",
-      presetId: "better_cat_glb",
+      presetId: "better_cat_variant_tabby",
       acquiredFrom: "pet_shop",
       spawnPosition: [1.25, 0, -0.75],
       displayName: "Miso",

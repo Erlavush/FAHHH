@@ -145,6 +145,7 @@ function isImportedMobPreset(value: unknown): value is ImportedMobPreset {
     typeof value.id !== "string" ||
     !("label" in value) ||
     typeof value.label !== "string" ||
+    ("variantId" in value && value.variantId !== undefined && typeof value.variantId !== "string") ||
     !("textureSrc" in value) ||
     typeof value.textureSrc !== "string" ||
     ("textureSize" in value && value.textureSize !== undefined && !isTextureSize(value.textureSize)) ||

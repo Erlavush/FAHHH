@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: online-foundation
+milestone: v2.0
+milestone_name: content-depth
 status: in_progress
-stopped_at: Phase 11 executed and verified; Phase 10 10-02 remains next for execution
-last_updated: "2026-03-29T14:30:00+08:00"
-last_activity: 2026-03-29 -- Synchronized public and internal documentation with the latest v1.1 features (online foundation, drawer navigation, Pacman integration)
+stopped_at: Phase 12 verified; Phase 13 Responsive UI complete
+last_updated: "2026-03-29T20:02:00+08:00"
+last_activity: 2026-03-29 -- Implemented Dynamic UI Scaling for HUD components (Dock, Clock, Companion Card) using shared useUiScale hook.
 progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 24
-  completed_plans: 16
-  percent: 67
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 6
+  percent: 66
 ---
 
 # Project State
@@ -21,48 +21,36 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-28)
 
 **Core value:** Two partners can build and maintain a room that feels shared, earned, and emotionally meaningful.
-**Current focus:** Phase 10 - better-cats-variant-import
+**Current focus:** Phase 13 UI State Persistence & Layout Defaults
 
 ## Current Position
 
-Phase: 10
-Plan: 10-02 ready
-Status: Phase 10 Better Cats variant import remains in progress; quick task QT-13 replaced the desk PC Runner app with a Pacman desktop integration while preserving legacy progression compatibility.
-Last activity: 2026-03-29 -- Synchronized public and internal documentation with the latest v1.1 features (online foundation, drawer navigation, Pacman integration)
+Phase: 13 (In Progress - Responsive UI Complete)
+Plan: Plan 13-01 Implementation Complete
+Status: Phase 13 Responsive UI is implemented. I created a shared `useUiScale` hook and applied it to the Bottom Dock, Minecraft Clock, and Companion Card. The UI now dynamically scales based on screen width/zoom, ensuring the "perfect" layout persists proportionally on mobile and small viewports.
+Last activity: 2026-03-29 -- Implemented Dynamic UI Scaling for HUD components.
 
-Progress: [#######---] 67%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 24
 - Average duration: 0.6 session per completed plan
-- Total execution time: 9 sessions
+- Total execution time: 15 sessions
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 05 | 3/3 | 3 sessions | 1.0 session |
-| 06 | 3/3 | 2 sessions | 0.7 session |
-| 06.1 | 3/3 | 1 session | 0.3 session |
-| 07 | 0/3 | - | - |
-| 08 | 0/3 | - | - |
-| 09 | 3/3 | 1 session | 0.3 session |
-| 10 | 1/3 | 1 session | 1.0 session |
-| 11 | 3/3 | 1 session | 0.3 session |
-
-**Recent Trend:**
-
-- Latest completed phase: Phase 11 Player Shell Inventory, Shop, and Pet Care Overhaul
-- Trend: Phase 11 completed with split warm drawer surfaces and direct care shortcuts, while Phase 10 still retains the Better Cats runtime and adoption follow-up work.
+| 12 | 3/3 | 1 session | 0.3 session |
 
 ## Milestone Scope
 
-- Milestone: `v1.1 Online Foundation`
-- Goal: Move the shared-room MVP onto a real backend/auth foundation while deepening rituals, personalization, content breadth, showcase readability, curated cat-variant depth, and player-shell readability.
-- Roadmap phases: `5`, `6`, `6.1`, `7`, `8`, `9`, `10`, `11`
+- Milestone: `v2.0 Surface & Content Depth`
+- Goal: Expand customization boundaries and content volume with automated tools and new vertical/exterior builder surfaces.
+- Roadmap phases: `12`, `13`, `14` (Phase 12 Finished)
 - Planning guardrail: every phase must produce `VERIFICATION.md`
 
 ## Quick Tasks Completed
@@ -83,6 +71,8 @@ Progress: [#######---] 67%
 | QT-12 | Showcase Vercel Production Fix | Switched runtime mode detection to a static Vite env access so production bundles keep VITE_APP_MODE=showcase and no longer fall back to the local dev room flow. |
 | QT-13 | Desk PC Pacman Integration | Replaced the desktop Runner app with a Pacman app, added legacy `pc_runner` progression migration, and verified the updated minigame shell with tests plus a production build. |
 | 260329-jyj | Document Synchronization (v1.1) | Updated public and internal documentation to accurately reflect the Firebase foundation, Phase 11 UI overhauls, and Pacman integration. |
+| QT-14 | HUD Layout Hardcoding | Hardcoded the user's specific ideal HUD layout as the new application default in PlayerActionDock.tsx. |
+| QT-15 | Favicon 404 Fix | Injected an SVG house icon into index.html to resolve console errors. |
 
 ## Milestone Archive
 
@@ -134,6 +124,8 @@ Recent decisions affecting current work:
 - [Phase 11]: The player shell should route drawer navigation through explicit `Inventory`, `Shop`, and `Pet Care` modes rather than adding extra always-visible HUD buttons.
 - [Phase 11]: Shared-room Pet Care remains informational inside the drawer while the sandbox local-cat roster keeps direct care controls.
 - [Showcase Deploy]: Public demo builds use an explicit `VITE_APP_MODE=showcase` path that seeds the sandbox from a repo-owned snapshot and hard-disables hosted/dev shared-room bootstrap work.
+- [Phase 07]: Shared personalization state must be multi-entry and roster-based. `SharedRoomDocument` upgraded to `sharedPets[]` and `frameMemories` now support collections.
+- [Phase 08]: Themes and content expansion established an unlockable cosmetic loop using a centralized `THEME_REGISTRY` and metadata-tracked `unlockedThemes`.
 
 ### Roadmap Evolution
 
@@ -152,6 +144,8 @@ Recent decisions affecting current work:
 - Phase 09 completed: Showcase Cat Sanctuary now ships as a local-first demo slice with multi-cat persistence, readable behaviors, care rewards, and shell surfacing.
 - Phase 10 execution started: 10-01 now ships a repo-owned Better Cats variant manifest, imported coat assets, and a built-in preset library for Mob Lab and later runtime wiring.
 - Phase 11 completed: player shell inventory, shop, and pet care now live in warm HUD-aligned drawer surfaces with a shared-room-safe care fallback and direct shell shortcuts.
+- Phase 07 completed: Memory collection expanded to albums and the shared cat loop deepened with persisted roster, names, and care needs.
+- Phase 08 completed: Established theme registry, unlockable content loop, and "Midnight" content wave.
 
 ### Pending Todos
 
@@ -162,10 +156,10 @@ Recent decisions affecting current work:
 - [ ] [RA-02] [Balcony / Garden Exterior Surface](file:///z:/FAHHHH/.planning/todos/room-architecture/balcony-garden-exterior-surface.md)
 - [x] [RA-03] [Maintain Shadows for Occluded Walls and Roofs](file:///z:/FAHHHH/.planning/todos/room-architecture/maintain-shadows-for-occluded-surfaces.md)
 - [ ] [NV-01] [Implement Player and Pet Pathfinding](file:///z:/FAHHHH/.planning/todos/navigation/player-and-pet-pathfinding.md)
-- [ ] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
+- [x] [PS-01] [Import more cat variants](file:///z:/FAHHHH/.planning/todos/pet-system/import-better-cat-variants.md)
 - [ ] [PS-02] [Enhanced Cat Animations (Sit, Lick, Sleep)](file:///z:/FAHHHH/.planning/todos/pet-system/cat-animations-depth.md)
 - [ ] [LS-01] [Interactive Radio / Media Player](file:///z:/FAHHHH/.planning/todos/lifestyle-system/interactive-radio-media-player.md)
-- [ ] [LS-02] [Shared TV / Cinema Sync](file:///z:/FAHHHH/.planning/todos/lifestyle-system/shared-tv-cinema-sync.md)
+- [ ] [LS-02] [Shared TV / Cinema Sync](file:///z:/FAHHHH/.planning/lifestyle-system/shared-tv-cinema-sync.md)
 - [ ] [LS-03] [Shared Wardrobe / Skin Editor](file:///z:/FAHHHH/.planning/todos/lifestyle-system/shared-wardrobe-skin-editor.md)
 - [ ] [FS-01] [Functional Kitchen Interaction](file:///z:/FAHHHH/.planning/todos/furniture-system/functional-kitchen-interaction.md)
 - [ ] [AV-01] [Co-op Poses (High-five, Hug)](file:///z:/FAHHHH/.planning/todos/avatar-system/co-op-poses-interactions.md)
@@ -184,10 +178,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-28T05:08:48.5964329+08:00
-Stopped at: Phase 11 executed and verified; execute 10-02 next
-Resume file: .planning/phases/10-better-cats-variant-import/10-02-PLAN.md
-
-
-
-
+Last session: 2026-03-29T15:50:00+08:00
+Stopped at: Phase 08 verified; v1.1 Milestone Audit remains next
+Resume file: .planning/milestones/v1.1-MILESTONE-AUDIT.md

@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { getOwnedFurnitureSellPrice } from "../../lib/economy";
 import { applyCatCareAction, type CatCareActionId } from "../../lib/catCare";
-import { FURNITURE_REGISTRY, type FurnitureType } from "../../lib/furnitureRegistry";
+import { FURNITURE_REGISTRY, getFurnitureDefinition, type FurnitureType } from "../../lib/furnitureRegistry";
 import {
   applyPcMinigameResult,
   type PcDeskActivityId,
@@ -17,15 +17,11 @@ import {
   type PetDefinition
 } from "../../lib/pets";
 import { pickPetSpawnPosition } from "../../lib/petPathing";
-import {
-  applyPersonalWalletRefund,
-  applyPersonalWalletSpend,
-  applySharedActivityCompletionToProgression,
-  DESK_PC_XP_OFFSET
-} from "../../lib/sharedProgression";
+import { applyPersonalWalletRefund, applyPersonalWalletSpend, applySharedActivityCompletionToProgression, DESK_PC_XP_OFFSET } from "../../lib/sharedProgression";
 import { applyDebugWalletTarget } from "../../lib/debugWallet";
-import { createSharedRoomPetRecord } from "../../lib/sharedRoomPet";
+import { createSharedRoomPetRecord, toRuntimeOwnedPet } from "../../lib/sharedRoomPet";
 import { buildSharedRoomOwnerId } from "../../lib/sharedRoomSeed";
+import { THEME_REGISTRY } from "../../lib/themeRegistry";
 import {
   createOwnedFurnitureItem,
   getPlacedOwnedFurnitureIds,
@@ -197,7 +193,7 @@ export function useAppRoomActions({
             new Date().toISOString()
           ),
           frameMemories: snapshot.frameMemories,
-          sharedPet: snapshot.sharedPet
+          sharedPets: snapshot.sharedPets
         }));
         return;
       }
@@ -230,8 +226,9 @@ export function useAppRoomActions({
               roomState: snapshot.roomState,
               progression: nextSharedResult.progression,
               frameMemories: snapshot.frameMemories,
-              sharedPet: snapshot.sharedPet
+              sharedPets: snapshot.sharedPets
             };
+
           })
           .then(() => {
             setSharedPcResult(null);
@@ -292,7 +289,7 @@ export function useAppRoomActions({
             roomState: nextRoomState,
             progression: nextProgression,
             frameMemories: snapshot.frameMemories,
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           };
         });
         return;
@@ -330,7 +327,7 @@ export function useAppRoomActions({
           !sharedRoomPlayerId ||
           !activePlayerProgression ||
           activePlayerProgression.coins < petDefinition.price ||
-          sharedRoomRuntime.runtimeSnapshot?.sharedPet
+          sharedRoomRuntime.runtimeSnapshot?.sharedPets.some(p => p.presetId === petDefinition.presetId)
         ) {
           return;
         }
@@ -344,11 +341,18 @@ export function useAppRoomActions({
             new Date().toISOString()
           ),
           frameMemories: snapshot.frameMemories,
-          sharedPet: createSharedRoomPetRecord(
-            pickPetSpawnPosition(playerPosition, snapshot.roomState.furniture),
-            sharedRoomPlayerId,
-            new Date().toISOString()
-          )
+          sharedPets: [
+            ...snapshot.sharedPets,
+            createSharedRoomPetRecord(
+              pickPetSpawnPosition(playerPosition, snapshot.roomState.furniture),
+              sharedRoomPlayerId,
+              new Date().toISOString(),
+              {
+                presetId: petDefinition.presetId,
+                displayName: getNextPetDisplayName(type, snapshot.sharedPets.map(toRuntimeOwnedPet))
+              }
+            )
+          ]
         }));
         return;
       }
@@ -590,7 +594,7 @@ export function useAppRoomActions({
               roomState: snapshot.roomState,
               progression: snapshot.progression,
               frameMemories: snapshot.frameMemories,
-              sharedPet: snapshot.sharedPet
+              sharedPets: snapshot.sharedPets
             };
           }
 
@@ -614,7 +618,7 @@ export function useAppRoomActions({
             roomState: nextRoomState,
             progression: nextProgression,
             frameMemories: snapshot.frameMemories,
-            sharedPet: snapshot.sharedPet
+            sharedPets: snapshot.sharedPets
           };
         });
         return;
@@ -669,10 +673,204 @@ export function useAppRoomActions({
         roomState: snapshot.roomState,
         progression: nextSharedResult.progression,
         frameMemories: snapshot.frameMemories,
-        sharedPet: snapshot.sharedPet
+        sharedPets: snapshot.sharedPets
       };
+
     });
   }, [cozyRestReadyNow, sharedRoomActive, sharedRoomRuntime]);
+
+  const handleUnlockTheme = useCallback(
+    (themeId: string): void => {
+      const themeDefinition = THEME_REGISTRY[themeId];
+      if (!themeDefinition) {
+        return;
+      }
+
+      const buyPrice = themeDefinition.price;
+
+      if (sharedRoomActive) {
+        if (
+          !sharedRoomRuntime.session?.playerId ||
+          !activePlayerProgression ||
+          activePlayerProgression.coins < buyPrice ||
+          sharedRoomRuntime.runtimeSnapshot?.roomState.metadata.unlockedThemes.includes(themeId)
+        ) {
+          return;
+        }
+
+        void sharedRoomRuntime.commitRoomMutation(`unlock_theme:${themeId}`, (snapshot) => {
+          const nextProgression = applyPersonalWalletSpend(
+            snapshot.progression,
+            sharedRoomRuntime.session?.playerId ?? "",
+            buyPrice,
+            new Date().toISOString()
+          );
+          const nextRoomState = {
+            ...snapshot.roomState,
+            metadata: {
+              ...snapshot.roomState.metadata,
+              unlockedThemes: [...snapshot.roomState.metadata.unlockedThemes, themeId]
+            }
+          };
+
+          return {
+            roomState: nextRoomState,
+            progression: nextProgression,
+            frameMemories: snapshot.frameMemories,
+            sharedPets: snapshot.sharedPets
+          };
+        });
+        return;
+      }
+
+      const currentMetadata = roomStateRef.current.metadata;
+      if (
+        currentMetadata.unlockedThemes.includes(themeId) ||
+        !trySpendCoins(buyPrice)
+      ) {
+        return;
+      }
+
+      const nextRoomState = {
+        ...roomStateRef.current,
+        metadata: {
+          ...currentMetadata,
+          unlockedThemes: [...currentMetadata.unlockedThemes, themeId]
+        }
+      };
+
+      applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
+    },
+    [
+      activePlayerProgression,
+      applyLocalSharedSnapshot,
+      playerCoinsRef,
+      roomStateRef,
+      sharedRoomActive,
+      sharedRoomRuntime,
+      trySpendCoins
+    ]
+  );
+
+  const handleUnlockFurniture = useCallback(
+    (type: FurnitureType): void => {
+      const definition = getFurnitureDefinition(type);
+      if (!definition) {
+        return;
+      }
+
+      const buyPrice = Math.floor(definition.price * 2); // Unlocking costs more than buying
+
+      if (sharedRoomActive) {
+        if (
+          !sharedRoomRuntime.session?.playerId ||
+          !activePlayerProgression ||
+          activePlayerProgression.coins < buyPrice ||
+          sharedRoomRuntime.runtimeSnapshot?.roomState.metadata.unlockedFurniture.includes(type)
+        ) {
+          return;
+        }
+
+        void sharedRoomRuntime.commitRoomMutation(`unlock_furniture:${type}`, (snapshot) => {
+          const nextProgression = applyPersonalWalletSpend(
+            snapshot.progression,
+            sharedRoomRuntime.session?.playerId ?? "",
+            buyPrice,
+            new Date().toISOString()
+          );
+          const nextRoomState = {
+            ...snapshot.roomState,
+            metadata: {
+              ...snapshot.roomState.metadata,
+              unlockedFurniture: [...snapshot.roomState.metadata.unlockedFurniture, type]
+            }
+          };
+
+          return {
+            roomState: nextRoomState,
+            progression: nextProgression,
+            frameMemories: snapshot.frameMemories,
+            sharedPets: snapshot.sharedPets
+          };
+        });
+        return;
+      }
+
+      const currentMetadata = roomStateRef.current.metadata;
+      if (
+        currentMetadata.unlockedFurniture.includes(type) ||
+        !trySpendCoins(buyPrice)
+      ) {
+        return;
+      }
+
+      const nextRoomState = {
+        ...roomStateRef.current,
+        metadata: {
+          ...currentMetadata,
+          unlockedFurniture: [...currentMetadata.unlockedFurniture, type]
+        }
+      };
+
+      applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
+    },
+    [
+      activePlayerProgression,
+      applyLocalSharedSnapshot,
+      playerCoinsRef,
+      roomStateRef,
+      sharedRoomActive,
+      sharedRoomRuntime,
+      trySpendCoins
+    ]
+  );
+
+  const handleSetTheme = useCallback(
+    (themeId: string): void => {
+      if (sharedRoomActive) {
+        if (
+          !sharedRoomRuntime.session?.playerId ||
+          !sharedRoomRuntime.runtimeSnapshot?.roomState.metadata.unlockedThemes.includes(themeId)
+        ) {
+          return;
+        }
+
+        void sharedRoomRuntime.commitRoomMutation(`set_theme:${themeId}`, (snapshot) => {
+          const nextRoomState = {
+            ...snapshot.roomState,
+            metadata: {
+              ...snapshot.roomState.metadata,
+              roomTheme: themeId
+            }
+          };
+
+          return {
+            roomState: nextRoomState,
+            progression: snapshot.progression,
+            frameMemories: snapshot.frameMemories,
+            sharedPets: snapshot.sharedPets
+          };
+        });
+        return;
+      }
+
+      const currentMetadata = roomStateRef.current.metadata;
+      if (!currentMetadata.unlockedThemes.includes(themeId)) {
+        return;
+      }
+
+      const nextRoomState = {
+        ...roomStateRef.current,
+        metadata: {
+          ...currentMetadata,
+          roomTheme: themeId
+        }
+      };
+
+      applyLocalSharedSnapshot(nextRoomState, playerCoinsRef.current);
+    },
+    [applyLocalSharedSnapshot, playerCoinsRef, roomStateRef, sharedRoomActive, sharedRoomRuntime]
+  );
 
   return {
     addCoins,
@@ -690,6 +888,9 @@ export function useAppRoomActions({
     handleRemovePet,
     handleSellStoredFurniture,
     handleStorePet,
+    handleUnlockTheme,
+    handleUnlockFurniture,
+    handleSetTheme,
     trySpendCoins,
     updatePendingSpawnOwnedFurnitureIds
   };

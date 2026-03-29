@@ -1,21 +1,28 @@
 import { useState } from "react";
+import { THEME_REGISTRY } from "../../lib/themeRegistry";
 import type {
   PlayerRoomDetailsAction,
   PlayerRoomDetailsState
 } from "../../app/shellViewModel";
 
 type PlayerRoomDetailsSheetProps = {
+  currentThemeId: string;
   onAction: (id: PlayerRoomDetailsAction["id"]) => void;
   onClose: () => void;
+  onSetTheme: (themeId: string) => void;
   open: boolean;
   state: PlayerRoomDetailsState;
+  unlockedThemeIds: Set<string>;
 };
 
 export function PlayerRoomDetailsSheet({
+  currentThemeId,
   onAction,
   onClose,
+  onSetTheme,
   open,
-  state
+  state,
+  unlockedThemeIds
 }: PlayerRoomDetailsSheetProps) {
   const [copyLabel, setCopyLabel] = useState("Copy");
   const dangerAction = state.dangerAction;
@@ -78,6 +85,26 @@ export function PlayerRoomDetailsSheet({
           <code>{state.roomId}</code>
         </div>
       ) : null}
+
+      <div className="player-room-details-sheet__card">
+        <span className="player-room-details-sheet__card-label">Room theme</span>
+        <div className="player-room-details-sheet__themes-grid">
+          {Object.values(THEME_REGISTRY)
+            .filter((theme) => unlockedThemeIds.has(theme.id))
+            .map((theme) => (
+              <button
+                key={theme.id}
+                className={`player-room-details-sheet__theme-toggle ${
+                  theme.id === currentThemeId ? "player-room-details-sheet__theme-toggle--active" : ""
+                }`}
+                onClick={() => onSetTheme(theme.id)}
+                type="button"
+              >
+                {theme.label}
+              </button>
+            ))}
+        </div>
+      </div>
 
       <div className="player-room-details-sheet__card">
         <span className="player-room-details-sheet__card-label">Today's activities</span>

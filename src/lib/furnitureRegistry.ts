@@ -16,7 +16,10 @@ export type FurnitureType =
   | "floor_lamp"
   | "ceiling_light"
   | "ceiling_fan"
-  | "hanging_plant";
+  | "hanging_plant"
+  | "beanbag_chair"
+  | "midnight_chair"
+  | "midnight_desk";
 
 export type FurnitureSurfaceFamily = "floor" | "wall" | "surface" | "ceiling";
 export type FurniturePlacementSurface =
@@ -85,7 +88,11 @@ export interface FurnitureDefinition {
     | "floor_lamp"
     | "ceiling_light"
     | "ceiling_fan"
-    | "hanging_plant";
+    | "hanging_plant"
+    | "beanbag_chair"
+    | "midnight_chair"
+    | "midnight_desk";
+
   surface: FurnitureSurfaceFamily;
   footprintWidth: number;
   footprintDepth: number;
@@ -105,323 +112,424 @@ export interface FurnitureDefinition {
 }
 
 export const FURNITURE_REGISTRY: Record<FurnitureType, FurnitureDefinition> = {
-  bed: {
-    type: "bed",
-    label: "Bed",
-    price: 60,
-    shopPreviewSrc: "/shop-previews/bed.svg",
-    shortDescription: "A double bed for winding down, sleeping in, and sharing the room together.",
-    modelKey: "bed",
-    surface: "floor",
-    footprintWidth: 3,
-    footprintDepth: 4,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-bed",
-    starterUnlocked: true,
-    interactionType: "lie",
-    interactionOffset: [-0.78, 0, 0.2],
-    interactionSecondaryOffset: [0.78, 0, 0.2],
-    interactionRotationOffsetY: Math.PI,
-    interactionPoseOffset: [0, 0.84, 1],
-    interactionSecondaryPoseOffset: [0, 0.84, 1]
+  "bed": {
+    "type": "bed",
+    "label": "Bed",
+    "price": 67,
+    "shopPreviewSrc": "/shop-previews/bed.svg",
+    "shortDescription": "A double bed for winding down, sleeping in, and sharing the room together.",
+    "modelKey": "bed",
+    "surface": "floor",
+    "footprintWidth": 3,
+    "footprintDepth": 4,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-bed",
+    "starterUnlocked": true,
+    "interactionType": "lie",
+    "interactionOffset": [
+      -0.78,
+      0,
+      0.2
+    ],
+    "interactionSecondaryOffset": [
+      0.78,
+      0,
+      0.2
+    ],
+    "interactionRotationOffsetY": 3.141592653589793,
+    "interactionPoseOffset": [
+      0,
+      0.84,
+      1
+    ],
+    "interactionSecondaryPoseOffset": [
+      0,
+      0.84,
+      1
+    ]
   },
-  desk: {
-    type: "desk",
-    label: "Desk + PC",
-    price: 55,
-    shopPreviewSrc: "/shop-previews/desk.svg",
-    shortDescription: "A simple study desk with a PC setup for cozy browsing and future minigames.",
-    modelKey: "desk",
-    surface: "floor",
-    footprintWidth: 3,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-desk",
-    starterUnlocked: true,
-    interactionType: "use_pc",
-    interactionOffset: [0, 0, 1],
-    supportSurface: {
-      width: 3,
-      depth: 1,
-      height: 0.94
+  "desk": {
+    "type": "desk",
+    "label": "Desk + PC",
+    "price": 55,
+    "shopPreviewSrc": "/shop-previews/desk.svg",
+    "shortDescription": "A simple study desk with a PC setup for cozy browsing and future minigames.",
+    "modelKey": "desk",
+    "surface": "floor",
+    "footprintWidth": 3,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-desk",
+    "starterUnlocked": true,
+    "interactionType": "use_pc",
+    "interactionOffset": [
+      0,
+      0,
+      1
+    ],
+    "supportSurface": {
+      "width": 3,
+      "depth": 1,
+      "height": 0.94
     }
   },
-  chair: {
-    type: "chair",
-    label: "Chair",
-    price: 18,
-    shopPreviewSrc: "/shop-previews/chair.svg",
-    shortDescription: "A compact wooden chair that fits neatly beside desks and tables.",
-    modelKey: "chair",
-    surface: "floor",
-    footprintWidth: 1,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-chair",
-    starterUnlocked: true,
-    interactionType: "sit",
-    interactionOffset: [0, 0, 0.06]
+  "chair": {
+    "type": "chair",
+    "label": "Chair",
+    "price": 18,
+    "shopPreviewSrc": "/shop-previews/chair.svg",
+    "shortDescription": "A compact wooden chair that fits neatly beside desks and tables.",
+    "modelKey": "chair",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-chair",
+    "starterUnlocked": true,
+    "interactionType": "sit",
+    "interactionOffset": [
+      0,
+      0,
+      0.06
+    ]
   },
-  table: {
-    type: "table",
-    label: "Small Table Set",
-    price: 20,
-    shopPreviewSrc: "/shop-previews/table.svg",
-    shortDescription: "A little accent table that gives your room one more surface for decor.",
-    modelKey: "small_table",
-    surface: "floor",
-    footprintWidth: 1,
-    footprintDepth: 1,
-    defaultRotationY: Math.PI / 2,
-    category: "Accents",
-    unlockKey: "starter-small-table",
-    starterUnlocked: true,
-    supportSurface: {
-      width: 1,
-      depth: 1,
-      height: 0.81
+  "table": {
+    "type": "table",
+    "label": "Small Table Set",
+    "price": 20,
+    "shopPreviewSrc": "/shop-previews/table.svg",
+    "shortDescription": "A little accent table that gives your room one more surface for decor.",
+    "modelKey": "small_table",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 1.5707963267948966,
+    "category": "Accents",
+    "unlockKey": "starter-small-table",
+    "starterUnlocked": true,
+    "supportSurface": {
+      "width": 1,
+      "depth": 1,
+      "height": 0.81
     }
   },
-  fridge: {
-    type: "fridge",
-    label: "Refrigerator",
-    price: 45,
-    shopPreviewSrc: "/shop-previews/fridge.png",
-    shopPreviewScale: 1.18,
-    shortDescription: "A chunky fridge that makes the room feel lived-in and ready for late-night snacks.",
-    modelKey: "fridge",
-    surface: "floor",
-    footprintWidth: 1,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-fridge",
-    starterUnlocked: true,
-    supportSurface: {
-      width: 1,
-      depth: 1,
-      height: 2.1
+  "fridge": {
+    "type": "fridge",
+    "label": "Refrigerator",
+    "price": 45,
+    "shopPreviewSrc": "/shop-previews/fridge.png",
+    "shopPreviewScale": 1.18,
+    "shortDescription": "A chunky fridge that makes the room feel lived-in and ready for late-night snacks.",
+    "modelKey": "fridge",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-fridge",
+    "starterUnlocked": true,
+    "supportSurface": {
+      "width": 1,
+      "depth": 1,
+      "height": 2.1
     }
   },
-  wardrobe: {
-    type: "wardrobe",
-    label: "Wardrobe Closet",
-    price: 58,
-    shopPreviewSrc: "/shop-previews/wardrobe.svg",
-    shortDescription: "A tall wooden wardrobe that makes the room feel fuller, cozier, and more lived-in.",
-    modelKey: "wardrobe",
-    surface: "floor",
-    footprintWidth: 1.5,
-    footprintDepth: 0.9,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-wardrobe",
-    starterUnlocked: true
+  "wardrobe": {
+    "type": "wardrobe",
+    "label": "Wardrobe Closet",
+    "price": 58,
+    "shopPreviewSrc": "/shop-previews/wardrobe.svg",
+    "shortDescription": "A tall wooden wardrobe that makes the room feel fuller, cozier, and more lived-in.",
+    "modelKey": "wardrobe",
+    "surface": "floor",
+    "footprintWidth": 1.5,
+    "footprintDepth": 0.9,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-wardrobe",
+    "starterUnlocked": true
   },
-  office_desk: {
-    type: "office_desk",
-    label: "Office Desk + PC",
-    price: 72,
-    shopPreviewSrc: "/shop-previews/office-desk.png",
-    shopPreviewScale: 1.16,
-    shortDescription: "A wider work desk with a full PC setup for a more dedicated gaming corner.",
-    modelKey: "office_desk",
-    surface: "floor",
-    footprintWidth: 3,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-office-desk",
-    starterUnlocked: true,
-    interactionType: "use_pc",
-    interactionOffset: [0, 0, -1],
-    supportSurface: {
-      width: 3,
-      depth: 1,
-      height: 0.84
+  "office_desk": {
+    "type": "office_desk",
+    "label": "Office Desk + PC",
+    "price": 72,
+    "shopPreviewSrc": "/shop-previews/office-desk.png",
+    "shopPreviewScale": 1.16,
+    "shortDescription": "A wider work desk with a full PC setup for a more dedicated gaming corner.",
+    "modelKey": "office_desk",
+    "surface": "floor",
+    "footprintWidth": 3,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-office-desk",
+    "starterUnlocked": true,
+    "interactionType": "use_pc",
+    "interactionOffset": [
+      0,
+      0,
+      -1
+    ],
+    "supportSurface": {
+      "width": 3,
+      "depth": 1,
+      "height": 0.84
     }
   },
-  office_chair: {
-    type: "office_chair",
-    label: "Office Chair",
-    price: 24,
-    shopPreviewSrc: "/shop-previews/office-chair.png",
-    shopPreviewScale: 1.12,
-    shortDescription: "A rolling chair for the desk setup when you want the room to feel more complete.",
-    modelKey: "office_chair",
-    surface: "floor",
-    footprintWidth: 1,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Floor Furniture",
-    unlockKey: "starter-office-chair",
-    starterUnlocked: true,
-    interactionType: "sit",
-    interactionOffset: [0, 0.0625, -0.085]
+  "office_chair": {
+    "type": "office_chair",
+    "label": "Office Chair",
+    "price": 24,
+    "shopPreviewSrc": "/shop-previews/office-chair.png",
+    "shopPreviewScale": 1.12,
+    "shortDescription": "A rolling chair for the desk setup when you want the room to feel more complete.",
+    "modelKey": "office_chair",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "starter-office-chair",
+    "starterUnlocked": true,
+    "interactionType": "sit",
+    "interactionOffset": [
+      0,
+      0.0625,
+      -0.085
+    ]
   },
-  window: {
-    type: "window",
-    label: "Tall Window",
-    price: 28,
-    shopPreviewSrc: "/shop-previews/window.svg",
-    shortDescription: "A tall framed window that opens the wall for warm afternoon light and a softer room mood.",
-    modelKey: "window",
-    surface: "wall",
-    footprintWidth: 1.82,
-    footprintDepth: 2.02,
-    defaultRotationY: 0,
-    category: "Wall Decor",
-    unlockKey: "starter-tall-window",
-    starterUnlocked: true,
-    wallOpening: {
-      width: 1.38,
-      height: 1.72,
-      centerY: 1.82,
-      fixedVertical: true
+  "window": {
+    "type": "window",
+    "label": "Tall Window",
+    "price": 28,
+    "shopPreviewSrc": "/shop-previews/window.svg",
+    "shortDescription": "A tall framed window that opens the wall for warm afternoon light and a softer room mood.",
+    "modelKey": "window",
+    "surface": "wall",
+    "footprintWidth": 1.82,
+    "footprintDepth": 2.02,
+    "defaultRotationY": 0,
+    "category": "Wall Decor",
+    "unlockKey": "starter-tall-window",
+    "starterUnlocked": true,
+    "wallOpening": {
+      "width": 1.38,
+      "height": 1.72,
+      "centerY": 1.82,
+      "fixedVertical": true
     },
-    sunlightPatch: {
-      width: 1.9,
-      depth: 2.8,
-      offsetFromWall: 0.34
+    "sunlightPatch": {
+      "width": 1.9,
+      "depth": 2.8,
+      "offsetFromWall": 0.34
     }
   },
-  vase: {
-    type: "vase",
-    label: "Flower Vase",
-    price: 10,
-    shopPreviewSrc: "/shop-previews/vase.svg",
-    shortDescription: "A small flower vase that adds a soft, lovely touch to desks and side tables.",
-    modelKey: "vase",
-    surface: "surface",
-    footprintWidth: 0.5,
-    footprintDepth: 0.5,
-    defaultRotationY: 0,
-    category: "Surface Decor",
-    unlockKey: "starter-flower-vase",
-    starterUnlocked: true
+  "vase": {
+    "type": "vase",
+    "label": "Flower Vase",
+    "price": 10,
+    "shopPreviewSrc": "/shop-previews/vase.svg",
+    "shortDescription": "A small flower vase that adds a soft, lovely touch to desks and side tables.",
+    "modelKey": "vase",
+    "surface": "surface",
+    "footprintWidth": 0.5,
+    "footprintDepth": 0.5,
+    "defaultRotationY": 0,
+    "category": "Surface Decor",
+    "unlockKey": "starter-flower-vase",
+    "starterUnlocked": true
   },
-  books: {
-    type: "books",
-    label: "Book Stack",
-    price: 12,
-    shopPreviewSrc: "/shop-previews/books.svg",
-    shortDescription: "A tidy stack of books that makes shelves, desks, and corners feel warmer.",
-    modelKey: "books",
-    surface: "surface",
-    footprintWidth: 0.75,
-    footprintDepth: 0.5,
-    defaultRotationY: 0,
-    category: "Surface Decor",
-    unlockKey: "starter-book-stack",
-    starterUnlocked: true
+  "books": {
+    "type": "books",
+    "label": "Book Stack",
+    "price": 12,
+    "shopPreviewSrc": "/shop-previews/books.svg",
+    "shortDescription": "A tidy stack of books that makes shelves, desks, and corners feel warmer.",
+    "modelKey": "books",
+    "surface": "surface",
+    "footprintWidth": 0.75,
+    "footprintDepth": 0.5,
+    "defaultRotationY": 0,
+    "category": "Surface Decor",
+    "unlockKey": "starter-book-stack",
+    "starterUnlocked": true
   },
-  poster: {
-    type: "poster",
-    label: "Poster",
-    price: 14,
-    shopPreviewSrc: "/shop-previews/poster.svg",
-    shortDescription: "A simple wall poster to break up empty space and make the room more personal.",
-    modelKey: "poster",
-    surface: "wall",
-    footprintWidth: 1.8,
-    footprintDepth: 1.4,
-    defaultRotationY: 0,
-    category: "Wall Decor",
-    unlockKey: "starter-poster",
-    starterUnlocked: true
+  "poster": {
+    "type": "poster",
+    "label": "Poster",
+    "price": 14,
+    "shopPreviewSrc": "/shop-previews/poster.svg",
+    "shortDescription": "A simple wall poster to break up empty space and make the room more personal.",
+    "modelKey": "poster",
+    "surface": "wall",
+    "footprintWidth": 1.8,
+    "footprintDepth": 1.4,
+    "defaultRotationY": 0,
+    "category": "Wall Decor",
+    "unlockKey": "starter-poster",
+    "starterUnlocked": true
   },
-  wall_frame: {
-    type: "wall_frame",
-    label: "Wall Frame",
-    price: 18,
-    shopPreviewSrc: "/shop-previews/wall-frame.svg",
-    shortDescription: "A framed wall piece ready for memories, couple photos, and custom art later on.",
-    modelKey: "wall_frame",
-    surface: "wall",
-    footprintWidth: 1.42,
-    footprintDepth: 1.06,
-    defaultRotationY: 0,
-    category: "Wall Decor",
-    unlockKey: "starter-wall-frame",
-    starterUnlocked: true
+  "wall_frame": {
+    "type": "wall_frame",
+    "label": "Wall Frame",
+    "price": 18,
+    "shopPreviewSrc": "/shop-previews/wall-frame.svg",
+    "shortDescription": "A framed wall piece ready for memories, couple photos, and custom art later on.",
+    "modelKey": "wall_frame",
+    "surface": "wall",
+    "footprintWidth": 1.42,
+    "footprintDepth": 1.06,
+    "defaultRotationY": 0,
+    "category": "Wall Decor",
+    "unlockKey": "starter-wall-frame",
+    "starterUnlocked": true
   },
-  rug: {
-    type: "rug",
-    label: "Floor Rug",
-    price: 32,
-    shopPreviewSrc: "/shop-previews/rug.svg",
-    shortDescription: "A cozy floor rug that helps the room feel softer, warmer, and more finished.",
-    modelKey: "rug",
-    surface: "floor",
-    footprintWidth: 4,
-    footprintDepth: 3,
-    defaultRotationY: 0,
-    category: "Accents",
-    unlockKey: "starter-floor-rug",
-    starterUnlocked: true
+  "rug": {
+    "type": "rug",
+    "label": "Floor Rug",
+    "price": 32,
+    "shopPreviewSrc": "/shop-previews/rug.svg",
+    "shortDescription": "A cozy floor rug that helps the room feel softer, warmer, and more finished.",
+    "modelKey": "rug",
+    "surface": "floor",
+    "footprintWidth": 4,
+    "footprintDepth": 3,
+    "defaultRotationY": 0,
+    "category": "Accents",
+    "unlockKey": "starter-floor-rug",
+    "starterUnlocked": true
   },
-  floor_lamp: {
-    type: "floor_lamp",
-    label: "Floor Lamp",
-    price: 45,
-    shopPreviewSrc: "/shop-previews/floor-lamp.svg",
-    shortDescription: "A tall warm lamp that lights up the room during those cozy dark nights.",
-    modelKey: "floor_lamp",
-    surface: "floor",
-    footprintWidth: 1,
-    footprintDepth: 1,
-    defaultRotationY: 0,
-    category: "Accents",
-    unlockKey: "starter-floor-lamp",
-    starterUnlocked: true
+  "floor_lamp": {
+    "type": "floor_lamp",
+    "label": "Floor Lamp",
+    "price": 45,
+    "shopPreviewSrc": "/shop-previews/floor-lamp.svg",
+    "shortDescription": "A tall warm lamp that lights up the room during those cozy dark nights.",
+    "modelKey": "floor_lamp",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Accents",
+    "unlockKey": "starter-floor-lamp",
+    "starterUnlocked": true
   },
-  ceiling_light: {
-    type: "ceiling_light",
-    label: "Ceiling Light",
-    price: 42,
-    shopPreviewSrc: "/shop-previews/ceiling-light.svg",
-    shortDescription: "A warm overhead light that brightens the whole room without taking any floor space.",
-    modelKey: "ceiling_light",
-    surface: "ceiling",
-    footprintWidth: 1.2,
-    footprintDepth: 1.2,
-    defaultRotationY: 0,
-    category: "Accents",
-    unlockKey: "starter-ceiling-light",
-    starterUnlocked: true
+  "ceiling_light": {
+    "type": "ceiling_light",
+    "label": "Ceiling Light",
+    "price": 42,
+    "shopPreviewSrc": "/shop-previews/ceiling-light.svg",
+    "shortDescription": "A warm overhead light that brightens the whole room without taking any floor space.",
+    "modelKey": "ceiling_light",
+    "surface": "ceiling",
+    "footprintWidth": 1.2,
+    "footprintDepth": 1.2,
+    "defaultRotationY": 0,
+    "category": "Accents",
+    "unlockKey": "starter-ceiling-light",
+    "starterUnlocked": true
   },
-  ceiling_fan: {
-    type: "ceiling_fan",
-    label: "Ceiling Fan",
-    price: 55,
-    shopPreviewSrc: "/shop-previews/ceiling-fan.svg",
-    shortDescription: "A soft-spinning fan that makes the room feel more lived-in and breezy overhead.",
-    modelKey: "ceiling_fan",
-    surface: "ceiling",
-    footprintWidth: 2.8,
-    footprintDepth: 2.8,
-    defaultRotationY: 0,
-    category: "Accents",
-    unlockKey: "starter-ceiling-fan",
-    starterUnlocked: true
+  "ceiling_fan": {
+    "type": "ceiling_fan",
+    "label": "Ceiling Fan",
+    "price": 55,
+    "shopPreviewSrc": "/shop-previews/ceiling-fan.svg",
+    "shortDescription": "A soft-spinning fan that makes the room feel more lived-in and breezy overhead.",
+    "modelKey": "ceiling_fan",
+    "surface": "ceiling",
+    "footprintWidth": 2.8,
+    "footprintDepth": 2.8,
+    "defaultRotationY": 0,
+    "category": "Accents",
+    "unlockKey": "starter-ceiling-fan",
+    "starterUnlocked": true
   },
-  hanging_plant: {
-    type: "hanging_plant",
-    label: "Hanging Plant",
-    price: 24,
-    shopPreviewSrc: "/shop-previews/hanging-plant.svg",
-    shortDescription: "A trailing hanging planter that softens the ceiling line with a little cozy greenery.",
-    modelKey: "hanging_plant",
-    surface: "ceiling",
-    footprintWidth: 1.1,
-    footprintDepth: 1.1,
-    defaultRotationY: 0,
-    category: "Accents",
-    unlockKey: "starter-hanging-plant",
-    starterUnlocked: true
+  "hanging_plant": {
+    "type": "hanging_plant",
+    "label": "Hanging Plant",
+    "price": 24,
+    "shopPreviewSrc": "/shop-previews/hanging-plant.svg",
+    "shortDescription": "A trailing hanging planter that softens the ceiling line with a little cozy greenery.",
+    "modelKey": "hanging_plant",
+    "surface": "ceiling",
+    "footprintWidth": 1.1,
+    "footprintDepth": 1.1,
+    "defaultRotationY": 0,
+    "category": "Accents",
+    "unlockKey": "starter-hanging-plant",
+    "starterUnlocked": true
+  },
+  "beanbag_chair": {
+    "type": "beanbag_chair",
+    "label": "Comfy Beanbag",
+    "price": 25,
+    "shopPreviewSrc": "/shop-previews/chair.svg",
+    "shortDescription": "A soft, squishy beanbag for ultimate lounging and relaxation.",
+    "modelKey": "beanbag_chair",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "furniture-beanbag-chair",
+    "starterUnlocked": false,
+    "interactionType": "sit",
+    "interactionOffset": [
+      0,
+      -0.12,
+      0.06
+    ]
+  },
+  "midnight_chair": {
+    "type": "midnight_chair",
+    "label": "Midnight Chair",
+    "price": 25,
+    "shopPreviewSrc": "/shop-previews/chair.svg",
+    "shortDescription": "A sleek, dark-stained chair that complements the modern aesthetic.",
+    "modelKey": "chair",
+    "surface": "floor",
+    "footprintWidth": 1,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "furniture-midnight-chair",
+    "starterUnlocked": false,
+    "interactionType": "sit",
+    "interactionOffset": [
+      0,
+      0,
+      0.06
+    ]
+  },
+  "midnight_desk": {
+    "type": "midnight_desk",
+    "label": "Midnight Desk + PC",
+    "price": 80,
+    "shopPreviewSrc": "/shop-previews/office-desk.png",
+    "shopPreviewScale": 1.16,
+    "shortDescription": "A premium dark desk setup for the ultimate late-night gaming and work experience.",
+    "modelKey": "office_desk",
+    "surface": "floor",
+    "footprintWidth": 3,
+    "footprintDepth": 1,
+    "defaultRotationY": 0,
+    "category": "Floor Furniture",
+    "unlockKey": "furniture-midnight-desk",
+    "starterUnlocked": false,
+    "interactionType": "use_pc",
+    "interactionOffset": [
+      0,
+      0,
+      -1
+    ],
+    "supportSurface": {
+      "width": 3,
+      "depth": 1,
+      "height": 0.84
+    }
   }
 };
 
@@ -468,6 +576,15 @@ const FURNITURE_COLLISION_BOXES: Partial<Record<FurnitureType, FurnitureCollisio
   hanging_plant: [
     { center: [0, -0.08, 0], size: [0.34, 0.16, 0.34] },
     { center: [0, -0.42, 0], size: [0.58, 0.94, 0.58] }
+  ],
+  beanbag_chair: [{ center: [0, 0.3, 0], size: [0.8, 0.6, 0.8] }],
+  midnight_chair: [
+    { center: [0, 0.52, 0], size: [0.78, 0.1, 0.78] },
+    { center: [0, 0.96, -0.25], size: [0.78, 0.8, 0.1] }
+  ],
+  midnight_desk: [
+    { center: [0, 0.88, 0], size: [2.72, 0.12, 0.92] },
+    { center: [0.26, 1.18, -0.18], size: [0.78, 0.48, 0.1] }
   ]
 };
 

@@ -23,6 +23,7 @@ export function cloneSharedRoomFrameMemory(
 ): SharedRoomFrameMemory {
   return {
     ...memory,
+    collectionId: memory.collectionId ?? "default",
     caption: sanitizeMemoryFrameCaption(memory.caption)
   };
 }
@@ -35,6 +36,15 @@ export function cloneSharedRoomFrameMemories(
       furnitureId,
       cloneSharedRoomFrameMemory(memory)
     ])
+  );
+}
+
+export function getSharedRoomMemoriesByCollection(
+  frameMemories: Record<string, SharedRoomFrameMemory>,
+  collectionId = "default"
+): SharedRoomFrameMemory[] {
+  return Object.values(frameMemories).filter(
+    (memory) => (memory.collectionId ?? "default") === collectionId
   );
 }
 
@@ -60,10 +70,7 @@ export function pruneSharedRoomFrameMemories(
       })
       .map(([furnitureId, memory]) => [
         furnitureId,
-        {
-          ...memory,
-          caption: sanitizeMemoryFrameCaption(memory.caption)
-        }
+        cloneSharedRoomFrameMemory(memory)
       ])
   );
 }
